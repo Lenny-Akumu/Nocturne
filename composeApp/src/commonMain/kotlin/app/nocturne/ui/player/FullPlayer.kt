@@ -217,7 +217,7 @@ private fun ArtworkView(url: String?, playing: Boolean) {
                     onDragCancel = { dx = 0f },
                 ) { _, d -> dx += d }
             }
-            .padding((1f - scale) * 120.dp)
+            .padding(120.dp * (1f - scale))
             .shadow(24.dp, RoundedCornerShape(24.dp))
             .clip(RoundedCornerShape(24.dp)),
         RoundedCornerShape(24.dp),

@@ -109,6 +109,7 @@ class NewPipeBackendImpl : NewPipeBackend {
         val progressive = candidates.filter { it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
         val pool = progressive.ifEmpty { candidates.filter { it.deliveryMethod == DeliveryMethod.HLS } }
         val chosen = pick(pool, quality)
+        val hls: String? = info.hlsUrl
         when {
             chosen != null -> ResolvedStream(
                 url = chosen.content,
@@ -117,7 +118,7 @@ class NewPipeBackendImpl : NewPipeBackend {
                 bitrate = chosen.averageBitrate,
                 codec = chosen.codec,
             )
-            !info.hlsUrl.isNullOrBlank() -> ResolvedStream(info.hlsUrl, "application/x-mpegURL", isHls = true)
+            !hls.isNullOrBlank() -> ResolvedStream(hls, "application/x-mpegURL", isHls = true)
             else -> throw SourceUnavailableException("No audio stream available")
         }
     }
