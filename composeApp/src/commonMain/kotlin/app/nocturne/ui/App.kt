@@ -1,0 +1,216 @@
+package app.nocturne.ui
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import app.nocturne.AppGraph
+import app.nocturne.ui.components.TrackMenuHost
+import app.nocturne.ui.player.FullPlayer
+import app.nocturne.ui.player.MiniPlayer
+import app.nocturne.ui.screens.CollectionScreen
+import app.nocturne.ui.screens.HomeScreen
+import app.nocturne.ui.screens.LibraryScreen
+import app.nocturne.ui.screens.SearchScreen
+import app.nocturne.ui.screens.SettingsPage
+import app.nocturne.ui.screens.SettingsScreen
+import app.nocturne.ui.theme.LocalBackdrop
+import app.nocturne.ui.theme.NocturneTheme
+
+@Composable
+expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
+
+private data class Tab(val screen: Screen, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
+
+private val tabs = listOf(
+    Tab(Screen.Home, "Home", Icons.Outlined.Home, Icons.Rounded.Home),
+    Tab(Screen.Search, "Search", Icons.Outlined.Search, Icons.Rounded.Search),
+    Tab(Screen.Library, "Library", Icons.Outlined.LibraryMusic, Icons.Rounded.LibraryMusic),
+)
+
+private val settingsTab = Tab(Screen.Settings, "Settings", Icons.Outlined.Settings, Icons.Rounded.Settings)
+
+@Composable
+fun App(backdrop: Boolean = false) {
+    val graph = AppGraph.instance
+    val settings by graph.settings.state.collectAsState()
+    NocturneTheme(settings, backdrop = backdrop) {
+        TrackMenuHost { AppScaffold() }
+    }
+}
+
+@Composable
+private fun AppScaffold() {
+    val graph = AppGraph.instance
+    val nav = graph.navigator
+    val player by graph.player.state.collectAsState()
+    val backdrop = LocalBackdrop.current
+    val bg = if (backdrop) Color.Transparent else MaterialTheme.colorScheme.background
+
+    PlatformBackHandler(enabled = nav.canGoBack) { nav.back() }
+
+    BoxWithConstraints(Modifier.fillMaxSize().background(bg)) {
+        val wide = maxWidth >= 720.dp
+        val hasPlayer = player.current != null
+        if (wide) {
+            Row(Modifier.fillMaxSize()) {
+                NavigationRail(
+                    containerColor = if (backdrop) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxHeight().statusBarsPadding(),
+                    header = {
+                        NocturneLogo(Modifier.padding(top = 12.dp, bottom = 16.dp).size(44.dp))
+                    },
+                ) {
+                    tabs.forEach { RailItem(it, nav) }
+                    Spacer(Modifier.weight(1f))
+                    RailItem(settingsTab, nav)
+                    Spacer(Modifier.height(if (hasPlayer) 96.dp else 16.dp))
+                }
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    val pad = PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 8.dp, bottom = if (hasPlayer) 100.dp else 16.dp)
+                    ScreenHost(pad)
+                }
+            }
+            MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = true, modifier = Modifier.align(Alignment.BottomCenter).padding(start = 80.dp).navigationBarsPadding())
+        } else {
+            val bottomPad = if (hasPlayer) 160.dp else 90.dp
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f)) {
+                    ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(), bottom = bottomPad))
+                }
+            }
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (backdrop) 0.7f else 0.97f)) {
+                    tabs.forEach { tab ->
+                        val selected = nav.currentTab == tab.screen
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { nav.selectTab(tab.screen) },
+                            icon = { Icon(if (selected) tab.selectedIcon else tab.icon, tab.label) },
+                            label = { Text(tab.label) },
+                        )
+                    }
+                }
+            }
+        }
+
+        player.error?.let { msg ->
+            Snackbar(
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp),
+                action = { TextButton(onClick = graph.player::dismissError) { Text("OK") } },
+            ) { Text(msg, maxLines = 2) }
+        }
+
+        AnimatedVisibility(
+            visible = nav.playerExpanded && hasPlayer,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+        ) {
+            FullPlayer(onCollapse = { nav.playerExpanded = false })
+        }
+    }
+}
+
+@Composable
+private fun RailItem(tab: Tab, nav: Navigator) {
+    val selected = nav.currentTab == tab.screen
+    NavigationRailItem(
+        selected = selected,
+        onClick = { nav.selectTab(tab.screen) },
+        icon = { Icon(if (selected) tab.selectedIcon else tab.icon, tab.label) },
+        label = { Text(tab.label) },
+    )
+}
+
+@Composable
+private fun ScreenHost(padding: PaddingValues) {
+    val nav = AppGraph.instance.navigator
+    AnimatedContent(
+        targetState = nav.current,
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "screen",
+    ) { screen ->
+        Column(Modifier.fillMaxSize()) {
+            val isTab = screen == Screen.Home || screen == Screen.Search || screen == Screen.Library
+            val inner = if (isTab) {
+                TopBar(padding)
+                PaddingValues(bottom = padding.calculateBottomPadding())
+            } else padding
+            Box(Modifier.weight(1f)) {
+                when (screen) {
+                    Screen.Home -> HomeScreen(inner)
+                    Screen.Search -> SearchScreen(inner)
+                    Screen.Library -> LibraryScreen(inner)
+                    Screen.Settings -> SettingsScreen(inner)
+                    is Screen.Collection -> CollectionScreen(screen.ref, inner)
+                    is Screen.SettingsPage -> SettingsPage(screen.page, inner)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopBar(padding: PaddingValues) {
+    val nav = AppGraph.instance.navigator
+    Row(
+        Modifier.fillMaxWidth().padding(top = padding.calculateTopPadding()).padding(start = 18.dp, end = 6.dp, top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        NocturneLogo(Modifier.size(30.dp))
+        Spacer(Modifier.width(10.dp))
+        Text("Nocturne", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        IconButton(onClick = { nav.push(Screen.Settings) }) { Icon(Icons.Rounded.Settings, "Settings") }
+    }
+}
