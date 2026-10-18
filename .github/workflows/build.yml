@@ -23,7 +23,12 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - name: Build APK
-        run: ./gradlew :composeApp:assembleRelease --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:assembleRelease --continue 2>&1 | tee build.log
+      - name: Show compile errors
+        if: failure()
+        run: grep -E '^(e:|w: .*deprecated)|error:|FAILURE|What went wrong' -A3 build.log | grep -v '^w:' | head -150
       - name: Rename APK
         run: |
           mkdir -p out
@@ -44,8 +49,14 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - name: Build MSI and EXE
-        run: ./gradlew :composeApp:packageMsi :composeApp:packageExe --stacktrace
         shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:packageMsi :composeApp:packageExe --continue 2>&1 | tee build.log
+      - name: Show compile errors
+        if: failure()
+        shell: bash
+        run: grep -E '^e:|error:|What went wrong' -A3 build.log | head -150
       - uses: actions/upload-artifact@v4
         with:
           name: Nocturne-windows

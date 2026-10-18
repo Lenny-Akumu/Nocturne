@@ -246,8 +246,9 @@ private fun Controls() {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.clickable(enabled = artist?.id != null) {
-                        artist?.id?.let { graph.navigator.push(Screen.Collection(CollectionRef(it, track.source, CollectionType.ARTIST, artist.name))) }
-                        graph.navigator.requestCollapse()
+                        val a = artist ?: return@clickable
+                        val id = a.id ?: return@clickable
+                        graph.navigator.push(Screen.Collection(CollectionRef(id, track.source, CollectionType.ARTIST, a.name)))
                     },
                 )
             }

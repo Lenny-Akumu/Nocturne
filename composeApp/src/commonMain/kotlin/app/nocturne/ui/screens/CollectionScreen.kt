@@ -77,10 +77,10 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     var addAll by remember { mutableStateOf(false) }
 
     val local = ref.type == CollectionType.LOCAL
-    if (local) {
-        page = if (ref.id == LikedRef.id) CollectionPage(LikedRef.copy(subtitle = "${library.liked.size} songs", artworkUrl = library.liked.firstOrNull()?.artworkUrl), library.liked)
-        else library.playlists.firstOrNull { it.id == ref.id }?.let { CollectionPage(it.ref, it.tracks) }
-    } else {
+    val localPage = if (!local) null
+    else if (ref.id == LikedRef.id) CollectionPage(LikedRef.copy(subtitle = "${library.liked.size} songs", artworkUrl = library.liked.firstOrNull()?.artworkUrl), library.liked)
+    else library.playlists.firstOrNull { it.id == ref.id }?.let { CollectionPage(it.ref, it.tracks) }
+    if (!local) {
         LaunchedEffect(ref.key, attempt) {
             if (page != null) return@LaunchedEffect
             error = null
@@ -90,7 +90,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
         }
     }
 
-    val p = page
+    val p = localPage ?: page
     val header = p?.ref ?: ref
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)) {
         item {

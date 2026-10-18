@@ -117,7 +117,7 @@ class NewPipeBackendImpl : NewPipeBackend {
                 bitrate = chosen.averageBitrate,
                 codec = chosen.codec,
             )
-            info.hlsUrl.isNotBlank() -> ResolvedStream(info.hlsUrl, "application/x-mpegURL", isHls = true)
+            !info.hlsUrl.isNullOrBlank() -> ResolvedStream(info.hlsUrl, "application/x-mpegURL", isHls = true)
             else -> throw SourceUnavailableException("No audio stream available")
         }
     }
