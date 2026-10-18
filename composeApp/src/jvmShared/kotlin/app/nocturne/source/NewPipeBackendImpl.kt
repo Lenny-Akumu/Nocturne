@@ -136,7 +136,7 @@ class NewPipeBackendImpl : NewPipeBackend {
     override suspend fun track(source: Source, url: String): Track = io {
         val info = StreamInfo.getInfo(service(source), url)
         Track(
-            id = trackId(source, info.url),
+            id = trackId(source, info.url) ?: url,
             source = source,
             title = info.name,
             artists = listOf(ArtistRef(info.uploaderName, artistId(source, info.uploaderUrl))),
