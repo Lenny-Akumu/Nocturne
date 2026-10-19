@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
@@ -47,14 +48,14 @@ actual fun ShortcutSettings() {
 
     Column {
         Text(
-            "Click an action and press the new key combination. Media keys always work.",
+            t("Click an action and press the new key combination. Media keys always work."),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         ListItem(
-            headlineContent = { Text("Work when Nocturne is minimized") },
-            supportingContent = { Text("Global shortcuts and media keys system-wide") },
+            headlineContent = { Text(t("Work when Nocturne is minimized")) },
+            supportingContent = { Text(t("Global shortcuts and media keys system-wide")) },
             trailingContent = {
                 androidx.compose.material3.Switch(
                     checked = settings.globalHotkeys,
@@ -66,7 +67,7 @@ actual fun ShortcutSettings() {
         )
         HotkeyAction.entries.forEach { action ->
             ListItem(
-                headlineContent = { Text(action.label) },
+                headlineContent = { Text(t(action.label)) },
                 trailingContent = {
                     Text(Hotkeys.label(Hotkeys.binding(action, settings)), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                 },
@@ -76,7 +77,7 @@ actual fun ShortcutSettings() {
             )
         }
         ListItem(
-            headlineContent = { Text("Reset to defaults") },
+            headlineContent = { Text(t("Reset to defaults")) },
             leadingContent = { Icon(Icons.Rounded.Restore, null) },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier.clickable { graph.settings.update { it.copy(hotkeys = emptyMap()) } }.padding(horizontal = 8.dp),
@@ -102,7 +103,7 @@ actual fun ShortcutSettings() {
         }
         AlertDialog(
             onDismissRequest = { editing = null },
-            title = { Text(action.label) },
+            title = { Text(t(action.label)) },
             text = {
                 Box(
                     Modifier.fillMaxWidth().height(90.dp)
@@ -121,13 +122,13 @@ actual fun ShortcutSettings() {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { captured?.let { save(it) } }, enabled = captured != null) { Text("Save") }
+                TextButton(onClick = { captured?.let { save(it) } }, enabled = captured != null) { Text(t("Save")) }
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { save("") }) { Text("Clear") }
-                    TextButton(onClick = { save(action.default) }) { Text("Default") }
-                    TextButton(onClick = { editing = null }) { Text("Cancel") }
+                    TextButton(onClick = { save("") }) { Text(t("Clear")) }
+                    TextButton(onClick = { save(action.default) }) { Text(t("Default")) }
+                    TextButton(onClick = { editing = null }) { Text(t("Cancel")) }
                 }
             },
         )

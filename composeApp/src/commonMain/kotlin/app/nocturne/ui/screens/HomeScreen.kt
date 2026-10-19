@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -217,9 +218,9 @@ private fun ConnectSpotifyCard() {
             SourceBadge(Source.SPOTIFY, size = 36.dp)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("Connect Spotify", style = MaterialTheme.typography.titleMedium)
+                Text(t("Connect Spotify"), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Sign in to see your playlists, liked songs and top tracks here.",
+                    t("Sign in to see your playlists, liked songs and top tracks here."),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,7 +84,7 @@ fun AccountsSettings() {
 
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
-            "Connect your music accounts to bring your liked songs, playlists, albums and artists into Nocturne.",
+            t("Connect your music accounts to bring your liked songs, playlists, albums and artists into Nocturne."),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp),
@@ -160,12 +161,12 @@ fun AccountsSettings() {
         AlertDialog(
             onDismissRequest = { spotifyDev = false },
             icon = { SourceBadge(Source.SPOTIFY, size = 32.dp) },
-            title = { Text("Set up Spotify once") },
+            title = { Text(t("Set up Spotify once")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                    Text("Spotify lets apps sign you in only through a registered app. It takes about a minute and you only do it once:", style = MaterialTheme.typography.bodyMedium)
+                    Text(t("Spotify lets apps sign you in only through a registered app. It takes about a minute and you only do it once:"), style = MaterialTheme.typography.bodyMedium)
                     Step(1, "Open the Spotify dashboard and create an app (any name, select “Web API”).")
-                    TextButton(onClick = { uri.openUri("https://developer.spotify.com/dashboard/create") }) { Text("Open Spotify dashboard") }
+                    TextButton(onClick = { uri.openUri("https://developer.spotify.com/dashboard/create") }) { Text(t("Open Spotify dashboard")) }
                     Step(2, "In “Redirect URIs” add both of these:")
                     listOf("nocturne://spotify-callback", "http://127.0.0.1:8898/callback").forEach { r ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -174,8 +175,8 @@ fun AccountsSettings() {
                         }
                     }
                     Step(3, "Copy the app's Client ID and paste it here:")
-                    OutlinedTextField(clientId, { clientId = it.trim() }, label = { Text("Client ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Text("Then you sign in on Spotify's own page — with Google, Facebook, Apple or email.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(clientId, { clientId = it.trim() }, label = { Text(t("Client ID")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Text(t("Then you sign in on Spotify's own page — with Google, Facebook, Apple or email."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = {
@@ -183,9 +184,9 @@ fun AccountsSettings() {
                     graph.settings.update { it.copy(spotifyClientId = clientId) }
                     spotifyDev = false
                     run(Source.SPOTIFY) { graph.spotify.signIn() }
-                }, enabled = clientId.length >= 16) { Text("Continue with Spotify") }
+                }, enabled = clientId.length >= 16) { Text(t("Continue with Spotify")) }
             },
-            dismissButton = { TextButton(onClick = { spotifyDev = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { spotifyDev = false }) { Text(t("Cancel")) } },
         )
     }
 
@@ -194,7 +195,7 @@ fun AccountsSettings() {
         val yt = source == Source.YOUTUBE_MUSIC
         AlertDialog(
             onDismissRequest = { paste = null },
-            title = { Text(if (yt) "Sign in with browser cookies" else "Sign in with a token") },
+            title = { Text(t(if (yt) "Sign in with browser cookies" else "Sign in with a token")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -209,9 +210,9 @@ fun AccountsSettings() {
                 TextButton(onClick = {
                     paste = null
                     if (yt) run(source) { graph.signInYouTube(text) } else run(source) { graph.soundcloud.signIn(text) }
-                }, enabled = text.isNotBlank()) { Text("Sign in") }
+                }, enabled = text.isNotBlank()) { Text(t("Sign in")) }
             },
-            dismissButton = { TextButton(onClick = { paste = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { paste = null }) { Text(t("Cancel")) } },
         )
     }
 }
@@ -220,7 +221,7 @@ fun AccountsSettings() {
 private fun Step(n: Int, text: String) {
     Row {
         Text("$n.", fontWeight = FontWeight.Bold, modifier = Modifier.width(22.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium)
+        Text(t(text), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -236,7 +237,7 @@ private fun ProviderButton(label: String, container: Color, content: Color, mark
             Text(mark, fontWeight = FontWeight.Black, color = Color(0xFF4285F4), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.width(10.dp))
         }
-        Text(label, style = MaterialTheme.typography.titleSmall)
+        Text(t(label), style = MaterialTheme.typography.titleSmall)
     }
 }
 
@@ -259,7 +260,7 @@ private fun AccountCard(
                 Column(Modifier.weight(1f)) {
                     Text(source.label, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        signedInAs?.let { "Signed in as $it" } ?: hint,
+                        signedInAs?.let { t("Signed in as %s", it) } ?: t(hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (signedInAs != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -269,7 +270,7 @@ private fun AccountCard(
             }
             if (signedInAs == null && !busy) {
                 signIn()
-                TextButton(onClick = onOther, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(otherLabel) }
+                TextButton(onClick = onOther, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t(otherLabel)) }
             }
         }
     }

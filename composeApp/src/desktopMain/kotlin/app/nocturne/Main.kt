@@ -120,6 +120,7 @@ private fun launchApp() {
             window.minimumSize = java.awt.Dimension(420, 600)
             MainWindow.window = window
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
+            LaunchedEffect(Unit) { DiscordRpc.start() }
             val dark = isDark(settings)
             var backdrop by remember { mutableStateOf(false) }
             LaunchedEffect(settings.windowBackdrop, dark) {

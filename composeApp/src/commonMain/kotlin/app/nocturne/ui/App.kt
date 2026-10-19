@@ -1,5 +1,6 @@
 package app.nocturne.ui
 
+import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -156,7 +157,7 @@ private fun AppScaffold() {
                             selected = selected,
                             onClick = { nav.selectTab(tab.screen) },
                             icon = { Icon(if (selected) tab.selectedIcon else tab.icon, tab.label) },
-                            label = { Text(tab.label) },
+                            label = { Text(t(tab.label)) },
                         )
                     }
                 }
@@ -166,7 +167,7 @@ private fun AppScaffold() {
         player.error?.let { msg ->
             Snackbar(
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp),
-                action = { TextButton(onClick = graph.player::dismissError) { Text("OK") } },
+                action = { TextButton(onClick = graph.player::dismissError) { Text(t("OK")) } },
             ) { Text(msg, maxLines = 2) }
         }
 
@@ -229,7 +230,7 @@ private fun TopBar(padding: PaddingValues) {
     ) {
         NocturneLogo(Modifier.size(30.dp))
         Spacer(Modifier.width(10.dp))
-        Text("Nocturne", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(t("Nocturne"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         IconButton(onClick = { nav.push(Screen.Settings) }) { Icon(Icons.Rounded.Settings, "Settings") }
     }
 }

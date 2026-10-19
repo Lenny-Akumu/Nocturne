@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -57,7 +58,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
-            Text("Versions", style = MaterialTheme.typography.headlineSmall)
+            Text(t("Versions"), style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 TrackVersion.entries.forEach { v ->
@@ -66,12 +67,12 @@ fun AudioSheet(onDismiss: () -> Unit) {
                         onClick = { graph.settings.update { it.copy(playbackSpeed = v.speed) } },
                         border = if (selected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface)
                         else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    ) { Text(v.label) }
+                    ) { Text(t(v.label)) }
                 }
             }
             var speed by remember(settings.playbackSpeed) { mutableFloatStateOf(settings.playbackSpeed) }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
-                Text("Speed", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text(t("Speed"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 Text("${(speed * 100).roundToInt() / 100.0}×", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
             Slider(
@@ -84,7 +85,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
 
             Spacer(Modifier.height(20.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Equalizer", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                Text(t("Equalizer"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                 Switch(checked = settings.eqEnabled, onCheckedChange = { v -> graph.settings.update { it.copy(eqEnabled = v) } })
             }
             Spacer(Modifier.height(12.dp))
@@ -100,7 +101,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
                                 else it.copy(eqPreset = name, eqGains = gains, eqEnabled = true)
                             }
                         },
-                        label = { Text(name) },
+                        label = { Text(t(name)) },
                     )
                 }
             }

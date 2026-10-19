@@ -1,5 +1,6 @@
 package app.nocturne.ui
 
+import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -84,9 +85,9 @@ fun UpdateBanner(modifier: Modifier = Modifier) {
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Update available — Nocturne ${i.version}", style = MaterialTheme.typography.titleMedium)
+                        Text(t("Update available — Nocturne %s", i.version), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "You have ${BuildInfo.VERSION}" + (if (i.size > 0) " • ${mb(i.size)} MB" else ""),
+                            t("You have %s", BuildInfo.VERSION) + (if (i.size > 0) " • ${mb(i.size)} MB" else ""),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -109,7 +110,7 @@ fun UpdateBanner(modifier: Modifier = Modifier) {
                             strokeCap = StrokeCap.Round,
                         )
                         Text(
-                            "Downloading… ${(s.progress * 100).toInt()}%" +
+                            t("Downloading… %s%", (s.progress * 100).toInt()) +
                                 (if (i.size > 0) " • ${mb((i.size * s.progress).toLong())} / ${mb(i.size)} MB" else ""),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -125,12 +126,12 @@ fun UpdateBanner(modifier: Modifier = Modifier) {
                             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            if (i.notes.isNotBlank()) TextButton(onClick = { notes = !notes }) { Text(if (notes) "Hide" else "What's new") }
+                            if (i.notes.isNotBlank()) TextButton(onClick = { notes = !notes }) { Text(t(if (notes) "Hide" else "What's new")) }
                             Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { updater.skip(i) }) { Text("Skip") }
-                            TextButton(onClick = { updater.later() }) { Text("Later") }
+                            TextButton(onClick = { updater.skip(i) }) { Text(t("Skip")) }
+                            TextButton(onClick = { updater.later() }) { Text(t("Later")) }
                             Button(onClick = { scope.launch { updater.install(i) } }) {
-                                Text(if (s is UpdateState.Failed) "Retry" else "Update")
+                                Text(t(if (s is UpdateState.Failed) "Retry" else "Update"))
                             }
                         }
                     }

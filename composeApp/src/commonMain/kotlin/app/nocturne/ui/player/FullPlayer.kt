@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -157,7 +158,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onCollapse) { Icon(Icons.Rounded.KeyboardArrowDown, "Collapse", Modifier.size(30.dp)) }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("PLAYING FROM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(t("PLAYING FROM"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.queueTitle ?: track.album ?: track.source.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 IconButton(onClick = { menu(track, TrackMenuContext()) }) { Icon(Icons.Rounded.MoreVert, "More") }
@@ -373,19 +374,19 @@ private fun SleepTimerDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Rounded.Bedtime, null) },
-        title = { Text("Sleep timer") },
+        title = { Text(t("Sleep timer")) },
         text = {
             Column {
                 listOf(5, 15, 30, 45, 60, 90).forEach { m ->
-                    TextButton(onClick = { player.setSleepTimer(m); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text("$m minutes") }
+                    TextButton(onClick = { player.setSleepTimer(m); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text(t("%s minutes", m)) }
                 }
-                TextButton(onClick = { player.sleepAfterCurrentTrack(); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text("End of track") }
+                TextButton(onClick = { player.sleepAfterCurrentTrack(); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text(t("End of track")) }
             }
         },
         confirmButton = {
-            if (state.sleepAtMs != null || state.sleepAfterTrack) TextButton(onClick = { player.setSleepTimer(null); onDismiss() }) { Text("Turn off") }
+            if (state.sleepAtMs != null || state.sleepAfterTrack) TextButton(onClick = { player.setSleepTimer(null); onDismiss() }) { Text(t("Turn off")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t("Close")) } },
     )
 }
 

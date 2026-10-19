@@ -70,6 +70,21 @@ data class Settings(
     val floatingPlayer: Boolean = false,
     val uiLanguage: String = "system",
 
+    val discordRpc: Boolean = true,
+    val discordAppId: String = "",
+    val discordDetails: String = "{title}",
+    val discordState: String = "{artist}",
+    val discordLargeText: String = "{album}",
+    val discordSmallText: String = "{source}",
+    val discordButton: String = "Listen on {source}",
+    val discordActivityType: Int = 2,
+    val discordStatusDisplay: Int = 2,
+    val discordShowArtwork: Boolean = true,
+    val discordShowSource: Boolean = true,
+    val discordShowTime: Boolean = true,
+    val discordShowButton: Boolean = true,
+    val discordShowPaused: Boolean = false,
+
     val autoCheckUpdates: Boolean = true,
     val skippedVersion: String = "",
 

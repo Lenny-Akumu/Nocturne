@@ -1,5 +1,6 @@
 package app.nocturne.ui.components
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -82,6 +83,7 @@ fun TrackRow(
         modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
+            .onRightClick { menu(track, menuContext) }
             .combinedClickable(onClick = onClick, onLongClick = { menu(track, menuContext) })
             .padding(horizontal = 12.dp, vertical = if (dense) 4.dp else 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -166,7 +168,7 @@ fun CollectionCard(ref: CollectionRef, onClick: () -> Unit, modifier: Modifier =
 fun SongCard(track: Track, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val menu = LocalTrackMenu.current
     val settings by AppGraph.instance.settings.state.collectAsState()
-    Column(modifier.width(156.dp).clip(MaterialTheme.shapes.medium).combinedClickable(onClick = onClick, onLongClick = { menu(track, TrackMenuContext()) }).padding(6.dp)) {
+    Column(modifier.width(156.dp).clip(MaterialTheme.shapes.medium).onRightClick { menu(track, TrackMenuContext()) }.combinedClickable(onClick = onClick, onLongClick = { menu(track, TrackMenuContext()) }).padding(6.dp)) {
         Box {
             Artwork(track.artworkUrl, Modifier.fillMaxWidth().aspectRatio(1f), MaterialTheme.shapes.medium)
             if (settings.showSourceBadges) SourceBadge(track.source, Modifier.align(Alignment.BottomEnd).padding(6.dp), 18.dp)
@@ -181,7 +183,7 @@ fun SongCard(track: Track, onClick: () -> Unit, modifier: Modifier = Modifier) {
 fun SectionHeader(title: String, modifier: Modifier = Modifier, badge: (@Composable () -> Unit)? = null, action: (@Composable () -> Unit)? = null) {
     Row(modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         badge?.let { it(); Spacer(Modifier.width(8.dp)) }
-        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(t(title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         action?.invoke()
     }
 }
@@ -259,14 +261,14 @@ fun MessageBox(icon: ImageVector, title: String, message: String? = null, modifi
     Column(modifier.fillMaxWidth().padding(36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(icon, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
         Spacer(Modifier.height(14.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(t(title), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         message?.let {
             Spacer(Modifier.height(6.dp))
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(t(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
         if (actionLabel != null && onAction != null) {
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onAction) { Text(actionLabel) }
+            Button(onClick = onAction) { Text(t(actionLabel)) }
         }
     }
 }

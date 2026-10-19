@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,6 +48,12 @@ import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.SmartButton
+import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wallpaper
@@ -92,6 +99,8 @@ import app.nocturne.model.Source
 import app.nocturne.platformKind
 import app.nocturne.ui.Screen
 import app.nocturne.ui.components.SourceBadge
+import app.nocturne.ui.components.DiscordPreview
+import app.nocturne.DiscordPresence
 import app.nocturne.ui.theme.AccentPresets
 import kotlinx.coroutines.launch
 
@@ -105,6 +114,7 @@ enum class SettingsCategory(val title: String, val summary: String, val icon: Im
     PLAYER("Player & audio", "Quality, autoplay, queue", Icons.Rounded.PlayCircle),
     LYRICS("Lyrics", "Synced lyrics display", Icons.Rounded.Lyrics),
     SHORTCUTS("Keyboard shortcuts", "Customize hotkeys", Icons.Rounded.Keyboard),
+    DISCORD("Discord", "Rich Presence — show what you're listening to", Icons.Rounded.SportsEsports),
     SPOTIFY("Spotify", "API credentials", Icons.Rounded.Key),
     STORAGE("Storage", "Cache and data", Icons.Rounded.Storage),
     PRIVACY("Privacy", "History and search", Icons.Rounded.Security),
@@ -116,12 +126,12 @@ fun SettingsScreen(contentPadding: PaddingValues) {
     val nav = AppGraph.instance.navigator
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
-            Text("Settings", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 12.dp))
+            Text(t("Settings"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 12.dp))
         }
-        items(SettingsCategory.entries.filter { it != SettingsCategory.SHORTCUTS || platformKind == PlatformKind.DESKTOP }) { c ->
+        items(SettingsCategory.entries.filter { (it != SettingsCategory.SHORTCUTS && it != SettingsCategory.DISCORD) || platformKind == PlatformKind.DESKTOP }) { c ->
             ListItem(
-                headlineContent = { Text(c.title) },
-                supportingContent = { Text(c.summary) },
+                headlineContent = { Text(t(c.title)) },
+                supportingContent = { Text(t(c.summary)) },
                 leadingContent = {
                     Box(Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
                         Icon(c.icon, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -145,7 +155,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
         item {
             Row(Modifier.padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { graph.navigator.back() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
-                Text(category.title, style = MaterialTheme.typography.headlineSmall)
+                Text(t(category.title), style = MaterialTheme.typography.headlineSmall)
             }
         }
         item {
@@ -153,7 +163,51 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                 when (category) {
                     SettingsCategory.ACCOUNTS -> AccountsSettings()
                     SettingsCategory.SHORTCUTS -> ShortcutSettings()
+                    SettingsCategory.DISCORD -> {
+                        val player by graph.player.state.collectAsState()
+                        val uri = LocalUriHandler.current
+                        Toggle("Discord Rich Presence", DiscordPresence.status.ifBlank { null }, Icons.Rounded.SportsEsports, s.discordRpc) { v -> set { it.copy(discordRpc = v) } }
+                        TextPref("Application ID", "Required — copy it from the Discord developer portal", Icons.Rounded.Key, s.discordAppId) { v -> set { it.copy(discordAppId = v.filter(Char::isDigit)) } }
+                        Action("Open Discord developer portal", "Create an app named “Nocturne” and copy its Application ID", Icons.AutoMirrored.Rounded.OpenInNew) { uri.openUri("https://discord.com/developers/applications") }
+                        Header("Preview")
+                        DiscordPreview(s, player.current)
+                        Header("Text")
+                        Text(
+                            t("Placeholders: %s", "{title} {artist} {album} {source} {app}"),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                        )
+                        TextPref("First line", "{title}", Icons.Rounded.TextFields, s.discordDetails) { v -> set { it.copy(discordDetails = v) } }
+                        TextPref("Second line", "{artist}", Icons.Rounded.TextFields, s.discordState) { v -> set { it.copy(discordState = v) } }
+                        TextPref("Artwork tooltip", "{album}", Icons.Rounded.Image, s.discordLargeText) { v -> set { it.copy(discordLargeText = v) } }
+                        TextPref("Source icon tooltip", "{source}", Icons.Rounded.Image, s.discordSmallText) { v -> set { it.copy(discordSmallText = v) } }
+                        TextPref("Button text", "Listen on {source}", Icons.Rounded.SmartButton, s.discordButton) { v -> set { it.copy(discordButton = v) } }
+                        Header("Display")
+                        Choice("Activity type", Icons.Rounded.SportsEsports, s.discordActivityType, listOf(2, 0), { if (it == 2) "Listening to" else "Playing" }) { v -> set { it.copy(discordActivityType = v) } }
+                        Choice("Status in member list", Icons.Rounded.TextFields, s.discordStatusDisplay, listOf(0, 2, 1), { when (it) { 0 -> "App name"; 2 -> "First line"; else -> "Second line" } }) { v -> set { it.copy(discordStatusDisplay = v) } }
+                        Toggle("Show artwork", null, Icons.Rounded.Image, s.discordShowArtwork) { v -> set { it.copy(discordShowArtwork = v) } }
+                        Toggle("Show source icon", "YouTube Music, Spotify or SoundCloud logo", Icons.Rounded.Image, s.discordShowSource) { v -> set { it.copy(discordShowSource = v) } }
+                        Toggle("Show time", "Elapsed and remaining time", Icons.Rounded.Timer, s.discordShowTime) { v -> set { it.copy(discordShowTime = v) } }
+                        Toggle("Show button", "Opens the song for your friends", Icons.Rounded.SmartButton, s.discordShowButton) { v -> set { it.copy(discordShowButton = v) } }
+                        Toggle("Show while paused", null, Icons.Rounded.Pause, s.discordShowPaused) { v -> set { it.copy(discordShowPaused = v) } }
+                        Action("Reset to defaults", null, Icons.Rounded.Restore) {
+                            val d = Settings()
+                            set {
+                                it.copy(
+                                    discordDetails = d.discordDetails, discordState = d.discordState, discordLargeText = d.discordLargeText,
+                                    discordSmallText = d.discordSmallText, discordButton = d.discordButton, discordActivityType = d.discordActivityType,
+                                    discordStatusDisplay = d.discordStatusDisplay, discordShowArtwork = true, discordShowSource = true,
+                                    discordShowTime = true, discordShowButton = true, discordShowPaused = false,
+                                )
+                            }
+                        }
+                    }
                     SettingsCategory.APPEARANCE -> {
+                        Header("Language")
+                        Choice("Interface language", Icons.Rounded.Language, s.uiLanguage, app.nocturne.i18n.I18n.languages.map { it.first }, { code ->
+                            app.nocturne.i18n.I18n.languages.firstOrNull { it.first == code }?.second ?: code
+                        }) { v -> set { it.copy(uiLanguage = v) } }
                         Header("Theme")
                         Choice("Theme", Icons.Rounded.DarkMode, s.themeMode, ThemeMode.entries, { it.label }) { v -> set { it.copy(themeMode = v) } }
                         Toggle(
@@ -211,7 +265,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     }
                     SettingsCategory.SPOTIFY -> {
                         Text(
-                            "Spotify search, albums, playlists and artists use the official Web API. Create a free app at developer.spotify.com, then paste its Client ID and Secret here. Audio is matched and streamed from YouTube Music.",
+                            t("Spotify search, albums, playlists and artists use the official Web API. Create a free app at developer.spotify.com, then paste its Client ID and Secret here. Audio is matched and streamed from YouTube Music."),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -240,8 +294,8 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             app.nocturne.ui.NocturneLogo(Modifier.size(96.dp))
                             Spacer(Modifier.height(12.dp))
-                            Text("Nocturne", style = MaterialTheme.typography.headlineSmall)
-                            Text("Version ${app.nocturne.BuildInfo.VERSION}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(t("Nocturne"), style = MaterialTheme.typography.headlineSmall)
+                            Text(t("Version %s", app.nocturne.BuildInfo.VERSION), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Source.entries.forEach { SourceBadge(it, size = 22.dp) } }
                         }
@@ -273,14 +327,14 @@ private fun sourceSummary(src: Source, s: Settings) = when (src) {
 
 @Composable
 private fun Header(text: String) {
-    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 6.dp))
+    Text(t(text), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 6.dp))
 }
 
 @Composable
 private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked: Boolean, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
     ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = summary?.let { { Text(it) } },
+        headlineContent = { Text(t(title)) },
+        supportingContent = summary?.let { { Text(t(it)) } },
         leadingContent = leading ?: icon?.let { { Icon(it, null) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -291,8 +345,8 @@ private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked:
 @Composable
 private fun Action(title: String, summary: String?, icon: ImageVector, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = summary?.let { { Text(it) } },
+        headlineContent = { Text(t(title)) },
+        supportingContent = summary?.let { { Text(t(it)) } },
         leadingContent = { Icon(icon, null) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp),
@@ -302,11 +356,11 @@ private fun Action(title: String, summary: String?, icon: ImageVector, onClick: 
 @Composable
 private fun <T> Choice(title: String, icon: ImageVector, value: T, options: List<T>, label: (T) -> String, onSelect: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Action(title, label(value), icon) { open = true }
+    Action(title, t(label(value)), icon) { open = true }
     if (open) {
         AlertDialog(
             onDismissRequest = { open = false },
-            title = { Text(title) },
+            title = { Text(t(title)) },
             text = {
                 Column {
                     options.forEach { o ->
@@ -316,12 +370,12 @@ private fun <T> Choice(title: String, icon: ImageVector, value: T, options: List
                         ) {
                             RadioButton(selected = o == value, onClick = null)
                             Spacer(Modifier.size(12.dp))
-                            Text(label(o))
+                            Text(t(label(o)))
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { open = false }) { Text("Close") } },
+            confirmButton = { TextButton(onClick = { open = false }) { Text(t("Close")) } },
         )
     }
 }
@@ -339,7 +393,7 @@ private fun TextPref(title: String, hint: String?, icon: ImageVector, value: Str
         var text by remember { mutableStateOf(value) }
         AlertDialog(
             onDismissRequest = { open = false },
-            title = { Text(title) },
+            title = { Text(t(title)) },
             text = {
                 OutlinedTextField(
                     text, { text = it }, singleLine = true, placeholder = hint?.let { { Text(it) } },
@@ -347,8 +401,8 @@ private fun TextPref(title: String, hint: String?, icon: ImageVector, value: Str
                     keyboardOptions = KeyboardOptions(keyboardType = if (secret) KeyboardType.Password else KeyboardType.Text),
                 )
             },
-            confirmButton = { TextButton(onClick = { onSave(text); open = false }) { Text("Save") } },
-            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = { onSave(text); open = false }) { Text(t("Save")) } },
+            dismissButton = { TextButton(onClick = { open = false }) { Text(t("Cancel")) } },
         )
     }
 }
@@ -358,7 +412,7 @@ private fun SliderPref(title: String, valueLabel: String, value: Float, range: C
     var local by remember(value) { mutableFloatStateOf(value) }
     Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
         Row {
-            Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(t(title), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Text(valueLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Slider(value = local, onValueChange = { local = it }, onValueChangeFinished = { onChange(local) }, valueRange = range, steps = steps)

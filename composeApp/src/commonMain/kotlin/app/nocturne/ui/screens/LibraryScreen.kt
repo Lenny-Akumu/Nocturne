@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -74,11 +75,11 @@ fun LibraryScreen(contentPadding: PaddingValues) {
 
     Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Library", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            Text(t("Library"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
             IconButton(onClick = { creating = true }) { Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, "New playlist") }
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(LibraryTab.entries) { t -> FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(t.label) }) }
+            items(LibraryTab.entries) { lt -> FilterChip(selected = tab == lt, onClick = { tab = lt }, label = { Text(t(lt.label)) }) }
         }
         val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)
         when (tab) {
@@ -87,7 +88,7 @@ fun LibraryScreen(contentPadding: PaddingValues) {
             LibraryTab.HISTORY -> TrackList(library.history.map { it.track }, "History", bottom, Icons.Rounded.History, "Nothing played yet", null,
                 action = { if (library.history.isNotEmpty()) IconButton(onClick = { graph.library.clearHistory() }) { Icon(Icons.Rounded.Delete, "Clear history") } })
             LibraryTab.PLAYLISTS -> {
-                val refs = listOf(LikedRef.copy(subtitle = "${library.liked.size} songs", artworkUrl = library.liked.firstOrNull()?.artworkUrl)) +
+                val refs = listOf(LikedRef.copy(subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl)) +
                     library.playlists.map { it.ref } + library.saved.filter { it.type == CollectionType.PLAYLIST }
                 CollectionGrid(refs, bottom)
             }
@@ -108,10 +109,10 @@ fun LibraryScreen(contentPadding: PaddingValues) {
         var name by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { creating = false },
-            title = { Text("New playlist") },
-            text = { OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true) },
-            confirmButton = { TextButton(onClick = { graph.library.createPlaylist(name); creating = false; tab = LibraryTab.PLAYLISTS }) { Text("Create") } },
-            dismissButton = { TextButton(onClick = { creating = false }) { Text("Cancel") } },
+            title = { Text(t("New playlist")) },
+            text = { OutlinedTextField(name, { name = it }, label = { Text(t("Name")) }, singleLine = true) },
+            confirmButton = { TextButton(onClick = { graph.library.createPlaylist(name); creating = false; tab = LibraryTab.PLAYLISTS }) { Text(t("Create")) } },
+            dismissButton = { TextButton(onClick = { creating = false }) { Text(t("Cancel")) } },
         )
     }
 }
@@ -135,11 +136,11 @@ private fun TrackList(
         item {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalButton(onClick = { player.play(tracks, 0, title) }) {
-                    Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text("Play")
+                    Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(t("Play"))
                 }
                 Spacer(Modifier.width(8.dp))
                 FilledTonalButton(onClick = { player.play(tracks, tracks.indices.random(), title, shuffle = true) }) {
-                    Icon(Icons.Rounded.Shuffle, null); Spacer(Modifier.width(6.dp)); Text("Shuffle")
+                    Icon(Icons.Rounded.Shuffle, null); Spacer(Modifier.width(6.dp)); Text(t("Shuffle"))
                 }
                 Spacer(Modifier.weight(1f))
                 Text("${tracks.size}", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -188,13 +189,13 @@ private fun OnlineLibrary(padding: PaddingValues) {
         libs.forEach { lib ->
             val top = listOfNotNull(lib.liked) + lib.playlists
             if (top.isNotEmpty()) item {
-                SectionView(Section("${lib.source.label} • Playlists", top.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+                SectionView(Section("${lib.source.label} • ${t("Playlists")}", top.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
             }
             if (lib.albums.isNotEmpty()) item {
-                SectionView(Section("${lib.source.label} • Albums", lib.albums.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+                SectionView(Section("${lib.source.label} • ${t("Albums")}", lib.albums.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
             }
             if (lib.artists.isNotEmpty()) item {
-                SectionView(Section("${lib.source.label} • Artists", lib.artists.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+                SectionView(Section("${lib.source.label} • ${t("Artists")}", lib.artists.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
             }
         }
     }

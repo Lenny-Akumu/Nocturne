@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,7 +79,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
 
     val local = ref.type == CollectionType.LOCAL
     val localPage = if (!local) null
-    else if (ref.id == LikedRef.id) CollectionPage(LikedRef.copy(subtitle = "${library.liked.size} songs", artworkUrl = library.liked.firstOrNull()?.artworkUrl), library.liked)
+    else if (ref.id == LikedRef.id) CollectionPage(LikedRef.copy(subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl), library.liked)
     else library.playlists.firstOrNull { it.id == ref.id }?.let { CollectionPage(it.ref, it.tracks) }
     if (!local) {
         LaunchedEffect(ref.key, attempt) {
@@ -137,7 +138,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                     }
                     val tracks = p?.tracks.orEmpty()
                     Button(onClick = { graph.player.play(tracks, 0, header.title) }, enabled = tracks.isNotEmpty(), modifier = Modifier.height(52.dp)) {
-                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text("Play")
+                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(t("Play"))
                     }
                     FilledTonalIconButton(onClick = { graph.player.play(tracks, tracks.indices.random(), header.title, shuffle = true) }, enabled = tracks.isNotEmpty()) {
                         Icon(Icons.Rounded.Shuffle, "Shuffle")
@@ -162,7 +163,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
             p.tracks.isEmpty() && p.sections.isEmpty() -> item { MessageBox(Icons.Rounded.MusicOff, "No songs here yet") }
             else -> {
                 if (header.type == CollectionType.ARTIST && p.tracks.isNotEmpty()) {
-                    item { Text("Popular", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 12.dp, bottom = 4.dp)) }
+                    item { Text(t("Popular"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 12.dp, bottom = 4.dp)) }
                 }
                 items(p.tracks.size, key = { p.tracks[it].key + "#" + it }) { i ->
                     Box(Modifier.padding(horizontal = 4.dp)) {
@@ -185,19 +186,19 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
         var name by remember { mutableStateOf(header.title) }
         AlertDialog(
             onDismissRequest = { renaming = false },
-            title = { Text("Rename playlist") },
+            title = { Text(t("Rename playlist")) },
             text = { OutlinedTextField(name, { name = it }, singleLine = true) },
-            confirmButton = { TextButton(onClick = { graph.library.renamePlaylist(ref.id, name); renaming = false }) { Text("Save") } },
-            dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = { graph.library.renamePlaylist(ref.id, name); renaming = false }) { Text(t("Save")) } },
+            dismissButton = { TextButton(onClick = { renaming = false }) { Text(t("Cancel")) } },
         )
     }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete “${header.title}”?") },
-            text = { Text("This playlist will be removed from your library.") },
-            confirmButton = { TextButton(onClick = { graph.library.deletePlaylist(ref.id); confirmDelete = false; graph.navigator.back() }) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+            title = { Text(t("Delete “%s”?", header.title)) },
+            text = { Text(t("This playlist will be removed from your library.")) },
+            confirmButton = { TextButton(onClick = { graph.library.deletePlaylist(ref.id); confirmDelete = false; graph.navigator.back() }) { Text(t("Delete")) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(t("Cancel")) } },
         )
     }
     if (addAll) {

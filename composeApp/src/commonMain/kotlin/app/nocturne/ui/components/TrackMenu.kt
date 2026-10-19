@@ -1,5 +1,6 @@
 package app.nocturne.ui.components
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -107,7 +108,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                 MenuItem(Icons.Rounded.Radio, "Start radio") { graph.player.startRadio(track); close() }
                 MenuItem(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist") { playlistPicker = listOf(track); close() }
                 track.artists.firstOrNull { it.id != null }?.let { artist ->
-                    MenuItem(Icons.Rounded.Person, "Go to ${artist.name}") {
+                    MenuItem(Icons.Rounded.Person, t("Go to %s", artist.name)) {
                         graph.navigator.push(Screen.Collection(CollectionRef(artist.id!!, track.source, CollectionType.ARTIST, artist.name)))
                         close()
                     }
@@ -137,7 +138,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
 @Composable
 private fun MenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(label) },
+        headlineContent = { Text(t(label)) },
         leadingContent = { Icon(icon, null) },
         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
         modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp),
@@ -152,15 +153,15 @@ fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (creating) "New playlist" else "Add to playlist") },
+        title = { Text(t(if (creating) "New playlist" else "Add to playlist")) },
         text = {
             if (creating) {
-                OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(name, { name = it }, label = { Text(t("Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             } else {
                 LazyColumn {
                     item {
                         ListItem(
-                            headlineContent = { Text("New playlist") },
+                            headlineContent = { Text(t("New playlist")) },
                             leadingContent = { Icon(Icons.Rounded.Add, null) },
                             modifier = Modifier.clickable { creating = true },
                         )
@@ -168,7 +169,7 @@ fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
                     items(library.playlists, key = { it.id }) { p ->
                         ListItem(
                             headlineContent = { Text(p.name) },
-                            supportingContent = { Text("${p.tracks.size} songs") },
+                            supportingContent = { Text(t("%s songs", p.tracks.size)) },
                             leadingContent = { Artwork(p.tracks.firstOrNull()?.artworkUrl, Modifier.size(44.dp)) },
                             modifier = Modifier.clickable { graph.library.addToPlaylist(p.id, tracks); onDismiss() },
                         )
@@ -177,8 +178,8 @@ fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            if (creating) TextButton(onClick = { graph.library.createPlaylist(name, tracks); onDismiss() }) { Text("Create") }
+            if (creating) TextButton(onClick = { graph.library.createPlaylist(name, tracks); onDismiss() }) { Text(t("Create")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t("Cancel")) } },
     )
 }

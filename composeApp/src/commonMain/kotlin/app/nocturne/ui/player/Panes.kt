@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.i18n.t
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
@@ -123,16 +124,16 @@ fun QueueView() {
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 12.dp)) {
             Column(Modifier.weight(1f)) {
-                Text("Up next", style = MaterialTheme.typography.titleLarge)
-                Text("${state.queue.size} songs" + (state.queueTitle?.let { " • $it" } ?: ""), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Text(t("Up next"), style = MaterialTheme.typography.titleLarge)
+                Text(t("%s songs", state.queue.size) + (state.queueTitle?.let { " • $it" } ?: ""), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             IconButton(onClick = graph.player::clearQueue) { Icon(Icons.Rounded.ClearAll, "Clear queue") }
         }
         val settings by graph.settings.state.collectAsState()
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            itemsIndexed(state.queue, key = { i, t -> t.key + "#" + i }) { i, t ->
+            itemsIndexed(state.queue, key = { i, qt -> qt.key + "#" + i }) { i, qt ->
                 TrackRow(
-                    t,
+                    qt,
                     onClick = { graph.player.skipTo(i) },
                     modifier = Modifier.alpha(if (i < state.index) 0.5f else 1f),
                     menuContext = TrackMenuContext(queueIndex = i),
@@ -145,9 +146,9 @@ fun QueueView() {
                 ) {
                     Icon(Icons.Rounded.AllInclusive, null, tint = MaterialTheme.colorScheme.primary)
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text("Autoplay", style = MaterialTheme.typography.titleSmall)
+                        Text(t("Autoplay"), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Keep playing similar songs when the queue ends",
+                            t("Keep playing similar songs when the queue ends"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

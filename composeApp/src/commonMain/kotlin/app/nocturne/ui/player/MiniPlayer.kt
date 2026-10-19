@@ -2,6 +2,7 @@ package app.nocturne.ui.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import app.nocturne.ui.components.onRightClick
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
     val backdrop = LocalBackdrop.current
     val container = if (backdrop) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.82f) else MaterialTheme.colorScheme.surfaceContainerHigh
     val shape = RoundedCornerShape(if (wide) 18.dp else 16.dp)
+    val menu = app.nocturne.ui.components.LocalTrackMenu.current
 
     Column(
         modifier
@@ -66,6 +68,7 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
             .shadow(6.dp, shape)
             .clip(shape)
             .background(container)
+            .onRightClick { menu(track, app.nocturne.ui.components.TrackMenuContext()) }
             .clickable(onClick = onExpand)
             .pointerInput(Unit) {
                 var total = 0f

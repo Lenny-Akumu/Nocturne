@@ -78,6 +78,10 @@ class AppGraph(val engine: AudioEngine) {
     val updater = Updater(http, settings)
 
     init {
+        app.nocturne.i18n.I18n.apply(settings.value.uiLanguage)
+        scope.launch {
+            settings.state.distinctUntilChangedBy { it.uiLanguage }.drop(1).collect { app.nocturne.i18n.I18n.apply(it.uiLanguage) }
+        }
         scope.launch {
             kotlinx.coroutines.delay(4000)
             while (true) {

@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.i18n.t
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -162,7 +163,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
             value = s.query,
             onValueChange = { s.query = it },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Songs, albums, artists or a link") },
+            placeholder = { Text(t("Songs, albums, artists or a link")) },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             trailingIcon = {
                 if (s.query.isNotEmpty()) IconButton(onClick = { s.query = ""; s.submitted = null; s.results = null }) { Icon(Icons.Rounded.Clear, "Clear") }
@@ -179,7 +180,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
         )
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                FilterChip(selected = s.source == null, onClick = { s.source = null }, label = { Text("All") })
+                FilterChip(selected = s.source == null, onClick = { s.source = null }, label = { Text(t("All")) })
             }
             items(sources) { src ->
                 FilterChip(
@@ -192,7 +193,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(SearchFilter.entries) { f ->
-                FilterChip(selected = s.filter == f, onClick = { s.filter = f }, label = { Text(f.label) })
+                FilterChip(selected = s.filter == f, onClick = { s.filter = f }, label = { Text(t(f.label)) })
             }
         }
 
@@ -215,8 +216,8 @@ fun SearchScreen(contentPadding: PaddingValues) {
                         if (library.searchPlays.isNotEmpty()) {
                             item { SearchLabel("Recently played") }
                             items(library.searchPlays.size, key = { "played" + library.searchPlays[it].key }) { i ->
-                                val t = library.searchPlays[i]
-                                TrackRow(t, onClick = { playFromSearch(t, library.searchPlays, i) }, modifier = Modifier.padding(horizontal = 4.dp))
+                                val played = library.searchPlays[i]
+                                TrackRow(played, onClick = { playFromSearch(played, library.searchPlays, i) }, modifier = Modifier.padding(horizontal = 4.dp))
                             }
                         }
                         if (library.searchHistory.isNotEmpty()) item { SearchLabel("Recent searches") }
@@ -267,7 +268,7 @@ private fun <T> interleave(lists: List<List<T>>): List<T> {
 @Composable
 private fun SearchLabel(text: String) {
     Text(
-        text,
+        t(text),
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 4.dp),
