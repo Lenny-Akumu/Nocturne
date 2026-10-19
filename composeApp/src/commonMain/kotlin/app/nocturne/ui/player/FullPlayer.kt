@@ -63,6 +63,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -150,6 +151,11 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     val track = state.current ?: return
     var pane by remember { mutableStateOf(Pane.ARTWORK) }
     var sleepDialog by remember { mutableStateOf(false) }
+    var noLyrics by remember(track.key) { mutableStateOf(false) }
+    LaunchedEffect(track.key, settings.showLyrics) {
+        if (settings.showLyrics) noLyrics = runCatching { graph.lyrics.lyrics(track).isEmpty }.getOrDefault(true)
+    }
+    LaunchedEffect(noLyrics) { if (noLyrics && pane == Pane.LYRICS) pane = Pane.QUEUE }
     val menu = LocalTrackMenu.current
 
     BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding()) {
@@ -165,21 +171,22 @@ private fun PlayerContent(onCollapse: () -> Unit) {
             }
 
             if (wide) {
+                val shown = if (pane == Pane.ARTWORK) Pane.LYRICS.takeIf { settings.showLyrics && !noLyrics } ?: Pane.QUEUE else pane
                 Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
                     Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { ArtworkView(track, state.isPlaying) }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         Box(Modifier.weight(1f)) {
-                            PaneContent(if (pane == Pane.ARTWORK) Pane.LYRICS.takeIf { settings.showLyrics } ?: Pane.QUEUE else pane)
+                            PaneContent(shown)
                         }
                         Controls()
-                        BottomActions(pane, { pane = it }, { sleepDialog = true }, hideArtworkToggle = true)
+                        BottomActions(shown, { pane = it }, { sleepDialog = true }, hideArtworkToggle = true)
                     }
                 }
             } else {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
                     AnimatedContent(pane, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "pane") { p ->
                         if (p == Pane.ARTWORK) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            ArtworkView(track, state.isPlaying) { if (settings.showLyrics) pane = Pane.LYRICS }
+                            ArtworkView(track, state.isPlaying) { if (settings.showLyrics) pane = if (noLyrics) Pane.QUEUE else Pane.LYRICS }
                         }
                         else PaneContent(p)
                     }
