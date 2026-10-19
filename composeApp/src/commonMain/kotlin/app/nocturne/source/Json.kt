@@ -44,11 +44,24 @@ fun JsonElement?.bestThumbnail(): String? {
     return upscaleArtwork(url)
 }
 
-fun upscaleArtwork(url: String): String = when {
-    url.contains("googleusercontent.com") || url.contains("ggpht.com") ->
-        url.replace(Regex("=w\\d+-h\\d+.*$"), "=w544-h544-l90-rj")
-    url.contains("sndcdn.com") -> url.replace(Regex("-(large|t\\d+x\\d+|small|badge|tiny|mini)\\."), "-t500x500.")
-    else -> url
+private val ytThumb = Regex("https?://i\\d*\\.ytimg\\.com/vi(?:_webp)?/([A-Za-z0-9_-]{11})/[^?]*")
+
+fun upscaleArtwork(url: String): String {
+    ytThumb.find(url)?.let { return "https://i.ytimg.com/vi/${it.groupValues[1]}/hq720.jpg" }
+    return when {
+        url.contains("googleusercontent.com") || url.contains("ggpht.com") -> when {
+            Regex("=[ws]\\d+").containsMatchIn(url) -> url.replace(Regex("=[ws]\\d+[^/]*$"), "=w800-h800-l90-rj")
+            !url.contains('=') -> "$url=w800-h800-l90-rj"
+            else -> url
+        }
+        url.contains("sndcdn.com") -> url.replace(Regex("-(large|t\\d+x\\d+|small|badge|tiny|mini|crop)\\."), "-t500x500.")
+        else -> url
+    }
+}
+
+fun artworkFallbacks(url: String): List<String> {
+    val id = ytThumb.find(url)?.groupValues?.get(1) ?: return emptyList()
+    return listOf("sddefault", "hqdefault", "mqdefault").map { "https://i.ytimg.com/vi/$id/$it.jpg" }
 }
 
 fun parseClock(text: String?): Long {

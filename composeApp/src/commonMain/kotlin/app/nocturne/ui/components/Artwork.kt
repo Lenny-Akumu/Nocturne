@@ -12,6 +12,12 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import app.nocturne.source.artworkFallbacks
+import app.nocturne.source.upscaleArtwork
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,11 +37,14 @@ fun Artwork(
 ) {
     Box(modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         if (url != null) {
+            val candidates = remember(url) { listOf(upscaleArtwork(url)) + artworkFallbacks(url) }
+            var attempt by remember(url) { mutableIntStateOf(0) }
             SubcomposeAsyncImage(
-                model = url,
+                model = candidates[attempt.coerceAtMost(candidates.lastIndex)],
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
+                onError = { if (attempt < candidates.lastIndex) attempt++ },
                 error = { Placeholder(fallback) },
                 loading = { Placeholder(fallback) },
             )
