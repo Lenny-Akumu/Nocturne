@@ -1,9 +1,25 @@
 package app.nocturne.ui.player
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import app.nocturne.data.PlayerBackground
+import app.nocturne.ui.theme.NocturneTheme
+import app.nocturne.ui.theme.isDark
+import app.nocturne.ui.theme.rememberArtworkSeed
+import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 import androidx.compose.foundation.clickable
 import app.nocturne.ui.components.onRightClick
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -57,24 +73,70 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
     val library by graph.library.state.collectAsState()
     val track = state.current ?: return
     val backdrop = LocalBackdrop.current
-    val container = if (backdrop) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.82f) else MaterialTheme.colorScheme.surfaceContainerHigh
+    val seed = if (settings.playerArtworkTint) rememberArtworkSeed(track.artworkUrl) else null
+    val dark = settings.playerBackground != PlayerBackground.SOLID || isDark(settings)
     val shape = RoundedCornerShape(if (wide) 18.dp else 16.dp)
     val menu = app.nocturne.ui.components.LocalTrackMenu.current
+    val scope = rememberCoroutineScope()
+    val dx = remember { Animatable(0f) }
+    val dy = remember { Animatable(0f) }
+    val density = LocalDensity.current
+    val swipe = with(density) { 90.dp.toPx() }
 
-    Column(
+    NocturneTheme(settings, seedOverride = seed, forceDark = dark, backdrop = backdrop) {
+    val cs = MaterialTheme.colorScheme
+    val container = if (backdrop) cs.surfaceContainerHigh.copy(alpha = 0.82f) else cs.surfaceContainerHigh
+    Box(
         modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 6.dp)
+            .graphicsLayer {
+                translationX = dx.value
+                translationY = dy.value.coerceAtLeast(0f)
+                alpha = 1f - (abs(dx.value) / (swipe * 3)).coerceIn(0f, 0.5f) - (dy.value / (swipe * 1.5f)).coerceIn(0f, 0.8f)
+            }
             .shadow(6.dp, shape)
             .clip(shape)
             .background(container)
+            .drawBehind {
+                if (settings.playerBackground == PlayerBackground.GRADIENT) {
+                    drawRect(Brush.horizontalGradient(listOf(cs.primaryContainer.copy(alpha = 0.9f), cs.surfaceContainerHigh.copy(alpha = 0f))))
+                }
+            }
             .onRightClick { menu(track, app.nocturne.ui.components.TrackMenuContext()) }
             .clickable(onClick = onExpand)
             .pointerInput(Unit) {
-                var total = 0f
-                detectVerticalDragGestures(onDragEnd = { if (total < -40) onExpand(); total = 0f }) { _, d -> total += d }
+                var horizontal: Boolean? = null
+                detectDragGestures(
+                    onDragStart = { horizontal = null },
+                    onDragEnd = {
+                        val x = dx.value
+                        val y = dy.value
+                        scope.launch {
+                            when {
+                                horizontal == true && x < -swipe -> { graph.player.next(); dx.snapTo(-x); dx.animateTo(0f) }
+                                horizontal == true && x > swipe -> { graph.player.previous(); dx.snapTo(-x); dx.animateTo(0f) }
+                                horizontal == false && y > swipe * 0.6f -> { dy.animateTo(swipe * 1.5f); graph.player.stop(); dy.snapTo(0f) }
+                                horizontal == false && y < -swipe * 0.4f -> { onExpand(); dy.snapTo(0f) }
+                                else -> { launch { dx.animateTo(0f) }; dy.animateTo(0f) }
+                            }
+                        }
+                    },
+                    onDragCancel = { scope.launch { dx.animateTo(0f) }; scope.launch { dy.animateTo(0f) } },
+                ) { change, d ->
+                    if (horizontal == null) horizontal = abs(d.x) > abs(d.y)
+                    change.consume()
+                    scope.launch { if (horizontal == true) dx.snapTo(dx.value + d.x) else dy.snapTo(dy.value + d.y) }
+                }
             },
     ) {
+        if (settings.playerBackground == PlayerBackground.BLUR) {
+            Box(Modifier.matchParentSize()) {
+                AsyncImage(track.artworkUrl, null, Modifier.matchParentSize().blur(40.dp), contentScale = ContentScale.Crop)
+                Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.5f)))
+            }
+        }
+        Column {
         Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Artwork(track.artworkUrl, Modifier.size(if (wide) 52.dp else 46.dp), RoundedCornerShape(10.dp))
             Spacer(Modifier.width(12.dp))
@@ -116,4 +178,6 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
         )
         Spacer(Modifier.height(4.dp))
     }
+}
+}
 }

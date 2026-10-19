@@ -70,7 +70,7 @@ fun dominantColor(bitmap: ImageBitmap): Color? {
         sums[idx][0] += c.red * w; sums[idx][1] += c.green * w; sums[idx][2] += c.blue * w
     }
     val best = buckets.indices.maxByOrNull { buckets[it] } ?: return null
-    if (buckets[best] < 0.5f) {
+    if (buckets[best] < 0.5f || n > 0 && buckets[best] / n < 0.04f) {
         return if (n == 0) null else Color(fallbackR / n, fallbackG / n, fallbackB / n)
     }
     val w = buckets[best]

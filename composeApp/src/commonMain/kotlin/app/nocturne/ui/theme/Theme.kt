@@ -77,7 +77,11 @@ fun NocturneTheme(
         seedColor = seed,
         isDark = dark,
         isAmoled = settings.pureBlack,
-        style = if (seedOverride != null) PaletteStyle.Vibrant else PaletteStyle.TonalSpot,
+        style = when {
+            seedOverride == null -> PaletteStyle.TonalSpot
+            seedOverride.isGrayish() -> PaletteStyle.Monochrome
+            else -> PaletteStyle.Vibrant
+        },
     )
     var scheme = platformScheme ?: generated
     if (dark && settings.pureBlack) {
@@ -97,3 +101,9 @@ fun NocturneTheme(
 }
 
 val MarqueeStyle = TextStyle(fontWeight = FontWeight.Bold, fontSize = 24.sp)
+
+private fun Color.isGrayish(): Boolean {
+    val mx = maxOf(red, green, blue)
+    val mn = minOf(red, green, blue)
+    return mx - mn < 0.07f || (mx > 0f && (mx - mn) / mx < 0.12f)
+}

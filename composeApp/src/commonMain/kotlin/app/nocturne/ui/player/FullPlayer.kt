@@ -43,7 +43,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.VideocamOff
 import androidx.compose.runtime.produceState
@@ -351,7 +351,7 @@ private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Uni
             }
         }
         IconButton(onClick = { audioSheet = true }) {
-            Icon(Icons.Rounded.Equalizer, "Equalizer and speed", tint = if (settings.eqEnabled || settings.playbackSpeed != 1f) cs.primary else cs.onSurfaceVariant)
+            Icon(Icons.Rounded.GraphicEq, "Equalizer and speed", tint = if (settings.eqEnabled || settings.playbackSpeed != 1f) cs.primary else cs.onSurfaceVariant)
         }
         if (settings.showLyrics) {
             IconToggleButton(checked = pane == Pane.LYRICS, onCheckedChange = { onPane(Pane.LYRICS) }) {

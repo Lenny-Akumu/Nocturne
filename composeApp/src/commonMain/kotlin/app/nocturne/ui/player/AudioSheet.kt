@@ -67,7 +67,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
                         onClick = { graph.settings.update { it.copy(playbackSpeed = v.speed) } },
                         border = if (selected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface)
                         else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    ) { Text(t(v.label)) }
+                    ) { Text(v.label) }
                 }
             }
             var speed by remember(settings.playbackSpeed) { mutableFloatStateOf(settings.playbackSpeed) }
@@ -101,7 +101,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
                                 else it.copy(eqPreset = name, eqGains = gains, eqEnabled = true)
                             }
                         },
-                        label = { Text(t(name)) },
+                        label = { Text(name) },
                     )
                 }
             }
