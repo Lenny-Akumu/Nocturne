@@ -12,3 +12,13 @@ enum class PlatformKind { ANDROID, DESKTOP }
 
 expect val platformKind: PlatformKind
 expect fun currentHour(): Int
+
+expect fun sha1Hex(text: String): String
+
+expect fun sha256(bytes: ByteArray): ByteArray
+
+expect fun secureRandomBytes(size: Int): ByteArray
+
+expect val spotifyRedirectUri: String
+
+expect suspend fun authorizeInBrowser(url: String): String

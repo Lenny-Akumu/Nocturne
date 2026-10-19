@@ -209,6 +209,10 @@ class NewPipeBackendImpl : NewPipeBackend {
         KioskInfo.getInfo(extractor).relatedItems.mapNotNull { toTrack(source, it) }.take(40)
     }
 
+    override suspend fun soundcloudClientId(): String = io {
+        org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper.clientId()
+    }
+
     private fun toEntry(source: Source, item: InfoItem, filter: SearchFilter): MediaEntry? = when (item) {
         is StreamInfoItem -> toTrack(source, item)?.let { MediaEntry.Song(it) }
         is PlaylistInfoItem -> {

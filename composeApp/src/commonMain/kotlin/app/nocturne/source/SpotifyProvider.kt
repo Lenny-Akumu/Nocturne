@@ -1,5 +1,8 @@
 package app.nocturne.source
 
+import app.nocturne.authorizeInBrowser
+import app.nocturne.data.AccountsStore
+import app.nocturne.model.AccountLibrary
 import app.nocturne.model.ArtistRef
 import app.nocturne.model.AudioQuality
 import app.nocturne.model.CollectionPage
@@ -9,8 +12,13 @@ import app.nocturne.model.MediaEntry
 import app.nocturne.model.ResolvedStream
 import app.nocturne.model.SearchFilter
 import app.nocturne.model.Section
+import app.nocturne.model.SectionLayout
 import app.nocturne.model.Source
 import app.nocturne.model.Track
+import app.nocturne.nowMillis
+import app.nocturne.secureRandomBytes
+import app.nocturne.sha256
+import app.nocturne.spotifyRedirectUri
 import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
@@ -19,18 +27,18 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
 import io.ktor.http.parameters
+import kotlin.io.encoding.Base64
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlin.io.encoding.Base64
-import app.nocturne.nowMillis
 
 class SpotifyProvider(
     private val http: HttpClient,
     private val credentials: () -> Pair<String, String>,
     private val market: () -> String,
     private val youtube: YouTubeMusicProvider,
+    private val accounts: AccountsStore,
 ) : MusicProvider {
     override val source = Source.SPOTIFY
 
@@ -41,9 +49,84 @@ class SpotifyProvider(
     private var tokenExpiry = 0L
     private val matches = mutableMapOf<String, Track>()
 
-    val isConfigured: Boolean get() = credentials().let { it.first.isNotBlank() && it.second.isNotBlank() }
+    val isConfigured: Boolean
+        get() = credentials().let { it.first.isNotBlank() && (it.second.isNotBlank() || accounts.value.spotifySignedIn) }
 
-    private suspend fun accessToken(): String = tokenLock.withLock {
+    override val isSignedIn: Boolean get() = accounts.value.spotifySignedIn
+
+    private suspend fun accessToken(): String = if (isSignedIn) userToken() else appToken()
+
+    private suspend fun userToken(): String = tokenLock.withLock {
+        val acc = accounts.value
+        if (acc.spotifyAccessToken.isNotBlank() && nowMillis() < acc.spotifyExpiresAt) return@withLock acc.spotifyAccessToken
+        val response = http.submitForm(
+            url = "https://accounts.spotify.com/api/token",
+            formParameters = parameters {
+                append("grant_type", "refresh_token")
+                append("refresh_token", acc.spotifyRefreshToken)
+                append("client_id", credentials().first)
+            },
+        )
+        if (!response.status.isSuccess()) {
+            if (response.status.value == 400) accounts.update { it.copy(spotifyAccessToken = "", spotifyRefreshToken = "", spotifyName = null) }
+            throw SourceUnavailableException("Spotify session expired, sign in again")
+        }
+        saveTokens(json.parseToJsonElement(response.bodyAsText()))
+        accounts.value.spotifyAccessToken
+    }
+
+    private fun saveTokens(body: JsonElement) {
+        val access = body.path("access_token").str ?: throw SourceUnavailableException("Spotify sign-in failed")
+        accounts.update {
+            it.copy(
+                spotifyAccessToken = access,
+                spotifyRefreshToken = body.path("refresh_token").str ?: it.spotifyRefreshToken,
+                spotifyExpiresAt = nowMillis() + ((body.path("expires_in").num ?: 3600) - 60) * 1000,
+            )
+        }
+    }
+
+    suspend fun signIn() {
+        val clientId = credentials().first
+        if (clientId.isBlank()) throw SourceUnavailableException("Add your Spotify Client ID first")
+        val verifier = Base64.UrlSafe.encode(secureRandomBytes(48)).trimEnd('=')
+        val challenge = Base64.UrlSafe.encode(sha256(verifier.encodeToByteArray())).trimEnd('=')
+        val state = Base64.UrlSafe.encode(secureRandomBytes(12)).trimEnd('=')
+        val url = "https://accounts.spotify.com/authorize?client_id=$clientId&response_type=code" +
+            "&redirect_uri=${spotifyRedirectUri.encodeURLParameter()}&code_challenge_method=S256&code_challenge=$challenge" +
+            "&state=$state&scope=${SCOPES.encodeURLParameter()}"
+        val redirect = authorizeInBrowser(url)
+        val params = redirect.substringAfter('?', "").split('&').associate { it.substringBefore('=') to it.substringAfter('=', "") }
+        params["error"]?.let { throw SourceUnavailableException("Spotify: $it") }
+        if (params["state"] != state) throw SourceUnavailableException("Spotify sign-in was interrupted")
+        val code = params["code"] ?: throw SourceUnavailableException("Spotify sign-in was cancelled")
+        val response = http.submitForm(
+            url = "https://accounts.spotify.com/api/token",
+            formParameters = parameters {
+                append("grant_type", "authorization_code")
+                append("code", code)
+                append("redirect_uri", spotifyRedirectUri)
+                append("client_id", clientId)
+                append("code_verifier", verifier)
+            },
+        )
+        if (!response.status.isSuccess()) throw SourceUnavailableException("Spotify sign-in failed: ${response.status}")
+        saveTokens(json.parseToJsonElement(response.bodyAsText()))
+        val name = runCatching { api("me").path("display_name").str }.getOrNull()
+        accounts.update { it.copy(spotifyName = name ?: "Spotify user") }
+    }
+
+    fun signOut() = accounts.update { it.copy(spotifyAccessToken = "", spotifyRefreshToken = "", spotifyExpiresAt = 0, spotifyName = null) }
+
+    override suspend fun library(): AccountLibrary? {
+        if (!isSignedIn) return null
+        val playlists = runCatching { api("me/playlists?limit=50").path("items").arr.orEmpty().mapNotNull { parsePlaylistRef(it) } }.getOrDefault(emptyList())
+        val albums = runCatching { api("me/albums?limit=50&market=${market()}").path("items").arr.orEmpty().mapNotNull { parseAlbumRef(it.path("album")) } }.getOrDefault(emptyList())
+        val artists = runCatching { api("me/following?type=artist&limit=50").path("artists", "items").arr.orEmpty().mapNotNull { parseArtistRef(it) } }.getOrDefault(emptyList())
+        return AccountLibrary(source, LikedRef, playlists, albums, artists)
+    }
+
+    private suspend fun appToken(): String = tokenLock.withLock {
         val creds = credentials()
         if (creds.first.isBlank() || creds.second.isBlank()) {
             throw SourceUnavailableException("Add your Spotify Client ID and Secret in Settings → Spotify")
@@ -92,10 +175,24 @@ class SpotifyProvider(
 
     override suspend fun home(): List<Section> {
         if (!isConfigured) return emptyList()
-        val res = api("browse/new-releases?limit=20&country=${market()}")
-        val albums = res.path("albums", "items").arr.orEmpty().mapNotNull { parseAlbumRef(it) }
-        return if (albums.isEmpty()) emptyList()
-        else listOf(Section("New releases on Spotify", albums.map { MediaEntry.Collection(it) }, source = source))
+        val sections = mutableListOf<Section>()
+        if (isSignedIn) {
+            runCatching { api("me/top/tracks?limit=24&time_range=short_term").path("items").arr.orEmpty().mapNotNull { parseTrack(it) } }
+                .getOrNull()?.takeIf { it.isNotEmpty() }?.let {
+                    sections += Section("Your top tracks on Spotify", it.map { t -> MediaEntry.Song(t) }, SectionLayout.QUICK_PICKS, source)
+                }
+            library()?.let { lib ->
+                val own = listOfNotNull(lib.liked) + lib.playlists
+                if (own.isNotEmpty()) sections += Section("Your Spotify playlists", own.map { MediaEntry.Collection(it) }, source = source)
+                if (lib.albums.isNotEmpty()) sections += Section("Saved albums on Spotify", lib.albums.map { MediaEntry.Collection(it) }, source = source)
+            }
+        }
+        runCatching {
+            api("browse/new-releases?limit=20&country=${market()}").path("albums", "items").arr.orEmpty().mapNotNull { parseAlbumRef(it) }
+        }.getOrNull()?.takeIf { it.isNotEmpty() }?.let {
+            sections += Section("New releases on Spotify", it.map { a -> MediaEntry.Collection(a) }, source = source)
+        }
+        return sections
     }
 
     override suspend fun collection(ref: CollectionRef): CollectionPage = when (ref.type) {
@@ -107,7 +204,15 @@ class SpotifyProvider(
             }
             CollectionPage(fullRef, tracks)
         }
-        CollectionType.PLAYLIST -> {
+        CollectionType.PLAYLIST -> if (ref.id == LikedRef.id) {
+            val tracks = mutableListOf<Track>()
+            var page: JsonElement? = api("me/tracks?limit=50&market=${market()}")
+            while (page != null && tracks.size < 1000) {
+                page.path("items").arr.orEmpty().mapNotNullTo(tracks) { parseTrack(it.path("track")) }
+                page = page.path("next").str?.let { api(it) }
+            }
+            CollectionPage(LikedRef.copy(subtitle = "${tracks.size} songs", artworkUrl = tracks.firstOrNull()?.artworkUrl), tracks)
+        } else {
             val pl = api("playlists/${ref.id}?market=${market()}")
             val fullRef = parsePlaylistRef(pl) ?: ref
             val tracks = mutableListOf<Track>()
@@ -204,5 +309,10 @@ class SpotifyProvider(
     private fun parseArtistRef(e: JsonElement?): CollectionRef? {
         val id = e.path("id").str ?: return null
         return CollectionRef(id, source, CollectionType.ARTIST, e.path("name").str ?: return null, "Artist", images(e))
+    }
+
+    companion object {
+        val LikedRef = CollectionRef("me:liked", Source.SPOTIFY, CollectionType.PLAYLIST, "Liked Songs", "Spotify")
+        private const val SCOPES = "user-read-private user-library-read playlist-read-private playlist-read-collaborative user-follow-read user-top-read"
     }
 }

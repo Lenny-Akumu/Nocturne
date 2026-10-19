@@ -25,6 +25,7 @@ import kotlinx.serialization.json.putJsonObject
 class InnerTube(
     private val http: HttpClient,
     private val locale: () -> Pair<String, String>,
+    private val cookie: () -> String = { "" },
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -48,8 +49,49 @@ class InnerTube(
             header("User-Agent", USER_AGENT)
             header("X-YouTube-Client-Name", "67")
             header("X-YouTube-Client-Version", CLIENT_VERSION)
+            val c = cookie()
+            if (c.isNotBlank()) {
+                header("Cookie", c)
+                authorization(c)?.let { header("Authorization", it) }
+                header("X-Goog-AuthUser", "0")
+                header("X-Origin", ORIGIN)
+            }
             setBody(merged.toString())
         }.bodyAsText()
+    }
+
+    private fun authorization(cookie: String): String? {
+        val sapisid = Regex("(?:^|;\\s*)(?:__Secure-3PAPISID|SAPISID)=([^;]+)").find(cookie)?.groupValues?.get(1) ?: return null
+        val ts = app.nocturne.nowMillis() / 1000
+        return "SAPISIDHASH ${ts}_${app.nocturne.sha1Hex("$ts $sapisid $ORIGIN")}"
+    }
+
+    private suspend fun browse(browseId: String): JsonElement {
+        val raw = call("browse") { mapOf("browseId" to primitive(browseId)) }
+        return json.parseToJsonElement(raw)
+    }
+
+    private fun entries(root: JsonElement): List<MediaEntry> =
+        (root.findAll("musicTwoRowItemRenderer").mapNotNull { parseTwoRow(it) } +
+            root.findAll("musicResponsiveListItemRenderer").mapNotNull { parseListItem(it) ?: parseListCollection(it) })
+
+    suspend fun accountName(): String? {
+        val raw = call("account/account_menu")
+        val root = json.parseToJsonElement(raw)
+        return root.findAll("accountName").firstOrNull().runsText()
+    }
+
+    suspend fun libraryCollections(browseId: String): List<CollectionRef> =
+        entries(browse(browseId)).filterIsInstance<MediaEntry.Collection>().map { it.ref }.distinctBy { it.id }
+
+    suspend fun playlistTracks(playlistId: String): Pair<String?, List<Track>> {
+        val root = browse(if (playlistId.startsWith("VL")) playlistId else "VL$playlistId")
+        val title = root.findAll("musicResponsiveHeaderRenderer").firstOrNull().path("title").runsText()
+            ?: root.findAll("musicDetailHeaderRenderer").firstOrNull().path("title").runsText()
+            ?: root.findAll("musicEditablePlaylistDetailHeaderRenderer").firstOrNull()?.findAll("title")?.firstOrNull().runsText()
+        val tracks = root.findAll("musicResponsiveListItemRenderer").mapNotNull { parseListItem(it) }
+            .filterIsInstance<MediaEntry.Song>().map { it.track }.distinctBy { it.id }
+        return title to tracks
     }
 
     suspend fun home(): List<Section> {
@@ -175,6 +217,23 @@ class InnerTube(
         )
     }
 
+    private fun parseListCollection(r: JsonElement): MediaEntry? {
+        val cols = r.path("flexColumns").arr ?: return null
+        val title = cols.getOrNull(0).path("musicResponsiveListItemFlexColumnRenderer", "text").runsText() ?: return null
+        val subtitle = cols.getOrNull(1).path("musicResponsiveListItemFlexColumnRenderer", "text").runsText()
+        val nav = r.path("navigationEndpoint")
+        val browseId = nav.path("browseEndpoint", "browseId").str ?: return null
+        val pt = pageType(nav).orEmpty()
+        val type = when {
+            "ALBUM" in pt || browseId.startsWith("MPREb") -> CollectionType.ALBUM
+            "ARTIST" in pt || browseId.startsWith("UC") -> CollectionType.ARTIST
+            "PLAYLIST" in pt || browseId.startsWith("VL") -> CollectionType.PLAYLIST
+            else -> return null
+        }
+        val thumb = r.path("thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails").bestThumbnail()
+        return MediaEntry.Collection(CollectionRef(browseId, Source.YOUTUBE_MUSIC, type, title, subtitle, thumb))
+    }
+
     private fun parsePanelVideo(r: JsonElement): Track? {
         val videoId = r.path("videoId").str ?: return null
         val title = r.path("title").runsText() ?: return null
@@ -194,6 +253,7 @@ class InnerTube(
 
     companion object {
         private const val BASE = "https://music.youtube.com/youtubei/v1"
+        private const val ORIGIN = "https://music.youtube.com"
         private const val CLIENT_NAME = "WEB_REMIX"
         private const val CLIENT_VERSION = "1.20250929.03.00"
         const val USER_AGENT =

@@ -73,14 +73,16 @@ Material You 3 на Android · Mica / Acrylic на Windows 11 · одна код
 Готові збірки лежать у [**Releases**](https://github.com/lenny-akumu/nocturne/releases) і в артефактах кожного запуску [**Actions**](https://github.com/lenny-akumu/nocturne/actions):
 
 - **Android**: `Nocturne-android.apk` (Android 8.0+)
-- **Windows**: `Nocturne-*.msi` або `Nocturne-*.exe`
+- **Windows**: `Nocturne-Setup-*.exe` (рекомендовано, з автозапуском після встановлення) або `Nocturne-*.msi`
 
 > **Windows:** для відтворення потрібен встановлений **[VLC media player](https://www.videolan.org/vlc/) (64-bit)**. Nocturne знаходить його автоматично.
 
-### Як підключити Spotify
-1. Відкрий [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) і створи застосунок (Redirect URI може бути будь-яким, наприклад `http://127.0.0.1/callback`).
-2. Скопіюй **Client ID** і **Client Secret**.
-3. Встав їх у Nocturne: **Налаштування → Spotify**.
+### Акаунти
+**Налаштування → Accounts** — вхід, щоб підтягнути вподобані треки, плейлисти, альбоми й артистів:
+
+- **YouTube Music** — «Sign in with Google» (Android) або вставка cookies з браузера (Windows).
+- **SoundCloud** — вхід у вбудованому браузері (Android) або вставка `oauth_token`.
+- **Spotify** — створи застосунок на [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), додай Redirect URI `nocturne://spotify-callback` (Android) і `http://127.0.0.1:8898/callback` (Windows), встав **Client ID** в Nocturne і натисни «Sign in with Spotify». Client Secret не потрібен.
 
 ---
 
@@ -103,7 +105,7 @@ Material You 3 на Android · Mica / Acrylic на Windows 11 · одна код
 
 Для CI додай у **Settings → Secrets and variables → Actions** секрети `NOCTURNE_KEYSTORE_BASE64` (вміст `.jks` у base64), `NOCTURNE_KEYSTORE_PASSWORD`, `NOCTURNE_KEY_ALIAS` і `NOCTURNE_KEY_PASSWORD`. Без них кожна збірка підписується новим тимчасовим ключем, і нова версія не встановиться поверх старої.
 
-Реліз з APK та інсталяторами створюється автоматично, коли пушиш тег (`git tag v1.0.0 && git push origin v1.0.0`), або вручну: **Actions → Build → Run workflow**, вкажи версію, наприклад `1.0.1`.
+Версія задається в `composeApp/src/commonMain/kotlin/app/nocturne/BuildInfo.kt`. Реліз: **Actions → Build → Run workflow** з галочкою *release*, або пуш тегу `v<версія>`. Застосунок сам перевіряє нові релізи й пропонує оновитись.
 
 ## Архітектура
 

@@ -8,3 +8,4 @@ captures/
 .DS_Store
 *.keystore
 *.jks
+!composeApp/nocturne-release.jks

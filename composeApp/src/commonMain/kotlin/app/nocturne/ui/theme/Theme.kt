@@ -3,6 +3,7 @@ package app.nocturne.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -89,7 +90,9 @@ fun NocturneTheme(
         )
     }
     CompositionLocalProvider(LocalDarkTheme provides dark, LocalBackdrop provides backdrop) {
-        MaterialTheme(colorScheme = scheme, typography = nocturneTypography(), shapes = NocturneShapes, content = content)
+        MaterialTheme(colorScheme = scheme, typography = nocturneTypography(), shapes = NocturneShapes) {
+            CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
+        }
     }
 }
 

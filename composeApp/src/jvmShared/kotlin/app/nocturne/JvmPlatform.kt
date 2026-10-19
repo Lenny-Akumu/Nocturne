@@ -37,3 +37,41 @@ actual object FileStore {
         synchronized(lock) { file(name).delete() }
     }
 }
+
+actual fun sha1Hex(text: String): String =
+    java.security.MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
+
+actual fun sha256(bytes: ByteArray): ByteArray = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+
+actual fun secureRandomBytes(size: Int): ByteArray = ByteArray(size).also { java.security.SecureRandom().nextBytes(it) }
+
+fun downloadFile(url: String, target: File, onProgress: (Float) -> Unit) {
+    target.parentFile?.mkdirs()
+    val conn = java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection
+    conn.instanceFollowRedirects = true
+    conn.connectTimeout = 15_000
+    conn.readTimeout = 30_000
+    conn.setRequestProperty("User-Agent", "Nocturne/${BuildInfo.VERSION}")
+    try {
+        if (conn.responseCode !in 200..299) error("Download failed: HTTP ${conn.responseCode}")
+        val total = conn.contentLengthLong
+        val tmp = File(target.path + ".part")
+        conn.inputStream.use { input ->
+            tmp.outputStream().use { out ->
+                val buf = ByteArray(64 * 1024)
+                var done = 0L
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    out.write(buf, 0, n)
+                    done += n
+                    if (total > 0) onProgress(done.toFloat() / total)
+                }
+            }
+        }
+        target.delete()
+        if (!tmp.renameTo(target)) error("Can't save the update")
+    } finally {
+        conn.disconnect()
+    }
+}

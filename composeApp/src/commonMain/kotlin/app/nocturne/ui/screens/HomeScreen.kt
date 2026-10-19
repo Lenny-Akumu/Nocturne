@@ -39,24 +39,35 @@ import app.nocturne.ui.components.LoadingBox
 import app.nocturne.ui.components.MessageBox
 import app.nocturne.ui.components.SectionView
 import app.nocturne.ui.components.SourceBadge
+import app.nocturne.ui.components.brandColor
+import app.nocturne.model.Source
+import androidx.compose.foundation.layout.width
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
 private object HomeCache {
     var sections: List<Section>? = null
+    var version by androidx.compose.runtime.mutableIntStateOf(0)
+}
+
+fun invalidateHomeCache() {
+    HomeCache.sections = null
+    HomeCache.version++
 }
 
 @Composable
 fun HomeScreen(contentPadding: PaddingValues) {
     val graph = AppGraph.instance
     val library by graph.library.state.collectAsState()
-    var sections by remember { mutableStateOf(HomeCache.sections) }
+    val settings by graph.settings.state.collectAsState()
+    graph.accounts.state.collectAsState().value
+    var sections by remember(HomeCache.version) { mutableStateOf(HomeCache.sections) }
     var errors by remember { mutableStateOf<List<String>>(emptyList()) }
     var refreshing by remember { mutableStateOf(false) }
     var reload by rememberSaveable { mutableIntStateOf(0) }
 
-    LaunchedEffect(reload) {
+    LaunchedEffect(reload, HomeCache.version) {
         if (sections != null && reload == 0) return@LaunchedEffect
         refreshing = true
         val errs = mutableListOf<String>()
@@ -105,6 +116,9 @@ fun HomeScreen(contentPadding: PaddingValues) {
                 item {
                     SectionView(Section("From your library", library.saved.take(20).map { MediaEntry.Collection(it) })) { _, _ -> }
                 }
+            }
+            if (Source.SPOTIFY in settings.enabledSources && !graph.spotify.isConfigured) {
+                item { ConnectSpotifyCard() }
             }
             val s = sections
             when {
@@ -157,5 +171,28 @@ private fun greeting(): String {
 fun SourceRow(modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         app.nocturne.model.Source.entries.forEach { SourceBadge(it, size = 14.dp) }
+    }
+}
+
+@Composable
+private fun ConnectSpotifyCard() {
+    val nav = AppGraph.instance.navigator
+    androidx.compose.material3.Card(
+        onClick = { nav.push(app.nocturne.ui.Screen.SettingsPage(SettingsCategory.ACCOUNTS)) },
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Source.SPOTIFY.brandColor.copy(alpha = 0.16f)),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            SourceBadge(Source.SPOTIFY, size = 36.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Connect Spotify", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Sign in to see your playlists, liked songs and top tracks here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }

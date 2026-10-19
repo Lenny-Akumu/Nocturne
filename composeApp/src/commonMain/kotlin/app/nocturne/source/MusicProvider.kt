@@ -1,5 +1,6 @@
 package app.nocturne.source
 
+import app.nocturne.model.AccountLibrary
 import app.nocturne.model.AudioQuality
 import app.nocturne.model.CollectionPage
 import app.nocturne.model.CollectionRef
@@ -20,6 +21,9 @@ interface MusicProvider {
     suspend fun related(track: Track): List<Track> = emptyList()
     suspend fun suggestions(query: String): List<String> = emptyList()
 
+    val isSignedIn: Boolean get() = false
+    suspend fun library(): AccountLibrary? = null
+
     fun canOpen(url: String): Boolean = false
     suspend fun open(url: String): MediaEntry? = null
 }
@@ -35,6 +39,7 @@ interface NewPipeBackend {
     suspend fun channel(source: Source, url: String, ref: CollectionRef?): CollectionPage
     suspend fun related(source: Source, url: String): List<Track>
     suspend fun charts(source: Source): List<Track>
+    suspend fun soundcloudClientId(): String
 }
 
 expect fun createNewPipeBackend(): NewPipeBackend

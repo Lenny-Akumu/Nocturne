@@ -93,3 +93,11 @@ fun Long.formatDuration(): String {
 }
 
 private fun Long.pad() = toString().padStart(2, '0')
+
+data class AccountLibrary(
+    val source: Source,
+    val liked: CollectionRef? = null,
+    val playlists: List<CollectionRef> = emptyList(),
+    val albums: List<CollectionRef> = emptyList(),
+    val artists: List<CollectionRef> = emptyList(),
+)

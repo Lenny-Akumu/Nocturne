@@ -14,7 +14,7 @@ class VlcAudioEngine : AudioEngine {
         MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500")
     }.getOrNull()
 
-    private val player: MediaPlayer? = factory?.mediaPlayers()?.newMediaPlayer()
+    private val player: MediaPlayer? = runCatching { factory?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
     private var listener: EngineListener? = null
     private var volume = 100
 

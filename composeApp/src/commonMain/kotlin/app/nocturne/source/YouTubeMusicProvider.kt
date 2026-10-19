@@ -1,5 +1,6 @@
 package app.nocturne.source
 
+import app.nocturne.model.AccountLibrary
 import app.nocturne.model.AudioQuality
 import app.nocturne.model.CollectionPage
 import app.nocturne.model.CollectionRef
@@ -12,14 +13,42 @@ import app.nocturne.model.Source
 import app.nocturne.model.Track
 
 class YouTubeMusicProvider(
-    private val innerTube: InnerTube,
+    val innerTube: InnerTube,
     private val newPipe: NewPipeBackend,
+    private val signedIn: () -> Boolean = { false },
 ) : MusicProvider {
     override val source = Source.YOUTUBE_MUSIC
 
+    override val isSignedIn: Boolean get() = signedIn()
+
+    override suspend fun library(): AccountLibrary? {
+        if (!isSignedIn) return null
+        val playlists = runCatching { innerTube.libraryCollections("FEmusic_liked_playlists") }.getOrDefault(emptyList())
+            .filter { it.type == CollectionType.PLAYLIST && it.id.removePrefix("VL") != "LM" }
+        val albums = runCatching { innerTube.libraryCollections("FEmusic_liked_albums") }.getOrDefault(emptyList())
+            .filter { it.type == CollectionType.ALBUM }
+        val artists = runCatching { innerTube.libraryCollections("FEmusic_library_corpus_track_artists") }.getOrDefault(emptyList())
+            .filter { it.type == CollectionType.ARTIST }
+        return AccountLibrary(
+            source,
+            liked = CollectionRef("LM", source, CollectionType.PLAYLIST, "Liked music", "YouTube Music"),
+            playlists = playlists,
+            albums = albums,
+            artists = artists,
+        )
+    }
+
     override suspend fun search(query: String, filter: SearchFilter) = newPipe.search(source, query, filter)
 
-    override suspend fun home(): List<Section> = innerTube.home()
+    override suspend fun home(): List<Section> {
+        val feed = innerTube.home()
+        if (!isSignedIn) return feed
+        val mine = runCatching { library() }.getOrNull()
+        val own = listOfNotNull(mine?.liked) + mine?.playlists.orEmpty()
+        val section = if (own.isEmpty()) null
+        else Section("Your YouTube Music playlists", own.map { MediaEntry.Collection(it) }, source = source)
+        return listOfNotNull(section) + feed
+    }
 
     override suspend fun collection(ref: CollectionRef): CollectionPage = when (ref.type) {
         CollectionType.ALBUM -> {
@@ -29,7 +58,16 @@ class YouTubeMusicProvider(
             val page = newPipe.playlist(source, playlistUrl(playlistId), ref)
             page.copy(tracks = page.tracks.map { it.copy(album = it.album ?: ref.title, albumId = it.albumId ?: ref.id) })
         }
-        CollectionType.PLAYLIST -> newPipe.playlist(source, playlistUrl(ref.id.removePrefix("VL")), ref)
+        CollectionType.PLAYLIST -> {
+            val id = ref.id.removePrefix("VL")
+            val viaAccount = if (isSignedIn || id == "LM") runCatching { innerTube.playlistTracks(id) }.getOrNull() else null
+            if (viaAccount != null && viaAccount.second.isNotEmpty()) {
+                CollectionPage(
+                    ref.copy(title = viaAccount.first ?: ref.title, artworkUrl = ref.artworkUrl ?: viaAccount.second.first().artworkUrl),
+                    viaAccount.second,
+                )
+            } else newPipe.playlist(source, playlistUrl(id), ref)
+        }
         CollectionType.ARTIST -> newPipe.channel(source, "https://www.youtube.com/channel/${ref.id}", ref)
         CollectionType.LOCAL -> error("Local collections are handled by the library")
     }

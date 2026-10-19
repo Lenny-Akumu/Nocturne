@@ -9,7 +9,9 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-val appVersion = "1.0.0"
+val appVersion: String = Regex("VERSION = \"(.+?)\"")
+    .find(file("src/commonMain/kotlin/app/nocturne/BuildInfo.kt").readText())!!.groupValues[1]
+val appVersionCode: Int = appVersion.split(".").map { it.toInt() }.let { (a, b, c) -> a * 10000 + b * 100 + c }
 
 kotlin {
     androidTarget {
@@ -87,7 +89,7 @@ android {
         applicationId = "app.nocturne"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        versionCode = appVersionCode
         versionName = appVersion
     }
 
@@ -104,7 +106,10 @@ android {
                 keyAlias = System.getenv("NOCTURNE_KEY_ALIAS")
                 keyPassword = System.getenv("NOCTURNE_KEY_PASSWORD")
             } else {
-                initWith(getByName("debug"))
+                storeFile = file("nocturne-release.jks")
+                storePassword = "nocturne"
+                keyAlias = "nocturne"
+                keyPassword = "nocturne"
             }
         }
     }
@@ -136,12 +141,12 @@ compose.desktop {
         jvmArgs += listOf("-Dfile.encoding=UTF-8")
 
         nativeDistributions {
-            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+            targetFormats(TargetFormat.Msi)
             packageName = "Nocturne"
             packageVersion = appVersion
             description = "Nocturne music player"
             vendor = "Nocturne"
-            modules("java.net.http", "java.sql", "jdk.unsupported", "java.naming")
+            includeAllModules = true
 
             windows {
                 iconFile.set(project.file("icons/nocturne.ico"))

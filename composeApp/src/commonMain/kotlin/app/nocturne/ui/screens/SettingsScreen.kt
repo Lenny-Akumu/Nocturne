@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Contrast
@@ -45,6 +46,7 @@ import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Window
@@ -90,8 +92,10 @@ import app.nocturne.platformKind
 import app.nocturne.ui.Screen
 import app.nocturne.ui.components.SourceBadge
 import app.nocturne.ui.theme.AccentPresets
+import kotlinx.coroutines.launch
 
 enum class SettingsCategory(val title: String, val summary: String, val icon: ImageVector) {
+    ACCOUNTS("Accounts", "YouTube Music, Spotify, SoundCloud sign-in", Icons.Rounded.AccountCircle),
     APPEARANCE("Appearance", "Theme, colors, player style", Icons.Rounded.Palette),
     CONTENT("Content & sources", "YouTube Music, Spotify, SoundCloud, region", Icons.Rounded.Public),
     PLAYER("Player & audio", "Quality, autoplay, queue", Icons.Rounded.PlayCircle),
@@ -142,6 +146,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
         item {
             Column {
                 when (category) {
+                    SettingsCategory.ACCOUNTS -> AccountsSettings()
                     SettingsCategory.APPEARANCE -> {
                         Header("Theme")
                         Choice("Theme", Icons.Rounded.DarkMode, s.themeMode, ThemeMode.entries, { it.label }) { v -> set { it.copy(themeMode = v) } }
@@ -227,10 +232,20 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             app.nocturne.ui.NocturneLogo(Modifier.size(96.dp))
                             Spacer(Modifier.height(12.dp))
                             Text("Nocturne", style = MaterialTheme.typography.headlineSmall)
-                            Text("Version 1.0.0", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Version ${app.nocturne.BuildInfo.VERSION}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Source.entries.forEach { SourceBadge(it, size = 22.dp) } }
                         }
+                        val scope = androidx.compose.runtime.rememberCoroutineScope()
+                        var checkResult by remember { mutableStateOf<String?>(null) }
+                        Action("Check for updates", checkResult ?: "Look for a newer version on GitHub", Icons.Rounded.SystemUpdate) {
+                            checkResult = "Checking…"
+                            scope.launch {
+                                checkResult = runCatching { graph.updater.check(manual = true) }
+                                    .fold({ if (it == null) "You're on the latest version" else "Version ${it.version} is available" }, { "Check failed: ${it.message}" })
+                            }
+                        }
+                        Toggle("Check for updates automatically", null, Icons.Rounded.Restore, s.autoCheckUpdates) { v -> set { it.copy(autoCheckUpdates = v) } }
                         Action("Source code", "github.com/lenny-akumu/nocturne", Icons.Rounded.Code) { uri.openUri("https://github.com/lenny-akumu/nocturne") }
                         Action("Lyrics by LRCLIB", "lrclib.net", Icons.Rounded.Lyrics) { uri.openUri("https://lrclib.net") }
                         Action("Stream extraction by NewPipe Extractor", null, Icons.Rounded.Code) { uri.openUri("https://github.com/TeamNewPipe/NewPipeExtractor") }

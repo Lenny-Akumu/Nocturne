@@ -45,7 +45,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.nocturne.AppGraph
+import androidx.compose.runtime.produceState
+import app.nocturne.model.AccountLibrary
 import app.nocturne.model.CollectionRef
+import app.nocturne.model.MediaEntry
+import app.nocturne.model.Section
+import app.nocturne.ui.components.SectionView
 import app.nocturne.model.CollectionType
 import app.nocturne.model.Source
 import app.nocturne.model.Track
@@ -55,7 +60,7 @@ import app.nocturne.ui.components.MessageBox
 import app.nocturne.ui.components.TrackMenuContext
 import app.nocturne.ui.components.TrackRow
 
-enum class LibraryTab(val label: String) { SONGS("Liked"), PLAYLISTS("Playlists"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History") }
+enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History") }
 
 val LikedRef = CollectionRef("liked", Source.YOUTUBE_MUSIC, CollectionType.LOCAL, "Liked songs")
 
@@ -63,7 +68,7 @@ val LikedRef = CollectionRef("liked", Source.YOUTUBE_MUSIC, CollectionType.LOCAL
 fun LibraryScreen(contentPadding: PaddingValues) {
     val graph = AppGraph.instance
     val library by graph.library.state.collectAsState()
-    var tab by rememberSaveable { mutableStateOf(LibraryTab.SONGS) }
+    var tab by rememberSaveable { mutableStateOf(LibraryTab.ONLINE) }
     var creating by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
@@ -76,6 +81,7 @@ fun LibraryScreen(contentPadding: PaddingValues) {
         }
         val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)
         when (tab) {
+            LibraryTab.ONLINE -> OnlineLibrary(bottom)
             LibraryTab.SONGS -> TrackList(library.liked, "Liked songs", bottom, Icons.Rounded.FavoriteBorder, "No liked songs yet", "Tap the heart in the player to save songs here.")
             LibraryTab.HISTORY -> TrackList(library.history.map { it.track }, "History", bottom, Icons.Rounded.History, "Nothing played yet", null,
                 action = { if (library.history.isNotEmpty()) IconButton(onClick = { graph.library.clearHistory() }) { Icon(Icons.Rounded.Delete, "Clear history") } })
@@ -151,5 +157,44 @@ private fun CollectionGrid(refs: List<CollectionRef>, padding: PaddingValues) {
     LazyVerticalGrid(columns = GridCells.Adaptive(150.dp), contentPadding = PaddingValues(start = 10.dp, end = 10.dp, bottom = padding.calculateBottomPadding())) {
         items(refs, key = { it.key }) { ref -> CollectionCard(ref, onClick = { nav.push(Screen.Collection(ref)) }, width = null) }
         item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+private val onlineCache = mutableMapOf<Source, AccountLibrary>()
+
+@Composable
+private fun OnlineLibrary(padding: PaddingValues) {
+    val graph = AppGraph.instance
+    val accounts by graph.accounts.state.collectAsState()
+    val providers = graph.enabledProviders().filter { it.isSignedIn }
+    if (providers.isEmpty()) {
+        MessageBox(
+            Icons.Rounded.LibraryMusic,
+            "No accounts connected",
+            "Sign in to YouTube Music, Spotify or SoundCloud to see your playlists and liked songs here.",
+            actionLabel = "Connect accounts",
+            onAction = { graph.navigator.push(Screen.SettingsPage(SettingsCategory.ACCOUNTS)) },
+        )
+        return
+    }
+    val libs by produceState(providers.mapNotNull { onlineCache[it.source] }, accounts) {
+        value = providers.mapNotNull { p ->
+            runCatching { p.library() }.getOrNull()?.also { onlineCache[p.source] = it }
+        }
+    }
+    LazyColumn(contentPadding = padding) {
+        if (libs.isEmpty()) item { app.nocturne.ui.components.LoadingBox() }
+        libs.forEach { lib ->
+            val top = listOfNotNull(lib.liked) + lib.playlists
+            if (top.isNotEmpty()) item {
+                SectionView(Section("${lib.source.label} • Playlists", top.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+            }
+            if (lib.albums.isNotEmpty()) item {
+                SectionView(Section("${lib.source.label} • Albums", lib.albums.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+            }
+            if (lib.artists.isNotEmpty()) item {
+                SectionView(Section("${lib.source.label} • Artists", lib.artists.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+            }
+        }
     }
 }

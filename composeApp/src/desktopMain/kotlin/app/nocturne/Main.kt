@@ -23,14 +23,55 @@ import app.nocturne.player.VlcAudioEngine
 import app.nocturne.ui.App
 import app.nocturne.ui.theme.isDark
 import java.io.File
+import kotlin.system.exitProcess
 
 private fun dataDir(): File {
     val appData = System.getenv("APPDATA")
     return if (isWindows && appData != null) File(appData, "Nocturne") else File(System.getProperty("user.home"), ".nocturne")
 }
 
-fun main() {
+private fun reportCrash(t: Throwable) {
+    val log = File(AppDirs.root, "crash.log")
+    runCatching { log.appendText("${java.time.LocalDateTime.now()} Nocturne ${BuildInfo.VERSION}\n${t.stackTraceToString()}\n\n") }
+    runCatching {
+        javax.swing.JOptionPane.showMessageDialog(
+            null,
+            "Nocturne hit an error and has to close:\n$t\n\nDetails were saved to:\n${log.absolutePath}",
+            "Nocturne",
+            javax.swing.JOptionPane.ERROR_MESSAGE,
+        )
+    }
+}
+
+private fun smokeTest(output: File) {
+    val report = StringBuilder("Nocturne ${BuildInfo.VERSION}\n")
+    val result = runCatching {
+        org.jetbrains.skia.Surface.makeRasterN32Premul(16, 16).close()
+        report.append("skia ok\n")
+        javax.swing.SwingUtilities.invokeAndWait { AppGraph.init(VlcAudioEngine()) }
+        report.append("graph ok\n")
+    }
+    result.exceptionOrNull()?.let { report.append("FAILED\n").append(it.stackTraceToString()) } ?: report.append("SMOKE OK\n")
+    output.writeText(report.toString())
+    exitProcess(if (result.isSuccess) 0 else 1)
+}
+
+fun main(args: Array<String>) {
     AppDirs.root = dataDir().apply { mkdirs() }
+    args.firstOrNull { it.startsWith("--smoke-test=") }?.let { smokeTest(File(it.substringAfter('='))) }
+    Thread.setDefaultUncaughtExceptionHandler { _, e ->
+        reportCrash(e)
+        exitProcess(1)
+    }
+    try {
+        launchApp()
+    } catch (t: Throwable) {
+        reportCrash(t)
+        exitProcess(1)
+    }
+}
+
+private fun launchApp() {
     val icon = runCatching {
         Thread.currentThread().contextClassLoader.getResourceAsStream("nocturne.png")!!.use {
             BitmapPainter(org.jetbrains.skia.Image.makeFromEncoded(it.readBytes()).toComposeImageBitmap())

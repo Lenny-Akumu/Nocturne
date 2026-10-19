@@ -47,6 +47,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.data?.scheme == "nocturne") {
+            intent.dataString?.let { AuthRedirect.pending?.complete(it) }
+            return
+        }
         val text = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.dataString
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)

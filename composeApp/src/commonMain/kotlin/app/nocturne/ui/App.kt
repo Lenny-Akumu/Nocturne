@@ -70,6 +70,13 @@ import app.nocturne.ui.theme.NocturneTheme
 @Composable
 expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
 
+expect val supportsWebLogin: Boolean
+
+@Composable
+expect fun WebLoginDialog(title: String, url: String, cookieUrl: String, cookieKey: String, onCookies: (String) -> Unit, onDismiss: () -> Unit)
+
+expect fun clearWebLogins()
+
 private data class Tab(val screen: Screen, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
 private val tabs = listOf(
@@ -86,6 +93,7 @@ fun App(backdrop: Boolean = false) {
     val settings by graph.settings.state.collectAsState()
     NocturneTheme(settings, backdrop = backdrop) {
         TrackMenuHost { AppScaffold() }
+        UpdateDialog()
     }
 }
 

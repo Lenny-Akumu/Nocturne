@@ -59,6 +59,9 @@ data class Settings(
     val spotifyClientId: String = "",
     val spotifyClientSecret: String = "",
 
+    val autoCheckUpdates: Boolean = true,
+    val skippedVersion: String = "",
+
     val pauseHistory: Boolean = false,
     val pauseSearchHistory: Boolean = false,
 )
