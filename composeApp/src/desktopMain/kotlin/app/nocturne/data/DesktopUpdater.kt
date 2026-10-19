@@ -12,7 +12,7 @@ actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress:
     val file = File(File(System.getProperty("java.io.tmpdir"), "nocturne-update"), fileName)
     withContext(Dispatchers.IO) { downloadFile(url, file, onProgress) }
     if (isWindows) {
-        ProcessBuilder(file.absolutePath, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART").start()
+        ProcessBuilder(file.absolutePath, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS").start()
         exitProcess(0)
     } else {
         Desktop.getDesktop().open(file)

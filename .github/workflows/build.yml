@@ -93,11 +93,11 @@ jobs:
             Remove-Item -Recurse -Force "$dst\plugins\$d" -ErrorAction SilentlyContinue
           }
           "{0:N1} MB bundled" -f ((Get-ChildItem $dst -Recurse | Measure-Object Length -Sum).Sum / 1MB)
-      - name: Build app image and MSI
+      - name: Build app image
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew :composeApp:createDistributable :composeApp:packageMsi --continue 2>&1 | tee build.log
+          ./gradlew :composeApp:createDistributable --continue 2>&1 | tee build.log
       - name: Show compile errors
         if: failure()
         shell: bash
@@ -119,7 +119,6 @@ jobs:
           if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y | Out-Null }
           & $iscc "/DAppVersion=${{ needs.meta.outputs.version }}" "/DOutDir=$env:GITHUB_WORKSPACE\dist" packaging\windows\nocturne.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item composeApp\build\compose\binaries\main\msi\*.msi dist\
       - uses: actions/upload-artifact@v4
         with:
           name: Nocturne-windows

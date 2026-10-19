@@ -73,7 +73,7 @@ Material You 3 на Android · Mica / Acrylic на Windows 11 · одна код
 Готові збірки лежать у [**Releases**](https://github.com/lenny-akumu/nocturne/releases) і в артефактах кожного запуску [**Actions**](https://github.com/lenny-akumu/nocturne/actions):
 
 - **Android**: `Nocturne-android.apk` (Android 8.0+)
-- **Windows**: `Nocturne-Setup-*.exe` (рекомендовано, з автозапуском після встановлення) або `Nocturne-*.msi`
+- **Windows**: `Nocturne-Setup-*.exe` — оновлення ставляться поверх, старі копії прибираються автоматично
 
 > **Windows:** аудіодвижок (libVLC) вже вбудований в інсталятор, нічого додатково ставити не треба.
 
