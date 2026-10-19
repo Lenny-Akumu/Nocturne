@@ -52,16 +52,12 @@ object DiscordRpc {
             DiscordPresence.status = if (!windows && s.discordRpc) "Available on Windows only" else ""
             return
         }
-        if (s.discordAppId.isBlank()) {
-            close()
-            DiscordPresence.status = "Add an Application ID to connect"
-            return
-        }
-        if (pipe == null || appId != s.discordAppId) {
+        val id = s.discordAppId.ifBlank { BuildInfo.DISCORD_APP_ID }
+        if (pipe == null || appId != id) {
             close()
             if (System.currentTimeMillis() < retryAt) return
             retryAt = System.currentTimeMillis() + 10_000
-            connect(s.discordAppId)
+            connect(id)
         }
         val p = graph.player.state.value
         val activity = activity(s, p)

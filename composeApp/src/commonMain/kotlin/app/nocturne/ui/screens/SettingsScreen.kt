@@ -165,10 +165,8 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     SettingsCategory.SHORTCUTS -> ShortcutSettings()
                     SettingsCategory.DISCORD -> {
                         val player by graph.player.state.collectAsState()
-                        val uri = LocalUriHandler.current
                         Toggle("Discord Rich Presence", DiscordPresence.status.ifBlank { null }, Icons.Rounded.SportsEsports, s.discordRpc) { v -> set { it.copy(discordRpc = v) } }
-                        TextPref("Application ID", "Required — copy it from the Discord developer portal", Icons.Rounded.Key, s.discordAppId) { v -> set { it.copy(discordAppId = v.filter(Char::isDigit)) } }
-                        Action("Open Discord developer portal", "Create an app named “Nocturne” and copy its Application ID", Icons.AutoMirrored.Rounded.OpenInNew) { uri.openUri("https://discord.com/developers/applications") }
+                        TextPref("Application ID", "Built-in Nocturne app", Icons.Rounded.Key, s.discordAppId) { v -> set { it.copy(discordAppId = v.filter(Char::isDigit)) } }
                         Header("Preview")
                         DiscordPreview(s, player.current)
                         Header("Text")
