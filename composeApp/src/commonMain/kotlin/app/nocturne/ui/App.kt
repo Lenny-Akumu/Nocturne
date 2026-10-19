@@ -86,6 +86,9 @@ expect fun WebLoginDialog(
 
 expect fun clearWebLogins()
 
+@Composable
+expect fun PairingCard()
+
 private data class Tab(val screen: Screen, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
 private val tabs = listOf(

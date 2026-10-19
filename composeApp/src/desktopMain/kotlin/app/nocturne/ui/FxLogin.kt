@@ -16,8 +16,8 @@ import java.net.URI
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
-internal const val CHROME_UA =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+internal const val FIREFOX_UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
 
 internal object FxLogin {
     private val cookies: CookieManager by lazy {
@@ -72,7 +72,7 @@ internal object FxLogin {
     }
 
     private fun setup(engine: WebEngine, onChange: () -> Unit) {
-        engine.userAgent = CHROME_UA
+        engine.userAgent = FIREFOX_UA
         engine.isJavaScriptEnabled = true
         engine.locationProperty().addListener { _, _, _ -> onChange() }
         engine.loadWorker.stateProperty().addListener { _, _, s -> if (s == Worker.State.SUCCEEDED) onChange() }

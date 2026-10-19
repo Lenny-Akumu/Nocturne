@@ -91,6 +91,17 @@ class Library(private val settings: SettingsStore) {
         if (fresh.isEmpty()) d else d.copy(liked = d.liked + fresh)
     }
 
+    fun merge(other: LibraryData) = mutate { d ->
+        d.copy(
+            liked = (d.liked + other.liked).distinctBy { it.key },
+            saved = (d.saved + other.saved).distinctBy { it.key },
+            playlists = d.playlists.map { p -> other.playlists.firstOrNull { it.id == p.id }?.let { o -> p.copy(tracks = (p.tracks + o.tracks).distinctBy { it.key }) } ?: p } +
+                other.playlists.filter { o -> d.playlists.none { it.id == o.id } },
+            history = (d.history + other.history).distinctBy { it.track.key to it.playedAt }.sortedByDescending { it.playedAt }.take(500),
+            notInterested = (d.notInterested + other.notInterested).distinctBy { it.key },
+        )
+    }
+
     fun isSaved(ref: CollectionRef) = _state.value.saved.any { it.key == ref.key }
 
     fun toggleSaved(ref: CollectionRef) = mutate { d ->

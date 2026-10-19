@@ -24,3 +24,7 @@ expect val spotifyRedirectUri: String
 expect suspend fun authorizeInBrowser(url: String): String
 
 expect fun systemLocale(): Pair<String, String>
+
+expect fun aesEncrypt(key: ByteArray, plain: ByteArray): ByteArray
+
+expect fun aesDecrypt(key: ByteArray, data: ByteArray): ByteArray

@@ -77,3 +77,16 @@ fun downloadFile(url: String, target: File, onProgress: (Float) -> Unit) {
 }
 
 actual fun systemLocale(): Pair<String, String> = java.util.Locale.getDefault().let { it.language.ifBlank { "en" } to it.country.ifBlank { "US" } }
+
+actual fun aesEncrypt(key: ByteArray, plain: ByteArray): ByteArray {
+    val iv = secureRandomBytes(12)
+    val c = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+    c.init(javax.crypto.Cipher.ENCRYPT_MODE, javax.crypto.spec.SecretKeySpec(key, "AES"), javax.crypto.spec.GCMParameterSpec(128, iv))
+    return iv + c.doFinal(plain)
+}
+
+actual fun aesDecrypt(key: ByteArray, data: ByteArray): ByteArray {
+    val c = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+    c.init(javax.crypto.Cipher.DECRYPT_MODE, javax.crypto.spec.SecretKeySpec(key, "AES"), javax.crypto.spec.GCMParameterSpec(128, data, 0, 12))
+    return c.doFinal(data, 12, data.size - 12)
+}

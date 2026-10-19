@@ -71,6 +71,8 @@ fun AccountsSettings() {
     var web by remember { mutableStateOf<WebLogin?>(null) }
     var paste by remember { mutableStateOf<Source?>(null) }
     var spotifyDev by remember { mutableStateOf(false) }
+    var importOpen by remember { mutableStateOf(false) }
+    var importStatus by remember { mutableStateOf<String?>(null) }
 
     fun run(source: Source, block: suspend () -> Unit) {
         busy = source
@@ -90,6 +92,7 @@ fun AccountsSettings() {
             modifier = Modifier.padding(horizontal = 8.dp),
         )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 8.dp)) }
+        app.nocturne.ui.PairingCard()
 
         AccountCard(
             source = Source.YOUTUBE_MUSIC,
@@ -119,6 +122,10 @@ fun AccountsSettings() {
                 else run(Source.SPOTIFY) { graph.spotify.signIn() }
             }
         }
+        androidx.compose.material3.OutlinedButton(onClick = { importOpen = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(t("Import a Spotify playlist or album by link"))
+        }
+        importStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp)) }
         AccountCard(
             source = Source.SOUNDCLOUD,
             signedInAs = acc.soundcloudName.takeIf { acc.soundcloudSignedIn },
@@ -187,6 +194,42 @@ fun AccountsSettings() {
                 }, enabled = clientId.length >= 16) { Text(t("Continue with Spotify")) }
             },
             dismissButton = { TextButton(onClick = { spotifyDev = false }) { Text(t("Cancel")) } },
+        )
+    }
+
+    if (importOpen) {
+        var link by remember { mutableStateOf("") }
+        var working by remember { mutableStateOf(false) }
+        var importError by remember { mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { if (!working) importOpen = false },
+            icon = { SourceBadge(Source.SPOTIFY, size = 32.dp) },
+            title = { Text(t("Import from Spotify")) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(t("Paste a link to a public playlist or album. It's saved to your library as a playlist — no Spotify account needed."), style = MaterialTheme.typography.bodyMedium)
+                    Text(t("Liked Songs: in Spotify select all liked songs (Ctrl+A), add them to a new playlist and paste its link here."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(link, { link = it.trim() }, singleLine = true, placeholder = { Text("https://open.spotify.com/playlist/…") }, modifier = Modifier.fillMaxWidth())
+                    importError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = link.contains("spotify") && !working, onClick = {
+                    working = true
+                    importError = null
+                    scope.launch {
+                        runCatching { graph.spotify.importLink(link) }
+                            .onSuccess { (name, tracks) ->
+                                graph.library.createPlaylist(name, tracks)
+                                importStatus = t("Imported “%s” — %s songs", name, tracks.size)
+                                importOpen = false
+                            }
+                            .onFailure { importError = it.message ?: "Import failed" }
+                        working = false
+                    }
+                }) { if (working) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(t("Import")) }
+            },
+            dismissButton = { TextButton(onClick = { importOpen = false }, enabled = !working) { Text(t("Cancel")) } },
         )
     }
 

@@ -1,7 +1,7 @@
 package app.nocturne
 
 object BuildInfo {
-    const val VERSION = "1.5.2"
+    const val VERSION = "1.5.3"
     const val REPO = "Lenny-Akumu/Nocturne"
     const val SPOTIFY_CLIENT_ID = ""
 }

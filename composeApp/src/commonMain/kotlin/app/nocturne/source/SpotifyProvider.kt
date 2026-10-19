@@ -293,6 +293,40 @@ class SpotifyProvider(
 
     private fun images(e: JsonElement?): String? = e.path("images").arr?.firstOrNull().path("url").str
 
+    suspend fun importLink(url: String): Pair<String, List<Track>> {
+        val m = Regex("(album|playlist|track)[/:]([A-Za-z0-9]{22})").find(url) ?: throw SourceUnavailableException("Paste a link to a Spotify playlist or album")
+        val (type, id) = m.destructured
+        val html = http.get("https://open.spotify.com/embed/$type/$id") {
+            header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
+        }.bodyAsText()
+        val raw = Regex("<script id=\"__NEXT_DATA__\"[^>]*>(.*?)</script>", RegexOption.DOT_MATCHES_ALL).find(html)?.groupValues?.get(1)
+            ?: throw SourceUnavailableException("Spotify didn't return this playlist. Make sure it's public.")
+        val entity = json.parseToJsonElement(raw).findAll("entity").firstOrNull() ?: throw SourceUnavailableException("Nothing to import")
+        val name = entity.path("name").str ?: entity.path("title").str ?: "Spotify"
+        val cover = entity.path("coverArt", "sources").arr?.maxByOrNull { it.path("width").num ?: 0 }.path("url").str
+            ?: entity.path("visualIdentity", "image").arr?.maxByOrNull { it.path("maxWidth").num ?: 0 }.path("url").str
+        val items = entity.path("trackList").arr?.toList() ?: listOf(entity)
+        val tracks = items.mapNotNull { t ->
+            val tid = t.path("uri").str?.substringAfterLast(':') ?: t.path("id").str ?: return@mapNotNull null
+            val title = t.path("title").str ?: t.path("name").str ?: return@mapNotNull null
+            val artists = (t.path("subtitle").str ?: t.path("artists").arr?.joinToString(", ") { it.path("name").str.orEmpty() }.orEmpty())
+                .split(",").map { it.trim().replace("\u00a0", " ") }.filter { it.isNotEmpty() }.map { ArtistRef(it) }
+            Track(
+                id = tid,
+                source = source,
+                title = title,
+                artists = artists,
+                album = if (type == "album") name else null,
+                albumId = if (type == "album") id else null,
+                durationMs = t.path("duration").num ?: t.path("duration_ms").num ?: 0,
+                artworkUrl = if (type == "album" || type == "track") cover else null,
+                explicit = t.path("isExplicit").bool ?: false,
+            )
+        }
+        if (tracks.isEmpty()) throw SourceUnavailableException("This playlist is empty or private")
+        return name to tracks
+    }
+
     private fun parseTrack(e: JsonElement?, fallbackArt: String? = null, album: String? = null, albumId: String? = null): Track? {
         val id = e.path("id").str ?: return null
         val name = e.path("name").str ?: return null

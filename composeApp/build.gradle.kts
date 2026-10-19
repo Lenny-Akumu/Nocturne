@@ -72,6 +72,7 @@ kotlin {
                 implementation(libs.media3.session)
                 implementation(libs.media3.datasource)
                 implementation(libs.media3.ui)
+                implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
             }
         }
 
@@ -86,6 +87,7 @@ kotlin {
             implementation(libs.vlcj)
             implementation(libs.jna)
             implementation(libs.jna.platform)
+            implementation("com.google.zxing:core:3.5.3")
             listOf("base", "graphics", "controls", "media", "web", "swing").forEach {
                 implementation("org.openjfx:javafx-$it:${libs.versions.javafx.get()}:$fxPlatform")
             }
