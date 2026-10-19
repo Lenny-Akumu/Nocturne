@@ -6,6 +6,8 @@ import app.nocturne.data.SettingsStore
 import app.nocturne.data.Updater
 import app.nocturne.model.MediaEntry
 import app.nocturne.model.Source
+import app.nocturne.model.Track
+import app.nocturne.source.Rating
 import app.nocturne.player.AudioEngine
 import app.nocturne.player.PlayerController
 import app.nocturne.source.InnerTube
@@ -28,7 +30,12 @@ import kotlinx.coroutines.launch
 
 class AppGraph(val engine: AudioEngine) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    val settings = SettingsStore()
+    val settings = SettingsStore().also { store ->
+        if (!store.value.localeConfigured) {
+            val (lang, country) = systemLocale()
+            store.update { it.copy(contentLanguage = lang, contentCountry = country, localeConfigured = true) }
+        }
+    }
     val library = Library(settings)
     val accounts = AccountsStore()
     val http = HttpClient {
@@ -88,6 +95,18 @@ class AppGraph(val engine: AudioEngine) {
         accounts.update { it.copy(youtubeCookie = clean) }
         val name = runCatching { innerTube.accountName() }.getOrNull()
         accounts.update { it.copy(youtubeName = name ?: "YouTube Music user") }
+    }
+
+    fun toggleLike(track: Track) {
+        val nowLiked = !library.isLiked(track)
+        library.toggleLike(track)
+        scope.launch { runCatching { provider(track.source).rate(track, if (nowLiked) Rating.LIKE else Rating.NONE) } }
+    }
+
+    fun notInterested(track: Track) {
+        library.markNotInterested(track)
+        player.dropTrack(track)
+        scope.launch { runCatching { provider(track.source).rate(track, Rating.DISLIKE) } }
     }
 
     fun signOutYouTube() = accounts.update { it.copy(youtubeCookie = "", youtubeName = null) }

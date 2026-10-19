@@ -75,3 +75,5 @@ fun downloadFile(url: String, target: File, onProgress: (Float) -> Unit) {
         conn.disconnect()
     }
 }
+
+actual fun systemLocale(): Pair<String, String> = java.util.Locale.getDefault().let { it.language.ifBlank { "en" } to it.country.ifBlank { "US" } }

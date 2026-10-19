@@ -106,18 +106,31 @@ private fun launchApp() {
                 if (e.type != KeyEventType.KeyDown) return@Window false
                 val p = graph.player
                 val step = settings.seekStepSeconds * 1000L
-                when {
-                    e.isCtrlPressed && e.key == Key.Spacebar -> { p.toggle(); true }
-                    e.isCtrlPressed && e.isShiftPressed && e.key == Key.DirectionRight -> { p.seekBy(step); true }
-                    e.isCtrlPressed && e.isShiftPressed && e.key == Key.DirectionLeft -> { p.seekBy(-step); true }
-                    e.isCtrlPressed && e.key == Key.DirectionRight -> { p.next(); true }
-                    e.isCtrlPressed && e.key == Key.DirectionLeft -> { p.previous(); true }
-                    e.key == Key.MediaPlayPause -> { p.toggle(); true }
-                    e.key == Key.MediaNext -> { p.next(); true }
-                    e.key == Key.MediaPrevious -> { p.previous(); true }
-                    e.key == Key.Escape -> graph.navigator.back()
-                    else -> false
+                when (e.key) {
+                    Key.MediaPlayPause -> { p.toggle(); return@Window true }
+                    Key.MediaNext -> { p.next(); return@Window true }
+                    Key.MediaPrevious -> { p.previous(); return@Window true }
+                    else -> Unit
                 }
+                if (Hotkeys.capturing) return@Window false
+                val current = p.state.value.current
+                when (Hotkeys.find(e, settings)) {
+                    HotkeyAction.PLAY_PAUSE -> p.toggle()
+                    HotkeyAction.NEXT -> p.next()
+                    HotkeyAction.PREVIOUS -> p.previous()
+                    HotkeyAction.SEEK_FORWARD -> p.seekBy(step)
+                    HotkeyAction.SEEK_BACK -> p.seekBy(-step)
+                    HotkeyAction.VOLUME_UP -> p.setVolume((settings.volume + 0.1f).coerceAtMost(1f))
+                    HotkeyAction.VOLUME_DOWN -> p.setVolume((settings.volume - 0.1f).coerceAtLeast(0f))
+                    HotkeyAction.LIKE -> current?.let { graph.toggleLike(it) }
+                    HotkeyAction.NOT_INTERESTED -> current?.let { graph.notInterested(it) }
+                    HotkeyAction.SHUFFLE -> p.toggleShuffle()
+                    HotkeyAction.REPEAT -> p.cycleRepeat()
+                    HotkeyAction.TOGGLE_PLAYER -> graph.navigator.playerExpanded = !graph.navigator.playerExpanded && current != null
+                    HotkeyAction.BACK -> return@Window graph.navigator.back()
+                    null -> return@Window false
+                }
+                true
             },
         ) {
             window.minimumSize = java.awt.Dimension(420, 600)

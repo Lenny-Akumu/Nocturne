@@ -21,6 +21,10 @@ class YouTubeMusicProvider(
 
     override val isSignedIn: Boolean get() = signedIn()
 
+    override suspend fun rate(track: Track, rating: Rating) {
+        if (isSignedIn) innerTube.rate(track.id, rating)
+    }
+
     override suspend fun library(): AccountLibrary? {
         if (!isSignedIn) return null
         val playlists = runCatching { innerTube.libraryCollections("FEmusic_liked_playlists") }.getOrDefault(emptyList())

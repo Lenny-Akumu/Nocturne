@@ -218,6 +218,43 @@ class PlayerController(
 
     fun sleepAfterCurrentTrack() = _state.update { it.copy(sleepAtMs = null, sleepAfterTrack = true) }
 
+    private fun curate(candidates: List<Track>): List<Track> {
+        val queueKeys = _state.value.queue.map { it.key }.toSet()
+        val recent = library.state.value.history.take(25).map { it.track.key }.toSet()
+        val musical = filterExplicit(candidates)
+            .filter { it.key !in queueKeys && !library.isBlocked(it) }
+            .filter { it.durationMs == 0L || it.durationMs in 45_000L..15 * 60_000L }
+        val pool = musical.filter { it.key !in recent }.takeIf { it.size >= 5 } ?: musical
+        val favorites = library.favoriteArtists()
+        val perArtist = mutableMapOf<String, Int>()
+        val picked = mutableListOf<Track>()
+        val deferred = mutableListOf<Track>()
+        for (t in pool) {
+            val artist = t.artists.firstOrNull()?.name?.lowercase().orEmpty()
+            val count = perArtist[artist] ?: 0
+            val lastSame = picked.lastOrNull()?.artists?.firstOrNull()?.name?.lowercase() == artist
+            val cap = if (artist in favorites) 4 else 3
+            if (artist.isNotEmpty() && (count >= cap || lastSame)) deferred += t
+            else {
+                picked += t
+                perArtist[artist] = count + 1
+            }
+        }
+        return picked + deferred.filter { (perArtist[it.artists.firstOrNull()?.name?.lowercase().orEmpty()] ?: 0) < 5 }
+    }
+
+    fun dropTrack(track: Track) {
+        val s = _state.value
+        val i = s.queue.indexOfFirst { it.key == track.key }
+        if (i < 0) return
+        if (i == s.index) {
+            if (s.index < s.queue.lastIndex) {
+                _state.update { it.copy(queue = it.queue.toMutableList().apply { removeAt(i) }) }
+                loadCurrent(0, true)
+            } else next()
+        } else removeAt(i)
+    }
+
     fun ensureAutoplay() {
         val s = _state.value
         val cur = s.current ?: return
@@ -241,9 +278,7 @@ class PlayerController(
             val related = runCatching {
                 withContext(Dispatchers.Default) { providers[seed.source]?.related(seed).orEmpty() }
             }.getOrDefault(emptyList())
-            val recent = library.state.value.history.take(25).map { it.track.key }.toSet()
-            val unseen = filterExplicit(related).filter { r -> _state.value.queue.none { it.key == r.key } }
-            val fresh = unseen.filter { it.key !in recent }.takeIf { it.size >= 5 } ?: unseen
+            val fresh = curate(related)
             if (fresh.isEmpty()) return@launch
             _state.update { s -> s.copy(queue = s.queue + fresh, queueTitle = if (replace) s.queueTitle else s.queueTitle) }
             queueChanged()

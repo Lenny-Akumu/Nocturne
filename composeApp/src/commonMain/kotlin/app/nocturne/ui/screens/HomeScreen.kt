@@ -132,8 +132,9 @@ fun HomeScreen(contentPadding: PaddingValues) {
                         onAction = { reload++ },
                     )
                 }
-                else -> s.forEach { section ->
-                    item {
+                else -> s.forEach { raw ->
+                    val section = raw.copy(items = raw.items.filterNot { it is MediaEntry.Song && graph.library.isBlocked(it.track) })
+                    if (section.items.isNotEmpty()) item {
                         SectionView(section) { list, i ->
                             val songs = section.items.filterIsInstance<MediaEntry.Song>().map { it.track }
                             if (list.size == 1 && songs.size > 1) graph.player.play(songs, songs.indexOfFirst { it.key == list[0].key }, section.title)

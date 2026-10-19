@@ -84,7 +84,7 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
             }
             if (wide) {
                 val liked = library.liked.any { it.key == track.key }
-                IconButton(onClick = { graph.library.toggleLike(track) }) {
+                IconButton(onClick = { graph.toggleLike(track) }) {
                     Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = graph.player::previous) { Icon(Icons.Rounded.SkipPrevious, "Previous") }

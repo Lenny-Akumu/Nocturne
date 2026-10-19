@@ -22,11 +22,14 @@ interface MusicProvider {
     suspend fun suggestions(query: String): List<String> = emptyList()
 
     val isSignedIn: Boolean get() = false
+    suspend fun rate(track: Track, rating: Rating) {}
     suspend fun library(): AccountLibrary? = null
 
     fun canOpen(url: String): Boolean = false
     suspend fun open(url: String): MediaEntry? = null
 }
+
+enum class Rating { LIKE, DISLIKE, NONE }
 
 class SourceUnavailableException(message: String) : Exception(message)
 

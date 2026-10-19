@@ -3,7 +3,9 @@ package app.nocturne.ui.player
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -72,9 +74,15 @@ fun LyricsView() {
             val listState = rememberLazyListState()
             val current = lines.indexOfLast { it.timeMs <= state.positionMs + 300 }.coerceAtLeast(0)
             LaunchedEffect(current) {
-                listState.animateScrollToItem((current - 2).coerceAtLeast(0))
+                if (listState.layoutInfo.visibleItemsInfo.none { it.index == current }) listState.scrollToItem(current)
+                val info = listState.layoutInfo
+                val item = info.visibleItemsInfo.firstOrNull { it.index == current } ?: return@LaunchedEffect
+                val target = info.viewportStartOffset + info.viewportSize.height / 3
+                listState.animateScrollBy((item.offset - target).toFloat())
             }
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 120.dp)) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+            val edge = maxHeight / 2
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = edge / 2, bottom = edge)) {
                 itemsIndexed(lines) { i, line ->
                     val active = i == current
                     val alpha by animateFloatAsState(if (active) 1f else if (i < current) 0.35f else 0.5f, label = "a")
@@ -93,6 +101,7 @@ fun LyricsView() {
                             .padding(horizontal = 8.dp, vertical = 10.dp),
                     )
                 }
+            }
             }
         }
         else -> Text(

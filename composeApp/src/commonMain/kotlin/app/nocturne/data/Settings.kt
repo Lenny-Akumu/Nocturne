@@ -38,6 +38,7 @@ data class Settings(
     val defaultSearchSource: Source = Source.YOUTUBE_MUSIC,
     val contentLanguage: String = "en",
     val contentCountry: String = "US",
+    val localeConfigured: Boolean = false,
     val hideExplicit: Boolean = false,
     val searchSuggestions: Boolean = true,
 
@@ -58,6 +59,8 @@ data class Settings(
 
     val spotifyClientId: String = "",
     val spotifyClientSecret: String = "",
+
+    val hotkeys: Map<String, String> = emptyMap(),
 
     val autoCheckUpdates: Boolean = true,
     val skippedVersion: String = "",

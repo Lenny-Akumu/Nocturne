@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Palette
@@ -94,12 +95,16 @@ import app.nocturne.ui.components.SourceBadge
 import app.nocturne.ui.theme.AccentPresets
 import kotlinx.coroutines.launch
 
+@Composable
+expect fun ShortcutSettings()
+
 enum class SettingsCategory(val title: String, val summary: String, val icon: ImageVector) {
     ACCOUNTS("Accounts", "YouTube Music, Spotify, SoundCloud sign-in", Icons.Rounded.AccountCircle),
     APPEARANCE("Appearance", "Theme, colors, player style", Icons.Rounded.Palette),
     CONTENT("Content & sources", "YouTube Music, Spotify, SoundCloud, region", Icons.Rounded.Public),
     PLAYER("Player & audio", "Quality, autoplay, queue", Icons.Rounded.PlayCircle),
     LYRICS("Lyrics", "Synced lyrics display", Icons.Rounded.Lyrics),
+    SHORTCUTS("Keyboard shortcuts", "Customize hotkeys", Icons.Rounded.Keyboard),
     SPOTIFY("Spotify", "API credentials", Icons.Rounded.Key),
     STORAGE("Storage", "Cache and data", Icons.Rounded.Storage),
     PRIVACY("Privacy", "History and search", Icons.Rounded.Security),
@@ -113,7 +118,7 @@ fun SettingsScreen(contentPadding: PaddingValues) {
         item {
             Text("Settings", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 12.dp))
         }
-        items(SettingsCategory.entries) { c ->
+        items(SettingsCategory.entries.filter { it != SettingsCategory.SHORTCUTS || platformKind == PlatformKind.DESKTOP }) { c ->
             ListItem(
                 headlineContent = { Text(c.title) },
                 supportingContent = { Text(c.summary) },
@@ -147,6 +152,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
             Column {
                 when (category) {
                     SettingsCategory.ACCOUNTS -> AccountsSettings()
+                    SettingsCategory.SHORTCUTS -> ShortcutSettings()
                     SettingsCategory.APPEARANCE -> {
                         Header("Theme")
                         Choice("Theme", Icons.Rounded.DarkMode, s.themeMode, ThemeMode.entries, { it.label }) { v -> set { it.copy(themeMode = v) } }
@@ -225,6 +231,8 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     SettingsCategory.PRIVACY -> {
                         Toggle("Pause listening history", null, Icons.Rounded.History, s.pauseHistory) { v -> set { it.copy(pauseHistory = v) } }
                         Toggle("Pause search history", null, Icons.Rounded.Search, s.pauseSearchHistory) { v -> set { it.copy(pauseSearchHistory = v) } }
+                        val lib by graph.library.state.collectAsState()
+                        Action("Reset “Not interested”", "${lib.notInterested.size} hidden songs", Icons.Rounded.Restore) { graph.library.clearNotInterested() }
                     }
                     SettingsCategory.ABOUT -> {
                         val uri = LocalUriHandler.current

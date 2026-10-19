@@ -76,6 +76,15 @@ class InnerTube(
         (root.findAll("musicTwoRowItemRenderer").mapNotNull { parseTwoRow(it) } +
             root.findAll("musicResponsiveListItemRenderer").mapNotNull { parseListItem(it) ?: parseListCollection(it) })
 
+    suspend fun rate(videoId: String, rating: Rating) {
+        val endpoint = when (rating) {
+            Rating.LIKE -> "like/like"
+            Rating.DISLIKE -> "like/dislike"
+            Rating.NONE -> "like/removelike"
+        }
+        call(endpoint) { mapOf("target" to JsonObject(mapOf("videoId" to primitive(videoId)))) }
+    }
+
     suspend fun accountName(): String? {
         val raw = call("account/account_menu")
         val root = json.parseToJsonElement(raw)

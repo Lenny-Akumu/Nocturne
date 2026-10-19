@@ -34,6 +34,8 @@ data class LibraryData(
     val history: List<HistoryEntry> = emptyList(),
     val searchHistory: List<String> = emptyList(),
     val playCounts: Map<String, Int> = emptyMap(),
+    val notInterested: List<Track> = emptyList(),
+    val dislikedArtists: Map<String, Int> = emptyMap(),
 )
 
 class Library(private val settings: SettingsStore) {
@@ -54,6 +56,31 @@ class Library(private val settings: SettingsStore) {
     fun toggleLike(track: Track) = mutate { d ->
         if (d.liked.any { it.key == track.key }) d.copy(liked = d.liked.filterNot { it.key == track.key })
         else d.copy(liked = listOf(track) + d.liked)
+    }
+
+    fun markNotInterested(track: Track) = mutate { d ->
+        if (d.notInterested.any { it.key == track.key }) return@mutate d
+        val artists = track.artists.map { it.name.lowercase().trim() }.filter { it.isNotEmpty() }
+        d.copy(
+            notInterested = (listOf(track) + d.notInterested).take(1000),
+            dislikedArtists = d.dislikedArtists + artists.associateWith { (d.dislikedArtists[it] ?: 0) + 1 },
+            liked = d.liked.filterNot { it.key == track.key },
+        )
+    }
+
+    fun clearNotInterested() = mutate { it.copy(notInterested = emptyList(), dislikedArtists = emptyMap()) }
+
+    fun isBlocked(track: Track): Boolean {
+        val d = _state.value
+        if (d.notInterested.any { it.key == track.key || (it.title.equals(track.title, true) && it.artistNames.equals(track.artistNames, true)) }) return true
+        return track.artists.any { (d.dislikedArtists[it.name.lowercase().trim()] ?: 0) >= 2 }
+    }
+
+    fun favoriteArtists(): Set<String> {
+        val d = _state.value
+        val fromLikes = d.liked.flatMap { t -> t.artists.map { it.name.lowercase() } }
+        val fromPlays = d.history.take(200).flatMap { h -> h.track.artists.map { it.name.lowercase() } }
+        return (fromLikes + fromPlays).groupingBy { it }.eachCount().filterValues { it >= 2 }.keys
     }
 
     fun isSaved(ref: CollectionRef) = _state.value.saved.any { it.key == ref.key }

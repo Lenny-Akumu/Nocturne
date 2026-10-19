@@ -42,6 +42,8 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.ThumbDownOffAlt
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.AlertDialog
@@ -171,7 +173,9 @@ private fun PlayerContent(onCollapse: () -> Unit) {
             } else {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
                     AnimatedContent(pane, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "pane") { p ->
-                        if (p == Pane.ARTWORK) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { ArtworkView(track.artworkUrl, state.isPlaying) }
+                        if (p == Pane.ARTWORK) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            ArtworkView(track.artworkUrl, state.isPlaying) { if (settings.showLyrics) pane = Pane.LYRICS }
+                        }
                         else PaneContent(p)
                     }
                 }
@@ -196,7 +200,7 @@ private fun PaneContent(pane: Pane) {
 }
 
 @Composable
-private fun ArtworkView(url: String?, playing: Boolean) {
+private fun ArtworkView(url: String?, playing: Boolean, onTap: () -> Unit = {}) {
     val graph = AppGraph.instance
     val scale by animateFloatAsState(if (playing) 1f else 0.88f, label = "scale")
     var dx by remember { mutableFloatStateOf(0f) }
@@ -218,6 +222,7 @@ private fun ArtworkView(url: String?, playing: Boolean) {
                 ) { _, d -> dx += d }
             }
             .padding(120.dp * (1f - scale))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onTap)
             .shadow(24.dp, RoundedCornerShape(24.dp))
             .clip(RoundedCornerShape(24.dp)),
         RoundedCornerShape(24.dp),
@@ -253,8 +258,11 @@ private fun Controls() {
                 )
             }
         }
+        IconButton(onClick = { graph.notInterested(track) }) {
+            Icon(Icons.Rounded.ThumbDownOffAlt, "Not interested", Modifier.size(26.dp), tint = cs.onSurfaceVariant)
+        }
         val liked = library.liked.any { it.key == track.key }
-        IconButton(onClick = { graph.library.toggleLike(track) }) {
+        IconButton(onClick = { graph.toggleLike(track) }) {
             Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", Modifier.size(28.dp), tint = if (liked) cs.primary else cs.onSurface)
         }
     }

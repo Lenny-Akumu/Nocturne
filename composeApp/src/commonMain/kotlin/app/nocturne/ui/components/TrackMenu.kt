@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material.icons.rounded.ThumbDownOffAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -98,8 +99,9 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                 HorizontalDivider(Modifier.padding(vertical = 6.dp))
                 val liked = library.liked.any { it.key == track.key }
                 MenuItem(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) "Remove from liked" else "Like") {
-                    graph.library.toggleLike(track); close()
+                    graph.toggleLike(track); close()
                 }
+                MenuItem(Icons.Rounded.ThumbDownOffAlt, "Not interested") { graph.notInterested(track); close() }
                 MenuItem(Icons.AutoMirrored.Rounded.PlaylistPlay, "Play next") { graph.player.playNext(listOf(track)); close() }
                 MenuItem(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") { graph.player.addToQueue(listOf(track)); close() }
                 MenuItem(Icons.Rounded.Radio, "Start radio") { graph.player.startRadio(track); close() }

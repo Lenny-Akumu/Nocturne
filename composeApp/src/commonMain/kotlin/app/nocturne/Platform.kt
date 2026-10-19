@@ -22,3 +22,5 @@ expect fun secureRandomBytes(size: Int): ByteArray
 expect val spotifyRedirectUri: String
 
 expect suspend fun authorizeInBrowser(url: String): String
+
+expect fun systemLocale(): Pair<String, String>
