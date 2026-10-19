@@ -57,6 +57,8 @@ private fun smokeTest(output: File) {
         val engine = VlcAudioEngine()
         log("vlc available=${engine.available} bundled=${VlcAudioEngine.bundledDir() != null}")
         if (isWindows && !engine.available) error("bundled VLC failed to load")
+        Class.forName("javafx.scene.web.WebView")
+        log("javafx ok")
         javax.swing.SwingUtilities.invokeAndWait { AppGraph.init(engine) }
         log("graph ok")
     }.onFailure { log("FAILED\n" + it.stackTraceToString()) }.isSuccess

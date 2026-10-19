@@ -1,25 +1,29 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,16 +36,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.nocturne.AppGraph
+import app.nocturne.BuildInfo
 import app.nocturne.model.Source
 import app.nocturne.spotifyRedirectUri
 import app.nocturne.ui.WebLoginDialog
 import app.nocturne.ui.clearWebLogins
 import app.nocturne.ui.components.SourceBadge
+import app.nocturne.ui.components.brandColor
 import app.nocturne.ui.supportsWebLogin
 import kotlinx.coroutines.launch
 
@@ -62,6 +70,7 @@ fun AccountsSettings() {
     var error by remember { mutableStateOf<String?>(null) }
     var web by remember { mutableStateOf<WebLogin?>(null) }
     var paste by remember { mutableStateOf<Source?>(null) }
+    var spotifyDev by remember { mutableStateOf(false) }
 
     fun run(source: Source, block: suspend () -> Unit) {
         busy = source
@@ -73,48 +82,79 @@ fun AccountsSettings() {
         }
     }
 
-    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
-            "Sign in to pull your liked songs, playlists, albums and artists into Nocturne.",
+            "Connect your music accounts to bring your liked songs, playlists, albums and artists into Nocturne.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp),
         )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 8.dp)) }
 
-        AccountCard(Source.YOUTUBE_MUSIC, acc.youtubeName.takeIf { acc.youtubeSignedIn }, busy == Source.YOUTUBE_MUSIC, onSignOut = {
-            graph.signOutYouTube(); clearWebLogins(); invalidateHomeCache()
-        }) {
-            if (supportsWebLogin) Button(onClick = { web = WebLogin.YOUTUBE }) { Text("Sign in with Google") }
-            OutlinedButton(onClick = { paste = Source.YOUTUBE_MUSIC }) { Text("Paste cookies") }
-        }
-
-        AccountCard(Source.SPOTIFY, acc.spotifyName.takeIf { acc.spotifySignedIn }, busy == Source.SPOTIFY, onSignOut = {
-            graph.spotify.signOut(); invalidateHomeCache()
-        }) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                var clientId by remember(settings.spotifyClientId) { mutableStateOf(settings.spotifyClientId) }
-                OutlinedTextField(
-                    clientId,
-                    { clientId = it; graph.settings.update { s -> s.copy(spotifyClientId = it.trim()) } },
-                    label = { Text("Client ID") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text("Add this Redirect URI to your app on developer.spotify.com:", style = MaterialTheme.typography.bodySmall)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(spotifyRedirectUri, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { clipboard.setText(AnnotatedString(spotifyRedirectUri)) }) { Icon(Icons.Rounded.ContentCopy, "Copy") }
-                }
-                Button(onClick = { run(Source.SPOTIFY) { graph.spotify.signIn() } }, enabled = clientId.isNotBlank()) { Text("Sign in with Spotify") }
+        AccountCard(
+            source = Source.YOUTUBE_MUSIC,
+            signedInAs = acc.youtubeName.takeIf { acc.youtubeSignedIn },
+            busy = busy == Source.YOUTUBE_MUSIC,
+            hint = "Use your Google account",
+            onSignOut = { graph.signOutYouTube(); clearWebLogins(); invalidateHomeCache() },
+            onOther = { paste = Source.YOUTUBE_MUSIC },
+        ) {
+            ProviderButton("Continue with Google", Color.White, Color(0xFF1F1F1F), mark = "G") {
+                if (supportsWebLogin) web = WebLogin.YOUTUBE else paste = Source.YOUTUBE_MUSIC
             }
         }
 
-        AccountCard(Source.SOUNDCLOUD, acc.soundcloudName.takeIf { acc.soundcloudSignedIn }, busy == Source.SOUNDCLOUD, onSignOut = {
-            graph.soundcloud.signOut(); clearWebLogins(); invalidateHomeCache()
-        }) {
-            if (supportsWebLogin) Button(onClick = { web = WebLogin.SOUNDCLOUD }) { Text("Sign in") }
-            OutlinedButton(onClick = { paste = Source.SOUNDCLOUD }) { Text("Paste token") }
+        val spotifyClientId = settings.spotifyClientId.ifBlank { BuildInfo.SPOTIFY_CLIENT_ID }
+        AccountCard(
+            source = Source.SPOTIFY,
+            signedInAs = acc.spotifyName.takeIf { acc.spotifySignedIn },
+            busy = busy == Source.SPOTIFY,
+            hint = "Log in with Spotify, Google, Facebook or Apple on the next screen",
+            onSignOut = { graph.spotify.signOut(); invalidateHomeCache() },
+            onOther = { spotifyDev = !spotifyDev },
+            otherLabel = "Developer settings",
+        ) {
+            ProviderButton("Continue with Spotify", Source.SPOTIFY.brandColor, Color.Black) {
+                if (spotifyClientId.isBlank()) {
+                    spotifyDev = true
+                    error = "Spotify needs a Client ID once — see Developer settings below"
+                } else run(Source.SPOTIFY) { graph.spotify.signIn() }
+            }
+        }
+        AnimatedVisibility(spotifyDev && !acc.spotifySignedIn) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Create a free app at developer.spotify.com/dashboard (Web API), add the Redirect URI below and paste the app's Client ID here.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    var clientId by remember(settings.spotifyClientId) { mutableStateOf(settings.spotifyClientId) }
+                    OutlinedTextField(
+                        clientId,
+                        { clientId = it; graph.settings.update { s -> s.copy(spotifyClientId = it.trim()) } },
+                        label = { Text("Client ID") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(spotifyRedirectUri, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { clipboard.setText(AnnotatedString(spotifyRedirectUri)) }) { Icon(Icons.Rounded.ContentCopy, "Copy") }
+                    }
+                }
+            }
+        }
+
+        AccountCard(
+            source = Source.SOUNDCLOUD,
+            signedInAs = acc.soundcloudName.takeIf { acc.soundcloudSignedIn },
+            busy = busy == Source.SOUNDCLOUD,
+            hint = "Google, Facebook, Apple or email on the next screen",
+            onSignOut = { graph.soundcloud.signOut(); clearWebLogins(); invalidateHomeCache() },
+            onOther = { paste = Source.SOUNDCLOUD },
+        ) {
+            ProviderButton("Continue to SoundCloud", Source.SOUNDCLOUD.brandColor, Color.White) {
+                if (supportsWebLogin) web = WebLogin.SOUNDCLOUD else paste = Source.SOUNDCLOUD
+            }
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -136,7 +176,7 @@ fun AccountsSettings() {
         val yt = source == Source.YOUTUBE_MUSIC
         AlertDialog(
             onDismissRequest = { paste = null },
-            title = { Text(if (yt) "Paste YouTube Music cookies" else "Paste SoundCloud token") },
+            title = { Text(if (yt) "Sign in with browser cookies" else "Sign in with a token") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -159,33 +199,51 @@ fun AccountsSettings() {
 }
 
 @Composable
+private fun ProviderButton(label: String, container: Color, content: Color, mark: String? = null, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+        shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = content),
+    ) {
+        if (mark != null) {
+            Text(mark, fontWeight = FontWeight.Black, color = Color(0xFF4285F4), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(label, style = MaterialTheme.typography.titleSmall)
+    }
+}
+
+@Composable
 private fun AccountCard(
     source: Source,
     signedInAs: String?,
     busy: Boolean,
+    hint: String,
     onSignOut: () -> Unit,
-    signInActions: @Composable () -> Unit,
+    onOther: () -> Unit,
+    otherLabel: String = "Other ways to sign in",
+    signIn: @Composable () -> Unit,
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
-        Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(18.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SourceBadge(source, size = 28.dp)
-                Spacer(Modifier.width(12.dp))
+                SourceBadge(source, size = 36.dp)
+                Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(source.label, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        signedInAs?.let { "Signed in as $it" } ?: "Not signed in",
+                        signedInAs?.let { "Signed in as $it" } ?: hint,
                         style = MaterialTheme.typography.bodySmall,
                         color = if (signedInAs != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (busy) CircularProgressIndicator(Modifier.width(24.dp).height(24.dp), strokeWidth = 2.dp)
-                else if (signedInAs != null) {
-                    IconButton(onClick = onSignOut) { Icon(Icons.AutoMirrored.Rounded.Logout, "Sign out") }
-                }
+                if (busy) Box(Modifier.size(28.dp)) { CircularProgressIndicator(strokeWidth = 2.dp) }
+                else if (signedInAs != null) IconButton(onClick = onSignOut) { Icon(Icons.AutoMirrored.Rounded.Logout, "Sign out") }
             }
             if (signedInAs == null && !busy) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { signInActions() }
+                signIn()
+                TextButton(onClick = onOther, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(otherLabel) }
             }
         }
     }

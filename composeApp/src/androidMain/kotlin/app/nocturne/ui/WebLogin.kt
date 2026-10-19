@@ -1,7 +1,11 @@
 package app.nocturne.ui
 
 import android.annotation.SuppressLint
+import android.os.Message
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.widget.FrameLayout
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Column
@@ -42,24 +46,51 @@ actual fun WebLoginDialog(title: String, url: String, cookieUrl: String, cookieK
                 AndroidView(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     factory = { ctx ->
-                        WebView(ctx).apply {
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            val cookies = CookieManager.getInstance()
-                            cookies.setAcceptCookie(true)
-                            cookies.setAcceptThirdPartyCookies(this, true)
-                            webViewClient = object : WebViewClient() {
-                                override fun onPageFinished(view: WebView?, pageUrl: String?) {
-                                    val c = cookies.getCookie(cookieUrl) ?: return
-                                    if (!done[0] && c.contains("$cookieKey=")) {
-                                        done[0] = true
-                                        cookies.flush()
-                                        onCookies(c)
-                                    }
+                        val container = FrameLayout(ctx)
+                        val cookies = CookieManager.getInstance()
+                        cookies.setAcceptCookie(true)
+                        fun check() {
+                            val c = cookies.getCookie(cookieUrl) ?: return
+                            if (!done[0] && c.contains("$cookieKey=")) {
+                                done[0] = true
+                                cookies.flush()
+                                onCookies(c)
+                            }
+                        }
+                        fun configure(web: WebView) {
+                            web.settings.apply {
+                                javaScriptEnabled = true
+                                domStorageEnabled = true
+                                javaScriptCanOpenWindowsAutomatically = true
+                                setSupportMultipleWindows(true)
+                                userAgentString = userAgentString.replace("; wv", "").replace(Regex("Version/[\\d.]+ "), "")
+                            }
+                            cookies.setAcceptThirdPartyCookies(web, true)
+                            web.webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, pageUrl: String?) = check()
+                            }
+                            web.webChromeClient = object : WebChromeClient() {
+                                override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+                                    val popup = WebView(view.context)
+                                    configure(popup)
+                                    container.addView(popup, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                                    (resultMsg.obj as WebView.WebViewTransport).webView = popup
+                                    resultMsg.sendToTarget()
+                                    return true
+                                }
+
+                                override fun onCloseWindow(window: WebView) {
+                                    container.removeView(window)
+                                    window.destroy()
+                                    check()
                                 }
                             }
-                            loadUrl(url)
                         }
+                        val main = WebView(ctx)
+                        configure(main)
+                        container.addView(main, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                        main.loadUrl(url)
+                        container
                     },
                 )
             }

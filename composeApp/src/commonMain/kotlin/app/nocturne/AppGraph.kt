@@ -51,7 +51,7 @@ class AppGraph(val engine: AudioEngine) {
     val soundcloud = SoundCloudProvider(newPipe, http, accounts)
     val spotify = SpotifyProvider(
         http,
-        credentials = { settings.value.spotifyClientId.trim() to settings.value.spotifyClientSecret.trim() },
+        credentials = { settings.value.spotifyClientId.trim().ifBlank { BuildInfo.SPOTIFY_CLIENT_ID } to settings.value.spotifyClientSecret.trim() },
         market = { settings.value.contentCountry },
         youtube = youtube,
         accounts = accounts,

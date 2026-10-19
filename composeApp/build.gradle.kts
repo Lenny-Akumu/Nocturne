@@ -9,6 +9,14 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
+val fxPlatform: String = System.getProperty("os.name").lowercase().let {
+    when {
+        it.contains("win") -> "win"
+        it.contains("mac") -> if (System.getProperty("os.arch") == "aarch64") "mac-aarch64" else "mac"
+        else -> "linux"
+    }
+}
+
 val appVersion: String = Regex("VERSION = \"(.+?)\"")
     .find(file("src/commonMain/kotlin/app/nocturne/BuildInfo.kt").readText())!!.groupValues[1]
 val appVersionCode: Int = appVersion.split(".").map { it.toInt() }.let { (a, b, c) -> a * 10000 + b * 100 + c }
@@ -77,6 +85,9 @@ kotlin {
             implementation(libs.vlcj)
             implementation(libs.jna)
             implementation(libs.jna.platform)
+            listOf("base", "graphics", "controls", "media", "web", "swing").forEach {
+                implementation("org.openjfx:javafx-$it:${libs.versions.javafx.get()}:$fxPlatform")
+            }
         }
     }
 }

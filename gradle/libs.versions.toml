@@ -17,6 +17,7 @@ materialkolor = "3.0.1"
 vlcj = "4.11.0"
 jna = "5.17.0"
 desugar = "2.1.5"
+javafx = "21.0.8"
 
 [libraries]
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
