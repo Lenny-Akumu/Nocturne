@@ -33,6 +33,7 @@ data class LibraryData(
     val playlists: List<LocalPlaylist> = emptyList(),
     val history: List<HistoryEntry> = emptyList(),
     val searchHistory: List<String> = emptyList(),
+    val searchPlays: List<Track> = emptyList(),
     val playCounts: Map<String, Int> = emptyMap(),
     val notInterested: List<Track> = emptyList(),
     val dislikedArtists: Map<String, Int> = emptyMap(),
@@ -136,9 +137,16 @@ class Library(private val settings: SettingsStore) {
         mutate { d -> d.copy(searchHistory = (listOf(query) + d.searchHistory.filterNot { it == query }).take(30)) }
     }
 
+    fun addSearchPlay(track: Track) {
+        if (settings.value.pauseSearchHistory) return
+        mutate { d -> d.copy(searchPlays = (listOf(track) + d.searchPlays.filterNot { it.key == track.key }).take(20)) }
+    }
+
+    fun removeSearchPlay(track: Track) = mutate { d -> d.copy(searchPlays = d.searchPlays.filterNot { it.key == track.key }) }
+
     fun removeSearch(query: String) = mutate { d -> d.copy(searchHistory = d.searchHistory - query) }
 
-    fun clearSearchHistory() = mutate { it.copy(searchHistory = emptyList()) }
+    fun clearSearchHistory() = mutate { it.copy(searchHistory = emptyList(), searchPlays = emptyList()) }
 
     fun mostPlayed(limit: Int = 20): List<Track> {
         val d = _state.value

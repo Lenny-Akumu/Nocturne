@@ -23,6 +23,8 @@ interface AudioEngine {
     fun seekTo(positionMs: Long)
     fun setVolume(volume: Float)
     fun setSkipSilence(enabled: Boolean) {}
+    fun setPlaybackSpeed(speed: Float) {}
+    fun setEqualizer(enabled: Boolean, gains: List<Float>) {}
     fun onQueueChanged(hasPrevious: Boolean, hasNext: Boolean) {}
     fun release()
 }

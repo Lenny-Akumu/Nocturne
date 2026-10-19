@@ -24,6 +24,7 @@ interface MusicProvider {
     val isSignedIn: Boolean get() = false
     suspend fun rate(track: Track, rating: Rating) {}
     suspend fun likedTracks(): List<Track> = emptyList()
+    suspend fun videoStream(track: Track): String? = null
     suspend fun library(): AccountLibrary? = null
 
     fun canOpen(url: String): Boolean = false
@@ -44,6 +45,7 @@ interface NewPipeBackend {
     suspend fun related(source: Source, url: String): List<Track>
     suspend fun charts(source: Source): List<Track>
     suspend fun soundcloudClientId(): String
+    suspend fun videoStream(source: Source, url: String, maxHeight: Int): String?
 }
 
 expect fun createNewPipeBackend(): NewPipeBackend

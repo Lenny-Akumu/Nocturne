@@ -276,6 +276,8 @@ class SpotifyProvider(
 
     override suspend fun related(track: Track): List<Track> = youtube.related(match(track))
 
+    override suspend fun videoStream(track: Track): String? = youtube.videoStream(match(track))
+
     override fun canOpen(url: String) = url.contains("open.spotify.com") || url.startsWith("spotify:")
 
     override suspend fun open(url: String): MediaEntry? {

@@ -25,6 +25,15 @@ class YouTubeMusicProvider(
         if (isSignedIn) innerTube.rate(track.id, rating)
     }
 
+    private val videoCache = mutableMapOf<String, String?>()
+
+    override suspend fun videoStream(track: Track): String? {
+        if (videoCache.containsKey(track.id)) return videoCache[track.id]
+        val url = runCatching { newPipe.videoStream(source, watchUrl(track.id), 480) }.getOrNull()
+        videoCache[track.id] = url
+        return url
+    }
+
     override suspend fun likedTracks(): List<Track> =
         if (isSignedIn) innerTube.playlistTracks("LM").second else emptyList()
 

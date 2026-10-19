@@ -50,6 +50,11 @@ data class Settings(
     val stopOnTaskRemoved: Boolean = false,
     val seekStepSeconds: Int = 10,
     val volume: Float = 1f,
+    val playbackSpeed: Float = 1f,
+    val eqEnabled: Boolean = false,
+    val eqPreset: String = "Default",
+    val eqGains: List<Float> = List(6) { 0f },
+    val showVideo: Boolean = false,
 
     val showLyrics: Boolean = true,
     val lyricsTextSize: Int = 26,

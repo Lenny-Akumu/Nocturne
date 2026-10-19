@@ -96,6 +96,12 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
                 }
             }
 
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                equalizer?.release()
+                equalizer = null
+                applyEqualizer()
+            }
+
             override fun onPlayerError(error: PlaybackException) {
                 listener?.onError(error)
             }
@@ -142,6 +148,40 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
 
     override fun setSkipSilence(enabled: Boolean) {
         exo.skipSilenceEnabled = enabled
+    }
+
+    private var equalizer: android.media.audiofx.Equalizer? = null
+    private var eqEnabled = false
+    private var eqGains: List<Float> = emptyList()
+
+    override fun setPlaybackSpeed(speed: Float) {
+        val s = speed.coerceIn(0.5f, 2f)
+        exo.playbackParameters = androidx.media3.common.PlaybackParameters(s, s)
+    }
+
+    override fun setEqualizer(enabled: Boolean, gains: List<Float>) {
+        eqEnabled = enabled
+        eqGains = gains
+        applyEqualizer()
+    }
+
+    private fun applyEqualizer() {
+        runCatching {
+            if (!eqEnabled) {
+                equalizer?.enabled = false
+                return
+            }
+            val session = exo.audioSessionId
+            if (session == C.AUDIO_SESSION_ID_UNSET) return
+            val eq = equalizer ?: android.media.audiofx.Equalizer(0, session).also { equalizer = it }
+            val (min, max) = eq.bandLevelRange.let { it[0] to it[1] }
+            for (band in 0 until eq.numberOfBands) {
+                val freqHz = eq.getCenterFreq(band.toShort()) / 1000f
+                val mb = (Eq.gainAt(freqHz, eqGains) * 100).toInt().coerceIn(min.toInt(), max.toInt())
+                eq.setBandLevel(band.toShort(), mb.toShort())
+            }
+            eq.enabled = true
+        }
     }
 
     override fun release() {

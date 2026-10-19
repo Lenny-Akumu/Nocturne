@@ -18,9 +18,9 @@ class VlcAudioEngine : AudioEngine {
             NativeLibrary.addSearchPath("libvlccore", bundled.absolutePath)
             NativeLibrary.getInstance(File(bundled, "libvlccore.dll").absolutePath)
         } else {
-            NativeDiscovery().discover()
+            systemVlc = NativeDiscovery().discover()
         }
-        MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500")
+        MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500", "--no-audio-time-stretch")
     }.getOrNull()
 
     private val player: MediaPlayer? = runCatching { factory?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
@@ -31,12 +31,16 @@ class VlcAudioEngine : AudioEngine {
     @Volatile private var playing = false
 
     val available: Boolean get() = player != null
+    val mediaFactory: MediaPlayerFactory? get() = factory
 
     init {
         player?.events()?.addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
             override fun playing(mediaPlayer: MediaPlayer) {
                 playing = true
-                mediaPlayer.submit { mediaPlayer.audio().setVolume(volume) }
+                mediaPlayer.submit {
+                    mediaPlayer.audio().setVolume(volume)
+                    if (speed != 1f) mediaPlayer.controls().setRate(speed)
+                }
                 listener?.onPlayingChanged(true)
                 listener?.onBufferingChanged(false)
             }
@@ -118,12 +122,34 @@ class VlcAudioEngine : AudioEngine {
         async { controls().setTime(positionMs) }
     }
 
+    @Volatile private var speed = 1f
+
+    override fun setPlaybackSpeed(speed: Float) {
+        this.speed = speed.coerceIn(0.5f, 2f)
+        async { controls().setRate(this@VlcAudioEngine.speed) }
+    }
+
+    override fun setEqualizer(enabled: Boolean, gains: List<Float>) {
+        val f = factory ?: return
+        async {
+            if (!enabled) audio().setEqualizer(null)
+            else {
+                val bands = f.equalizer().bands()
+                val eq = f.equalizer().newEqualizer()
+                bands.forEachIndexed { i, hz -> eq.setAmp(i, Eq.gainAt(hz, gains).coerceIn(-20f, 20f)) }
+                audio().setEqualizer(eq)
+            }
+        }
+    }
+
     override fun setVolume(volume: Float) {
         this.volume = (volume * 100).toInt().coerceIn(0, 200)
         async { audio().setVolume(this@VlcAudioEngine.volume) }
     }
 
     companion object {
+        @Volatile var systemVlc = false
+
         fun bundledDir(): File? = System.getProperty("compose.application.resources.dir")
             ?.let { File(it, "vlc") }
             ?.takeIf { File(it, "libvlc.dll").exists() }

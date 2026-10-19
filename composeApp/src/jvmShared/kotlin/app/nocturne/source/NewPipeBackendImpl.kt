@@ -211,6 +211,17 @@ class NewPipeBackendImpl : NewPipeBackend {
         KioskInfo.getInfo(extractor).relatedItems.mapNotNull { toTrack(source, it) }.take(40)
     }
 
+    override suspend fun videoStream(source: Source, url: String, maxHeight: Int): String? = io {
+        val extractor = service(source).getStreamExtractor(url)
+        extractor.fetchPage()
+        val progressive = { s: org.schabi.newpipe.extractor.stream.VideoStream ->
+            s.isUrl && s.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP && s.format == org.schabi.newpipe.extractor.MediaFormat.MPEG_4
+        }
+        val candidates = extractor.videoOnlyStreams.filter(progressive).ifEmpty { extractor.videoStreams.filter(progressive) }
+        val fitting = candidates.filter { it.height in 1..maxHeight }
+        (fitting.maxByOrNull { it.height } ?: candidates.minByOrNull { it.height })?.content
+    }
+
     override suspend fun soundcloudClientId(): String = io {
         org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper.clientId()
     }

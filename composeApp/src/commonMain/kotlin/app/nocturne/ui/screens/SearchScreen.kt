@@ -88,8 +88,22 @@ fun SearchScreen(contentPadding: PaddingValues) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var liveTracks by remember { mutableStateOf<List<app.nocturne.model.Track>>(emptyList()) }
+
+    fun playFromSearch(track: app.nocturne.model.Track, list: List<app.nocturne.model.Track>, index: Int) {
+        graph.library.addSearchPlay(track)
+        if (settings.autoplayRadio) graph.player.startRadio(track) else graph.player.play(list, index, "Search")
+    }
+
+    LaunchedEffect(s.query, s.source) {
+        if (s.query.isBlank() || s.query == s.submitted || s.query.startsWith("http")) { liveTracks = emptyList(); return@LaunchedEffect }
+        delay(400)
+        val provider = s.source?.let { graph.provider(it) } ?: graph.youtube
+        liveTracks = runCatching { provider.search(s.query, SearchFilter.SONGS) }.getOrDefault(emptyList())
+            .filterIsInstance<MediaEntry.Song>().map { it.track }.take(6)
+    }
     if (!s.initialized) {
-        s.source = settings.defaultSearchSource
+        s.source = null
         s.initialized = true
     }
     val sources = Source.entries.filter { it in settings.enabledSources }
@@ -182,19 +196,34 @@ fun SearchScreen(contentPadding: PaddingValues) {
             }
         }
 
-        val showSuggestions = s.query.isNotBlank() && s.query != s.submitted && suggestions.isNotEmpty()
+        val typing = s.query.isNotBlank() && s.query != s.submitted
         when {
-            showSuggestions || (s.submitted == null && s.query.isBlank()) -> {
+            typing || (s.submitted == null && s.query.isBlank()) -> {
                 LazyColumn(contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
                     if (s.query.startsWith("http")) {
                         item { SuggestionRow(Icons.Rounded.Link, "Open link") { submit() } }
                     }
-                    if (showSuggestions) items(suggestions) { q -> SuggestionRow(Icons.Rounded.Search, q) { submit(q) } }
-                    else if (s.query.isBlank()) {
+                    if (typing) {
+                        items(suggestions) { q -> SuggestionRow(Icons.Rounded.Search, q) { submit(q) } }
+                        if (liveTracks.isNotEmpty()) {
+                            item { SearchLabel("Songs") }
+                            items(liveTracks.size, key = { "live" + liveTracks[it].key }) { i ->
+                                TrackRow(liveTracks[i], onClick = { playFromSearch(liveTracks[i], liveTracks, i) }, modifier = Modifier.padding(horizontal = 4.dp))
+                            }
+                        }
+                    } else {
+                        if (library.searchPlays.isNotEmpty()) {
+                            item { SearchLabel("Recently played") }
+                            items(library.searchPlays.size, key = { "played" + library.searchPlays[it].key }) { i ->
+                                val t = library.searchPlays[i]
+                                TrackRow(t, onClick = { playFromSearch(t, library.searchPlays, i) }, modifier = Modifier.padding(horizontal = 4.dp))
+                            }
+                        }
+                        if (library.searchHistory.isNotEmpty()) item { SearchLabel("Recent searches") }
                         items(library.searchHistory) { q ->
                             SuggestionRow(Icons.Rounded.History, q, onRemove = { graph.library.removeSearch(q) }) { submit(q) }
                         }
-                        if (library.searchHistory.isEmpty()) item {
+                        if (library.searchHistory.isEmpty() && library.searchPlays.isEmpty()) item {
                             MessageBox(Icons.AutoMirrored.Rounded.TrendingUp, "Find your sound", "Search across YouTube Music, Spotify and SoundCloud — or paste a link.")
                         }
                     }
@@ -209,12 +238,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
                     val tracks = results.filterIsInstance<MediaEntry.Song>().map { it.track }
                     LazyColumn(contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = contentPadding.calculateBottomPadding())) {
                         items(tracks.size, key = { tracks[it].key + it }) { i ->
-                            TrackRow(tracks[i], onClick = {
-                                scope.launch {
-                                    if (settings.autoplayRadio) graph.player.startRadio(tracks[i])
-                                    else graph.player.play(tracks, i, "Search • ${s.submitted}")
-                                }
-                            })
+                            TrackRow(tracks[i], onClick = { playFromSearch(tracks[i], tracks, i) })
                         }
                     }
                 } else {
@@ -238,6 +262,16 @@ private fun <T> interleave(lists: List<List<T>>): List<T> {
     val max = lists.maxOfOrNull { it.size } ?: 0
     for (i in 0 until max) for (l in lists) l.getOrNull(i)?.let { out += it }
     return out
+}
+
+@Composable
+private fun SearchLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 4.dp),
+    )
 }
 
 @Composable

@@ -67,7 +67,7 @@ class PlayerController(
     init {
         engine.setListener(this)
         engine.setVolume(settings.value.volume)
-        engine.setSkipSilence(settings.value.skipSilence)
+        applyAudioSettings()
         restore()
         scope.launch {
             var tick = 0
@@ -210,6 +210,8 @@ class PlayerController(
 
     fun applyAudioSettings() {
         engine.setSkipSilence(settings.value.skipSilence)
+        engine.setPlaybackSpeed(settings.value.playbackSpeed)
+        engine.setEqualizer(settings.value.eqEnabled, settings.value.eqGains)
     }
 
     fun setSleepTimer(minutes: Int?) {

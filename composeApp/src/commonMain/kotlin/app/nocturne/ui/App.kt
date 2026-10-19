@@ -132,7 +132,7 @@ private fun AppScaffold() {
                     tabs.forEach { RailItem(it, nav) }
                     Spacer(Modifier.weight(1f))
                     RailItem(settingsTab, nav)
-                    Spacer(Modifier.height(if (hasPlayer) 96.dp else 16.dp))
+                    Spacer(Modifier.height(16.dp))
                 }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     val pad = PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 8.dp, bottom = if (hasPlayer) 100.dp else 16.dp)
@@ -187,7 +187,8 @@ private fun RailItem(tab: Tab, nav: Navigator) {
         selected = selected,
         onClick = { nav.selectTab(tab.screen) },
         icon = { Icon(if (selected) tab.selectedIcon else tab.icon, tab.label) },
-        label = { Text(tab.label) },
+        alwaysShowLabel = false,
+        modifier = Modifier.padding(vertical = 4.dp),
     )
 }
 

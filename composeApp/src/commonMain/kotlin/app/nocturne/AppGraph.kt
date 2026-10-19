@@ -97,6 +97,11 @@ class AppGraph(val engine: AudioEngine) {
             }
         }
         scope.launch {
+            settings.state.distinctUntilChangedBy { listOf(it.playbackSpeed, it.eqEnabled, it.eqGains, it.skipSilence) }.drop(1).collect {
+                player.applyAudioSettings()
+            }
+        }
+        scope.launch {
             settings.state.distinctUntilChangedBy { it.contentLanguage to it.contentCountry }.drop(1).collect {
                 newPipe.init(it.contentLanguage, it.contentCountry)
             }

@@ -42,6 +42,10 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.VideocamOff
+import androidx.compose.runtime.produceState
 import androidx.compose.material.icons.rounded.ThumbDownOffAlt
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.rounded.SkipNext
@@ -161,7 +165,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
 
             if (wide) {
                 Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
-                    Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { ArtworkView(track.artworkUrl, state.isPlaying) }
+                    Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { ArtworkView(track, state.isPlaying) }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         Box(Modifier.weight(1f)) {
                             PaneContent(if (pane == Pane.ARTWORK) Pane.LYRICS.takeIf { settings.showLyrics } ?: Pane.QUEUE else pane)
@@ -174,7 +178,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
                     AnimatedContent(pane, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "pane") { p ->
                         if (p == Pane.ARTWORK) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            ArtworkView(track.artworkUrl, state.isPlaying) { if (settings.showLyrics) pane = Pane.LYRICS }
+                            ArtworkView(track, state.isPlaying) { if (settings.showLyrics) pane = Pane.LYRICS }
                         }
                         else PaneContent(p)
                     }
@@ -200,13 +204,17 @@ private fun PaneContent(pane: Pane) {
 }
 
 @Composable
-private fun ArtworkView(url: String?, playing: Boolean, onTap: () -> Unit = {}) {
+private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap: () -> Unit = {}) {
     val graph = AppGraph.instance
+    val settings by graph.settings.state.collectAsState()
+    val state by graph.player.state.collectAsState()
     val scale by animateFloatAsState(if (playing) 1f else 0.88f, label = "scale")
     var dx by remember { mutableFloatStateOf(0f) }
     val shift by animateFloatAsState(dx, label = "shift")
-    Artwork(
-        url,
+    val video by produceState<String?>(null, track.key, settings.showVideo) {
+        value = if (settings.showVideo) runCatching { graph.provider(track.source).videoStream(track) }.getOrNull() else null
+    }
+    Box(
         Modifier
             .widthIn(max = 520.dp)
             .fillMaxWidth()
@@ -225,8 +233,12 @@ private fun ArtworkView(url: String?, playing: Boolean, onTap: () -> Unit = {}) 
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onTap)
             .shadow(24.dp, RoundedCornerShape(24.dp))
             .clip(RoundedCornerShape(24.dp)),
-        RoundedCornerShape(24.dp),
-    )
+    ) {
+        Artwork(track.artworkUrl, Modifier.fillMaxSize(), RoundedCornerShape(24.dp))
+        video?.let { url ->
+            VideoSurface(url, state.positionMs, state.isPlaying, settings.playbackSpeed, Modifier.fillMaxSize())
+        }
+    }
 }
 
 @Composable
@@ -317,7 +329,22 @@ private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Uni
     val settings by graph.settings.state.collectAsState()
     val state by graph.player.state.collectAsState()
     val cs = MaterialTheme.colorScheme
+    var audioSheet by remember { mutableStateOf(false) }
+    if (audioSheet) AudioSheet { audioSheet = false }
     Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        val current = state.current
+        if (current != null && current.source != app.nocturne.model.Source.SOUNDCLOUD) {
+            IconToggleButton(checked = settings.showVideo, onCheckedChange = { v -> graph.settings.update { it.copy(showVideo = v) } }) {
+                Icon(
+                    if (settings.showVideo) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff,
+                    if (settings.showVideo) "Show artwork" else "Show video",
+                    tint = if (settings.showVideo) cs.primary else cs.onSurfaceVariant,
+                )
+            }
+        }
+        IconButton(onClick = { audioSheet = true }) {
+            Icon(Icons.Rounded.Equalizer, "Equalizer and speed", tint = if (settings.eqEnabled || settings.playbackSpeed != 1f) cs.primary else cs.onSurfaceVariant)
+        }
         if (settings.showLyrics) {
             IconToggleButton(checked = pane == Pane.LYRICS, onCheckedChange = { onPane(Pane.LYRICS) }) {
                 Icon(Icons.Rounded.Lyrics, "Lyrics", tint = if (pane == Pane.LYRICS || (hideArtworkToggle && pane == Pane.ARTWORK)) cs.primary else cs.onSurfaceVariant)
