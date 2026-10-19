@@ -44,16 +44,24 @@ private fun reportCrash(t: Throwable) {
 }
 
 private fun smokeTest(output: File) {
-    val report = StringBuilder("Nocturne ${BuildInfo.VERSION}\n")
-    val result = runCatching {
+    fun log(line: String) = output.appendText(line + "\n")
+    output.writeText("Nocturne ${BuildInfo.VERSION}\n")
+    Thread {
+        Thread.sleep(90_000)
+        log("TIMEOUT")
+        Runtime.getRuntime().halt(2)
+    }.apply { isDaemon = true }.start()
+    val ok = runCatching {
         org.jetbrains.skia.Surface.makeRasterN32Premul(16, 16).close()
-        report.append("skia ok\n")
-        javax.swing.SwingUtilities.invokeAndWait { AppGraph.init(VlcAudioEngine()) }
-        report.append("graph ok\n")
-    }
-    result.exceptionOrNull()?.let { report.append("FAILED\n").append(it.stackTraceToString()) } ?: report.append("SMOKE OK\n")
-    output.writeText(report.toString())
-    exitProcess(if (result.isSuccess) 0 else 1)
+        log("skia ok")
+        val engine = VlcAudioEngine()
+        log("vlc available=${engine.available} bundled=${VlcAudioEngine.bundledDir() != null}")
+        if (isWindows && !engine.available) error("bundled VLC failed to load")
+        javax.swing.SwingUtilities.invokeAndWait { AppGraph.init(engine) }
+        log("graph ok")
+    }.onFailure { log("FAILED\n" + it.stackTraceToString()) }.isSuccess
+    if (ok) log("SMOKE OK")
+    Runtime.getRuntime().halt(if (ok) 0 else 1)
 }
 
 fun main(args: Array<String>) {

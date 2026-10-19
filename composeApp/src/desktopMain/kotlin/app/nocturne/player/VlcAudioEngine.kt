@@ -3,6 +3,8 @@ package app.nocturne.player
 import app.nocturne.model.ResolvedStream
 import app.nocturne.model.Track
 import app.nocturne.source.InnerTube
+import java.io.File
+import com.sun.jna.NativeLibrary
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
@@ -10,7 +12,14 @@ import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 
 class VlcAudioEngine : AudioEngine {
     private val factory: MediaPlayerFactory? = runCatching {
-        NativeDiscovery().discover()
+        val bundled = bundledDir()
+        if (bundled != null) {
+            NativeLibrary.addSearchPath("libvlc", bundled.absolutePath)
+            NativeLibrary.addSearchPath("libvlccore", bundled.absolutePath)
+            NativeLibrary.getInstance(File(bundled, "libvlccore.dll").absolutePath)
+        } else {
+            NativeDiscovery().discover()
+        }
         MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500")
     }.getOrNull()
 
@@ -61,7 +70,7 @@ class VlcAudioEngine : AudioEngine {
 
     override fun load(stream: ResolvedStream, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
         val p = player ?: run {
-            listener?.onError(IllegalStateException("VLC media player (64-bit) is required for playback on desktop — install it from videolan.org"))
+            listener?.onError(IllegalStateException("The audio engine failed to load — reinstall Nocturne"))
             return
         }
         val options = buildList {
@@ -91,6 +100,12 @@ class VlcAudioEngine : AudioEngine {
     override fun setVolume(volume: Float) {
         this.volume = (volume * 100).toInt().coerceIn(0, 200)
         player?.audio()?.setVolume(this.volume)
+    }
+
+    companion object {
+        fun bundledDir(): File? = System.getProperty("compose.application.resources.dir")
+            ?.let { File(it, "vlc") }
+            ?.takeIf { File(it, "libvlc.dll").exists() }
     }
 
     override fun release() {

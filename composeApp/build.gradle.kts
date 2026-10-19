@@ -147,6 +147,7 @@ compose.desktop {
             description = "Nocturne music player"
             vendor = "Nocturne"
             includeAllModules = true
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
 
             windows {
                 iconFile.set(project.file("icons/nocturne.ico"))

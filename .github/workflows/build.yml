@@ -78,6 +78,21 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      - name: Bundle libVLC
+        shell: pwsh
+        run: |
+          $ver = "3.0.21"
+          Invoke-WebRequest "https://download.videolan.org/pub/videolan/vlc/$ver/win64/vlc-$ver-win64.zip" -OutFile "$env:RUNNER_TEMP\vlc.zip"
+          Expand-Archive "$env:RUNNER_TEMP\vlc.zip" -DestinationPath "$env:RUNNER_TEMP\vlc"
+          $src = "$env:RUNNER_TEMP\vlc\vlc-$ver"
+          $dst = "composeApp\resources\windows\vlc"
+          New-Item -ItemType Directory -Force $dst | Out-Null
+          Copy-Item "$src\libvlc.dll", "$src\libvlccore.dll" $dst
+          Copy-Item "$src\plugins" "$dst\plugins" -Recurse
+          foreach ($d in "gui","video_output","video_filter","video_chroma","video_splitter","visualization","lua","services_discovery","control","spu","text_renderer","stream_out","mux","d3d9","d3d11","keystore") {
+            Remove-Item -Recurse -Force "$dst\plugins\$d" -ErrorAction SilentlyContinue
+          }
+          "{0:N1} MB bundled" -f ((Get-ChildItem $dst -Recurse | Measure-Object Length -Sum).Sum / 1MB)
       - name: Build app image and MSI
         shell: bash
         run: |
@@ -93,9 +108,10 @@ jobs:
         shell: pwsh
         run: |
           $out = Join-Path $env:RUNNER_TEMP "smoke.txt"
-          $p = Start-Process -FilePath "composeApp\build\compose\binaries\main\app\Nocturne\Nocturne.exe" -ArgumentList "--smoke-test=$out" -Wait -PassThru
+          $p = Start-Process -FilePath "composeApp\build\compose\binaries\main\app\Nocturne\Nocturne.exe" -ArgumentList "--smoke-test=$out" -PassThru
+          if (-not $p.WaitForExit(150000)) { Stop-Process -Id $p.Id -Force; Write-Host "Process did not exit" }
           if (Test-Path $out) { Get-Content $out } else { Write-Host "No smoke report written" }
-          if ($p.ExitCode -ne 0) { exit 1 }
+          if (-not (Test-Path $out) -or -not (Select-String -Path $out -Pattern "SMOKE OK" -Quiet)) { exit 1 }
       - name: Build setup with Inno Setup
         shell: pwsh
         run: |

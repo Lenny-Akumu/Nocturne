@@ -9,3 +9,4 @@ captures/
 *.keystore
 *.jks
 !composeApp/nocturne-release.jks
+composeApp/resources/windows/vlc/

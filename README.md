@@ -75,7 +75,7 @@ Material You 3 на Android · Mica / Acrylic на Windows 11 · одна код
 - **Android**: `Nocturne-android.apk` (Android 8.0+)
 - **Windows**: `Nocturne-Setup-*.exe` (рекомендовано, з автозапуском після встановлення) або `Nocturne-*.msi`
 
-> **Windows:** для відтворення потрібен встановлений **[VLC media player](https://www.videolan.org/vlc/) (64-bit)**. Nocturne знаходить його автоматично.
+> **Windows:** аудіодвижок (libVLC) вже вбудований в інсталятор, нічого додатково ставити не треба.
 
 ### Акаунти
 **Налаштування → Accounts** — вхід, щоб підтягнути вподобані треки, плейлисти, альбоми й артистів:
@@ -115,7 +115,7 @@ composeApp/src/
 │                    InnerTube (YouTube Music), Spotify Web API, LRCLIB, бібліотека
 ├── jvmShared/       код для Android і десктопа: NewPipe Extractor (потоки YouTube / SoundCloud), файлове сховище
 ├── androidMain/     Media3 ExoPlayer + MediaSessionService, Material You, кеш
-└── desktopMain/     VLC (vlcj), Mica / Acrylic через DWM (JNA), акцентний колір Windows
+└── desktopMain/     вбудований libVLC (vlcj), Mica / Acrylic через DWM (JNA), акцентний колір Windows
 ```
 
 | Шар | Технології |
