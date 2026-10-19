@@ -102,14 +102,16 @@ class NewPipeBackendImpl : NewPipeBackend {
     }
 
     override suspend fun stream(source: Source, url: String, quality: AudioQuality): ResolvedStream = io {
-        val info = StreamInfo.getInfo(service(source), url)
-        val candidates = info.audioStreams.filter { it.isUrl && it.content.isNotBlank() }
+        val extractor = service(source).getStreamExtractor(url)
+        extractor.fetchPage()
+        val audio = extractor.audioStreams
+        val candidates = audio.filter { it.isUrl && it.content.isNotBlank() }
             .filter { it.audioTrackType == null || it.audioTrackType == AudioTrackType.ORIGINAL }
-            .ifEmpty { info.audioStreams.filter { it.isUrl && it.content.isNotBlank() } }
+            .ifEmpty { audio.filter { it.isUrl && it.content.isNotBlank() } }
         val progressive = candidates.filter { it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
         val pool = progressive.ifEmpty { candidates.filter { it.deliveryMethod == DeliveryMethod.HLS } }
         val chosen = pick(pool, quality)
-        val hls: String? = info.hlsUrl
+        val hls: String? = runCatching { extractor.hlsUrl }.getOrNull()
         when {
             chosen != null -> ResolvedStream(
                 url = chosen.content,

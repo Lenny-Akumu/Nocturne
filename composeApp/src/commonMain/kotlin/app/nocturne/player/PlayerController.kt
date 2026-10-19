@@ -3,6 +3,7 @@ package app.nocturne.player
 import app.nocturne.FileStore
 import app.nocturne.data.Library
 import app.nocturne.data.SettingsStore
+import app.nocturne.model.ResolvedStream
 import app.nocturne.model.Source
 import app.nocturne.model.Track
 import app.nocturne.nowMillis
@@ -10,6 +11,7 @@ import app.nocturne.source.MusicProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -247,6 +249,38 @@ class PlayerController(
         save()
     }
 
+    private class CachedStream(val stream: ResolvedStream, val at: Long)
+
+    private val streamCache = mutableMapOf<String, CachedStream>()
+    private val inFlight = mutableMapOf<String, kotlinx.coroutines.Deferred<ResolvedStream>>()
+    private var prefetchJob: Job? = null
+
+    private suspend fun resolve(track: Track, fresh: Boolean = false): ResolvedStream {
+        val key = track.key + ":" + settings.value.audioQuality
+        if (!fresh) streamCache[key]?.takeIf { nowMillis() - it.at < STREAM_TTL }?.let { return it.stream }
+        val pending = inFlight[key]?.takeIf { !fresh && it.isActive }
+            ?: scope.async(Dispatchers.Default) {
+                val provider = providers[track.source] ?: error("${track.source.label} is disabled")
+                provider.stream(track, settings.value.audioQuality)
+            }.also { inFlight[key] = it }
+        return try {
+            pending.await().also { streamCache[key] = CachedStream(it, nowMillis()) }
+        } finally {
+            if (inFlight[key] === pending && !pending.isActive) inFlight.remove(key)
+        }
+    }
+
+    private fun prefetchNext() {
+        prefetchJob?.cancel()
+        prefetchJob = scope.launch {
+            delay(1500)
+            val s = _state.value
+            listOfNotNull(s.queue.getOrNull(s.index + 1), s.queue.getOrNull(s.index + 2)).forEach { t ->
+                runCatching { resolve(t) }
+            }
+        }
+    }
+
     private fun loadCurrent(startMs: Long, playWhenReady: Boolean) {
         val track = _state.value.current ?: return
         loadJob?.cancel()
@@ -256,11 +290,11 @@ class PlayerController(
         queueChanged()
         loadJob = scope.launch {
             try {
-                val provider = providers[track.source] ?: error("${track.source.label} is disabled")
-                val stream = withContext(Dispatchers.Default) { provider.stream(track, settings.value.audioQuality) }
+                val stream = resolve(track)
                 if (_state.value.current?.key != track.key) return@launch
                 engine.load(stream, track, startMs, playWhenReady)
                 if (playWhenReady) library.recordPlay(track)
+                prefetchNext()
                 val s = _state.value
                 if (settings.value.autoplayRadio && s.repeat == RepeatMode.OFF && s.index >= s.queue.lastIndex - 1) {
                     fetchRadio(track, replace = false)
@@ -297,8 +331,7 @@ class PlayerController(
                 val pos = engine.positionMs
                 val track = _state.value.current ?: return@launch
                 runCatching {
-                    val stream = withContext(Dispatchers.Default) { providers.getValue(track.source).stream(track, settings.value.audioQuality) }
-                    engine.load(stream, track, pos, true)
+                    engine.load(resolve(track, fresh = true), track, pos, true)
                 }.onSuccess { return@launch }
             }
             _state.update { it.copy(isBuffering = false, isPlaying = false, error = "Playback error: ${error.message}") }
@@ -328,9 +361,14 @@ class PlayerController(
         _state.update { it.copy(queue = saved.queue, index = saved.index.coerceIn(0, saved.queue.lastIndex), positionMs = saved.positionMs, queueTitle = saved.title) }
         originalOrder = saved.queue
         if (settings.value.resumeOnStart) loadCurrent(saved.positionMs, true)
+        else scope.launch {
+            delay(2500)
+            _state.value.current?.let { runCatching { resolve(it) } }
+        }
     }
 
     companion object {
         private const val QUEUE_FILE = "queue.json"
+        private const val STREAM_TTL = 3 * 60 * 60 * 1000L
     }
 }

@@ -1,6 +1,7 @@
 package app.nocturne.source
 
 import app.nocturne.model.ArtistRef
+import app.nocturne.model.CollectionPage
 import app.nocturne.model.CollectionRef
 import app.nocturne.model.CollectionType
 import app.nocturne.model.MediaEntry
@@ -94,17 +95,17 @@ class InnerTube(
         return title to tracks
     }
 
-    suspend fun home(): List<Section> {
-        val raw = call("browse") { mapOf("browseId" to primitive("FEmusic_home")) }
-        val root = json.parseToJsonElement(raw)
-        return root.findAll("musicCarouselShelfRenderer").mapNotNull { shelf ->
+    suspend fun home(): List<Section> = carousels(browse("FEmusic_home"))
+
+    private fun carousels(root: JsonElement): List<Section> =
+        root.findAll("musicCarouselShelfRenderer").mapNotNull { shelf ->
             val title = shelf.path("header", "musicCarouselShelfBasicHeaderRenderer", "title").runsText()
                 ?: return@mapNotNull null
             val contents = shelf.path("contents").arr ?: return@mapNotNull null
             var listItems = 0
             val items = contents.mapNotNull { c ->
                 c.path("musicTwoRowItemRenderer")?.let { parseTwoRow(it) }
-                    ?: c.path("musicResponsiveListItemRenderer")?.let { listItems++; parseListItem(it) }
+                    ?: c.path("musicResponsiveListItemRenderer")?.let { listItems++; parseListItem(it) ?: parseListCollection(it) }
             }
             if (items.isEmpty()) null
             else Section(
@@ -114,6 +115,27 @@ class InnerTube(
                 source = Source.YOUTUBE_MUSIC,
             )
         }
+
+    suspend fun artist(browseId: String, fallback: CollectionRef): CollectionPage {
+        val root = browse(browseId)
+        val header = root.path("header").let { h ->
+            h.path("musicImmersiveHeaderRenderer") ?: h.path("musicVisualHeaderRenderer") ?: h.path("musicHeaderRenderer")
+        } ?: root.findAll("musicImmersiveHeaderRenderer").firstOrNull() ?: root.findAll("musicVisualHeaderRenderer").firstOrNull()
+        val name = header.path("title").runsText()?.removeSuffix(" - Topic") ?: fallback.title.removeSuffix(" - Topic")
+        val art = header.path("thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails").bestThumbnail()
+            ?: header.path("foregroundThumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails").bestThumbnail()
+            ?: fallback.artworkUrl
+        val description = header.path("description").runsText()
+        val shelf = root.findAll("musicShelfRenderer").firstOrNull()
+        var songs = shelf?.path("contents").arr.orEmpty().mapNotNull { it.path("musicResponsiveListItemRenderer")?.let { r -> parseListItem(r) } }
+            .filterIsInstance<MediaEntry.Song>().map { it.track }
+        val allSongs = shelf.path("title", "runs", 0, "navigationEndpoint", "browseEndpoint", "browseId").str
+            ?: shelf.path("bottomEndpoint", "browseEndpoint", "browseId").str
+        if (allSongs != null && allSongs.startsWith("VL")) {
+            runCatching { playlistTracks(allSongs).second }.getOrNull()?.takeIf { it.size > songs.size }?.let { songs = it }
+        }
+        val ref = CollectionRef(fallback.id, Source.YOUTUBE_MUSIC, CollectionType.ARTIST, name, fallback.subtitle?.takeIf { it != "Artist" } ?: "Artist", art)
+        return CollectionPage(ref, songs.distinctBy { it.id }, description = description, sections = carousels(root))
     }
 
     suspend fun radio(videoId: String): List<Track> {

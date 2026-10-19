@@ -68,7 +68,13 @@ class YouTubeMusicProvider(
                 )
             } else newPipe.playlist(source, playlistUrl(id), ref)
         }
-        CollectionType.ARTIST -> newPipe.channel(source, "https://www.youtube.com/channel/${ref.id}", ref)
+        CollectionType.ARTIST -> {
+            val page = runCatching { innerTube.artist(ref.id, ref) }.getOrNull()
+            if (page != null && (page.tracks.isNotEmpty() || page.sections.isNotEmpty())) page
+            else newPipe.channel(source, "https://www.youtube.com/channel/${ref.id}", ref).let {
+                it.copy(ref = it.ref.copy(title = it.ref.title.removeSuffix(" - Topic")))
+            }
+        }
         CollectionType.LOCAL -> error("Local collections are handled by the library")
     }
 
