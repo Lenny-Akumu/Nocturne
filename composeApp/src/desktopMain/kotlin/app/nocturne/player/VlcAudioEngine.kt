@@ -25,29 +25,44 @@ class VlcAudioEngine : AudioEngine {
 
     private val player: MediaPlayer? = runCatching { factory?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
     private var listener: EngineListener? = null
-    private var volume = 100
+    @Volatile private var volume = 100
+    @Volatile private var time = 0L
+    @Volatile private var length = 0L
+    @Volatile private var playing = false
 
     val available: Boolean get() = player != null
 
     init {
         player?.events()?.addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
             override fun playing(mediaPlayer: MediaPlayer) {
+                playing = true
                 mediaPlayer.submit { mediaPlayer.audio().setVolume(volume) }
                 listener?.onPlayingChanged(true)
                 listener?.onBufferingChanged(false)
             }
 
             override fun paused(mediaPlayer: MediaPlayer) {
+                playing = false
                 listener?.onPlayingChanged(false)
             }
 
             override fun stopped(mediaPlayer: MediaPlayer) {
+                playing = false
                 listener?.onPlayingChanged(false)
             }
 
             override fun finished(mediaPlayer: MediaPlayer) {
+                playing = false
                 listener?.onPlayingChanged(false)
                 listener?.onEnded()
+            }
+
+            override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) {
+                time = newTime.coerceAtLeast(0)
+            }
+
+            override fun lengthChanged(mediaPlayer: MediaPlayer, newLength: Long) {
+                length = newLength.coerceAtLeast(0)
             }
 
             override fun buffering(mediaPlayer: MediaPlayer, newCache: Float) {
@@ -55,51 +70,57 @@ class VlcAudioEngine : AudioEngine {
             }
 
             override fun error(mediaPlayer: MediaPlayer) {
+                playing = false
                 listener?.onError(IllegalStateException("VLC could not play this stream"))
             }
         })
     }
 
-    override val positionMs: Long get() = player?.status()?.time()?.coerceAtLeast(0) ?: 0
-    override val durationMs: Long get() = player?.status()?.length()?.coerceAtLeast(0) ?: 0
-    override val isPlaying: Boolean get() = player?.status()?.isPlaying ?: false
+    override val positionMs: Long get() = time
+    override val durationMs: Long get() = length
+    override val isPlaying: Boolean get() = playing
 
     override fun setListener(listener: EngineListener) {
         this.listener = listener
     }
 
+    private fun async(block: MediaPlayer.() -> Unit) {
+        val p = player ?: return
+        p.submit { runCatching { p.block() } }
+    }
+
     override fun load(stream: ResolvedStream, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
-        val p = player ?: run {
+        if (player == null) {
             listener?.onError(IllegalStateException("The audio engine failed to load — reinstall Nocturne"))
             return
         }
+        time = startPositionMs
+        length = track.durationMs
         val options = buildList {
             add(":http-user-agent=${InnerTube.USER_AGENT}")
             if (startPositionMs > 0) add(":start-time=${startPositionMs / 1000.0}")
             add(":meta-title=${track.title}")
         }.toTypedArray()
-        if (playWhenReady) p.media().play(stream.url, *options) else p.media().startPaused(stream.url, *options)
+        async { if (playWhenReady) media().play(stream.url, *options) else media().startPaused(stream.url, *options) }
     }
 
-    override fun play() {
-        player?.controls()?.play()
-    }
+    override fun play() = async { controls().play() }
 
-    override fun pause() {
-        player?.controls()?.setPause(true)
-    }
+    override fun pause() = async { controls().setPause(true) }
 
     override fun stop() {
-        player?.controls()?.stop()
+        playing = false
+        async { controls().stop() }
     }
 
     override fun seekTo(positionMs: Long) {
-        player?.controls()?.setTime(positionMs)
+        time = positionMs
+        async { controls().setTime(positionMs) }
     }
 
     override fun setVolume(volume: Float) {
         this.volume = (volume * 100).toInt().coerceIn(0, 200)
-        player?.audio()?.setVolume(this.volume)
+        async { audio().setVolume(this@VlcAudioEngine.volume) }
     }
 
     companion object {

@@ -218,6 +218,12 @@ class PlayerController(
 
     fun sleepAfterCurrentTrack() = _state.update { it.copy(sleepAtMs = null, sleepAfterTrack = true) }
 
+    fun ensureAutoplay() {
+        val s = _state.value
+        val cur = s.current ?: return
+        if (s.index >= s.queue.lastIndex - 1) fetchRadio(cur, replace = false)
+    }
+
     fun dismissError() = _state.update { it.copy(error = null) }
 
     fun stop() {
@@ -235,7 +241,9 @@ class PlayerController(
             val related = runCatching {
                 withContext(Dispatchers.Default) { providers[seed.source]?.related(seed).orEmpty() }
             }.getOrDefault(emptyList())
-            val fresh = filterExplicit(related).filter { r -> _state.value.queue.none { it.key == r.key } }
+            val recent = library.state.value.history.take(25).map { it.track.key }.toSet()
+            val unseen = filterExplicit(related).filter { r -> _state.value.queue.none { it.key == r.key } }
+            val fresh = unseen.filter { it.key !in recent }.takeIf { it.size >= 5 } ?: unseen
             if (fresh.isEmpty()) return@launch
             _state.update { s -> s.copy(queue = s.queue + fresh, queueTitle = if (replace) s.queueTitle else s.queueTitle) }
             queueChanged()

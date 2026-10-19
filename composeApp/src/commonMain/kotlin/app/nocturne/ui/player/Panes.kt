@@ -16,12 +16,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AllInclusive
 import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -117,6 +119,7 @@ fun QueueView() {
             }
             IconButton(onClick = graph.player::clearQueue) { Icon(Icons.Rounded.ClearAll, "Clear queue") }
         }
+        val settings by graph.settings.state.collectAsState()
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(state.queue, key = { i, t -> t.key + "#" + i }) { i, t ->
                 TrackRow(
@@ -125,6 +128,26 @@ fun QueueView() {
                     modifier = Modifier.alpha(if (i < state.index) 0.5f else 1f),
                     menuContext = TrackMenuContext(queueIndex = i),
                 )
+            }
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.AllInclusive, null, tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text("Autoplay", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Keep playing similar songs when the queue ends",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = settings.autoplayRadio, onCheckedChange = { v ->
+                        graph.settings.update { it.copy(autoplayRadio = v) }
+                        if (v) graph.player.ensureAutoplay()
+                    })
+                }
             }
         }
     }

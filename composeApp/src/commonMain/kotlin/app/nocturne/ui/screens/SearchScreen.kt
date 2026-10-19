@@ -209,7 +209,12 @@ fun SearchScreen(contentPadding: PaddingValues) {
                     val tracks = results.filterIsInstance<MediaEntry.Song>().map { it.track }
                     LazyColumn(contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = contentPadding.calculateBottomPadding())) {
                         items(tracks.size, key = { tracks[it].key + it }) { i ->
-                            TrackRow(tracks[i], onClick = { scope.launch { graph.player.play(tracks, i, "Search • ${s.submitted}") } })
+                            TrackRow(tracks[i], onClick = {
+                                scope.launch {
+                                    if (settings.autoplayRadio) graph.player.startRadio(tracks[i])
+                                    else graph.player.play(tracks, i, "Search • ${s.submitted}")
+                                }
+                            })
                         }
                     }
                 } else {
