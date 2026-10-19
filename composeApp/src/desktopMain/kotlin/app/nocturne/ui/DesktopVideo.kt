@@ -66,7 +66,7 @@ private class VideoFrames(url: String) {
                 }
             }
             player.videoSurface().set(f.videoSurfaces().newVideoSurface(format, render, true))
-            player.submit { player.media().play(url, ":no-audio", ":input-repeat=0") }
+            player.submit { player.media().play(url, ":no-audio", ":input-repeat=0", ":http-user-agent=${app.nocturne.source.InnerTube.USER_AGENT}") }
         }
     }
 

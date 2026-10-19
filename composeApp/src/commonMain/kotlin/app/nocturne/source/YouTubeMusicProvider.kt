@@ -29,7 +29,8 @@ class YouTubeMusicProvider(
 
     override suspend fun videoStream(track: Track): String? {
         if (videoCache.containsKey(track.id)) return videoCache[track.id]
-        val url = runCatching { newPipe.videoStream(source, watchUrl(track.id), 480) }.getOrNull()
+        val id = runCatching { innerTube.musicVideoId(track.id) }.getOrDefault(track.id)
+        val url = id?.let { runCatching { newPipe.videoStream(source, watchUrl(it), 480) }.getOrNull() }
         videoCache[track.id] = url
         return url
     }

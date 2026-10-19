@@ -11,7 +11,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import app.nocturne.source.InnerTube
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import kotlin.math.abs
@@ -21,7 +25,9 @@ import kotlin.math.abs
 actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: Float, modifier: Modifier) {
     val context = LocalContext.current
     val player = remember(url) {
-        ExoPlayer.Builder(context).build().apply {
+        val http = DefaultHttpDataSource.Factory().setUserAgent(InnerTube.USER_AGENT).setAllowCrossProtocolRedirects(true)
+        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(http)).build().apply {
+            repeatMode = Player.REPEAT_MODE_OFF
             volume = 0f
             setMediaItem(MediaItem.fromUri(url))
             prepare()

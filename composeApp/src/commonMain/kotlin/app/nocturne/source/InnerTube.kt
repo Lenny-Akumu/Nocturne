@@ -161,6 +161,22 @@ class InnerTube(
             .distinctBy { it.id }
     }
 
+    suspend fun musicVideoId(videoId: String): String? {
+        val raw = call("next") { mapOf("videoId" to primitive(videoId), "isAudioOnly" to kotlinx.serialization.json.JsonPrimitive(false)) }
+        val root = json.parseToJsonElement(raw)
+        fun type(r: JsonElement?) = r.path("navigationEndpoint", "watchEndpoint", "watchEndpointMusicSupportedConfigs", "watchEndpointMusicConfig", "musicVideoType").str
+        for (w in root.findAll("playlistPanelVideoWrapperRenderer")) {
+            if (w.path("primaryRenderer", "playlistPanelVideoRenderer", "videoId").str != videoId) continue
+            w.path("counterpart").arr?.forEach { c ->
+                val r = c.path("counterpartRenderer", "playlistPanelVideoRenderer")
+                val id = r.path("videoId").str
+                if (id != null && type(r) != ATV) return id
+            }
+        }
+        val self = root.findAll("playlistPanelVideoRenderer").firstOrNull { it.path("videoId").str == videoId }
+        return if (type(self) == ATV) null else videoId
+    }
+
     suspend fun lyrics(videoId: String): String? {
         val raw = call("next") { mapOf("videoId" to primitive(videoId), "isAudioOnly" to kotlinx.serialization.json.JsonPrimitive(true)) }
         val browseId = Regex("\"(MPLYt[A-Za-z0-9_-]+)\"").find(raw)?.groupValues?.get(1) ?: return null
@@ -298,3 +314,5 @@ class InnerTube(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
     }
 }
+
+private const val ATV = "MUSIC_VIDEO_TYPE_ATV"

@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -121,17 +122,17 @@ fun UpdateBanner(modifier: Modifier = Modifier) {
                         (s as? UpdateState.Failed)?.let {
                             Text(it.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
                         }
-                        Row(
+                        FlowRow(
                             Modifier.fillMaxWidth().padding(top = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            itemVerticalAlignment = Alignment.CenterVertically,
                         ) {
-                            if (i.notes.isNotBlank()) TextButton(onClick = { notes = !notes }) { Text(t(if (notes) "Hide" else "What's new")) }
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { updater.skip(i) }) { Text(t("Skip")) }
-                            TextButton(onClick = { updater.later() }) { Text(t("Later")) }
+                            if (i.notes.isNotBlank()) TextButton(onClick = { notes = !notes }) { Text(t(if (notes) "Hide" else "What's new"), maxLines = 1, softWrap = false) }
+                            TextButton(onClick = { updater.skip(i) }) { Text(t("Skip"), maxLines = 1, softWrap = false) }
+                            TextButton(onClick = { updater.later() }) { Text(t("Later"), maxLines = 1, softWrap = false) }
                             Button(onClick = { scope.launch { updater.install(i) } }) {
-                                Text(t(if (s is UpdateState.Failed) "Retry" else "Update"))
+                                Text(t(if (s is UpdateState.Failed) "Retry" else "Update"), maxLines = 1, softWrap = false)
                             }
                         }
                     }
