@@ -23,6 +23,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.request
+import io.ktor.http.HttpMethod
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
@@ -145,6 +147,26 @@ class SpotifyProvider(
         tokenFor = creds
         tokenExpiry = now + ((body.path("expires_in").num ?: 3600) - 60) * 1000
         t
+    }
+
+    override suspend fun rate(track: Track, rating: Rating) {
+        if (!isSignedIn) return
+        val method = if (rating == Rating.LIKE) HttpMethod.Put else HttpMethod.Delete
+        http.request("https://api.spotify.com/v1/me/tracks?ids=${track.id}") {
+            this.method = method
+            header("Authorization", "Bearer ${accessToken()}")
+        }
+    }
+
+    override suspend fun likedTracks(): List<Track> {
+        if (!isSignedIn) return emptyList()
+        val tracks = mutableListOf<Track>()
+        var page: JsonElement? = api("me/tracks?limit=50&market=${market()}")
+        while (page != null && tracks.size < 1000) {
+            page.path("items").arr.orEmpty().mapNotNullTo(tracks) { parseTrack(it.path("track")) }
+            page = page.path("next").str?.let { api(it) }
+        }
+        return tracks
     }
 
     private suspend fun api(path: String): JsonElement {
@@ -313,6 +335,6 @@ class SpotifyProvider(
 
     companion object {
         val LikedRef = CollectionRef("me:liked", Source.SPOTIFY, CollectionType.PLAYLIST, "Liked Songs", "Spotify")
-        private const val SCOPES = "user-read-private user-library-read playlist-read-private playlist-read-collaborative user-follow-read user-top-read"
+        private const val SCOPES = "user-read-private user-library-read user-library-modify playlist-read-private playlist-read-collaborative user-follow-read user-top-read"
     }
 }

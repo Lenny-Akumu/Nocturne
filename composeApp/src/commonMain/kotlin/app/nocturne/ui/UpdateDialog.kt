@@ -1,15 +1,33 @@
 package app.nocturne.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SystemUpdate
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -18,63 +36,106 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import app.nocturne.AppGraph
 import app.nocturne.BuildInfo
+import app.nocturne.data.UpdateInfo
 import app.nocturne.data.UpdateState
 import kotlinx.coroutines.launch
 
+private fun mb(bytes: Long) = (bytes / 1024.0 / 1024.0).let { ((it * 10).toLong() / 10.0).toString() }
+
 @Composable
-fun UpdateDialog() {
+fun UpdateBanner(modifier: Modifier = Modifier) {
     val updater = AppGraph.instance.updater
     val state by updater.state.collectAsState()
     val scope = rememberCoroutineScope()
-    val info = when (val s = state) {
+    var notes by remember { mutableStateOf(false) }
+    val info: UpdateInfo? = when (val s = state) {
         is UpdateState.Available -> s.info
         is UpdateState.Downloading -> s.info
         is UpdateState.Failed -> s.info
-        UpdateState.Idle -> return
+        UpdateState.Idle -> null
     }
-    val downloading = state as? UpdateState.Downloading
-    AlertDialog(
-        onDismissRequest = { if (downloading == null) updater.later() },
-        icon = { Icon(Icons.Rounded.SystemUpdate, null) },
-        title = { Text("Nocturne ${info.version} is available") },
-        text = {
-            Column {
-                Text("You have ${BuildInfo.VERSION}.", style = MaterialTheme.typography.bodyMedium)
-                if (info.notes.isNotBlank()) {
-                    Spacer(Modifier.height(10.dp))
+    AnimatedVisibility(
+        visible = info != null,
+        enter = slideInVertically { -it } + fadeIn(),
+        exit = slideOutVertically { -it } + fadeOut(),
+        modifier = modifier.statusBarsPadding().padding(12.dp),
+    ) {
+        val i = info ?: return@AnimatedVisibility
+        Card(
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.SystemUpdate, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Update available — Nocturne ${i.version}", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "You have ${BuildInfo.VERSION}" + (if (i.size > 0) " • ${mb(i.size)} MB" else ""),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                AnimatedVisibility(notes && i.notes.isNotBlank(), enter = expandVertically(), exit = shrinkVertically()) {
                     Text(
-                        info.notes.replace(Regex("[#*`]"), "").trim(),
+                        i.notes.replace(Regex("[#*`]"), "").trim(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+                        modifier = Modifier.padding(top = 10.dp).heightIn(max = 180.dp).verticalScroll(rememberScrollState()),
                     )
                 }
-                if (downloading != null) {
-                    Spacer(Modifier.height(14.dp))
-                    LinearProgressIndicator(progress = { downloading.progress }, modifier = Modifier.fillMaxWidth())
-                    Text("Downloading… ${(downloading.progress * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
-                }
-                (state as? UpdateState.Failed)?.let {
-                    Spacer(Modifier.height(10.dp))
-                    Text(it.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                when (val s = state) {
+                    is UpdateState.Downloading -> {
+                        Spacer(Modifier.size(12.dp))
+                        LinearProgressIndicator(
+                            progress = { s.progress },
+                            modifier = Modifier.fillMaxWidth(),
+                            strokeCap = StrokeCap.Round,
+                        )
+                        Text(
+                            "Downloading… ${(s.progress * 100).toInt()}%" +
+                                (if (i.size > 0) " • ${mb((i.size * s.progress).toLong())} / ${mb(i.size)} MB" else ""),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                    else -> {
+                        (s as? UpdateState.Failed)?.let {
+                            Text(it.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (i.notes.isNotBlank()) TextButton(onClick = { notes = !notes }) { Text(if (notes) "Hide" else "What's new") }
+                            Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { updater.skip(i) }) { Text("Skip") }
+                            TextButton(onClick = { updater.later() }) { Text("Later") }
+                            Button(onClick = { scope.launch { updater.install(i) } }) {
+                                Text(if (s is UpdateState.Failed) "Retry" else "Update")
+                            }
+                        }
+                    }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { scope.launch { updater.install(info) } }, enabled = downloading == null) { Text("Update") }
-        },
-        dismissButton = {
-            if (downloading == null) {
-                Column {
-                    TextButton(onClick = { updater.later() }) { Text("Later") }
-                    TextButton(onClick = { updater.skip(info) }) { Text("Skip this version") }
-                }
-            }
-        },
-    )
+        }
+    }
 }

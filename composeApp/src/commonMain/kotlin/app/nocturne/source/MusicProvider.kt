@@ -23,6 +23,7 @@ interface MusicProvider {
 
     val isSignedIn: Boolean get() = false
     suspend fun rate(track: Track, rating: Rating) {}
+    suspend fun likedTracks(): List<Track> = emptyList()
     suspend fun library(): AccountLibrary? = null
 
     fun canOpen(url: String): Boolean = false

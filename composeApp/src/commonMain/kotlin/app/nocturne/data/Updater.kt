@@ -28,6 +28,10 @@ sealed interface UpdateState {
 
 expect suspend fun downloadAndInstall(url: String, fileName: String, onProgress: (Float) -> Unit)
 
+expect fun notifyUpdateAvailable(version: String, notes: String)
+
+expect fun notifyUpdateProgress(version: String, progress: Float?)
+
 class Updater(private val http: HttpClient, private val settings: SettingsStore) {
     private val json = Json { ignoreUnknownKeys = true }
     private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
@@ -36,6 +40,7 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
     suspend fun check(manual: Boolean): UpdateInfo? {
         val response = http.get("https://api.github.com/repos/${BuildInfo.REPO}/releases/latest") {
             header("Accept", "application/vnd.github+json")
+            header("User-Agent", "Nocturne/${BuildInfo.VERSION}")
         }
         if (!response.status.isSuccess()) {
             if (manual) error("GitHub: ${response.status}")
@@ -59,17 +64,29 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
             fileName = asset.path("name").str ?: "Nocturne-update",
             size = asset.path("size").num ?: 0,
         )
+        val wasIdle = _state.value is UpdateState.Idle
         _state.value = UpdateState.Available(info)
+        if (wasIdle && !manual) runCatching { notifyUpdateAvailable(info.version, info.notes) }
         return info
     }
 
     suspend fun install(info: UpdateInfo) {
         _state.value = UpdateState.Downloading(info, 0f)
+        var lastStep = -1
         runCatching {
-            downloadAndInstall(info.url, info.fileName) { p -> _state.value = UpdateState.Downloading(info, p) }
+            downloadAndInstall(info.url, info.fileName) { p ->
+                _state.value = UpdateState.Downloading(info, p)
+                val step = (p * 50).toInt()
+                if (step != lastStep) {
+                    lastStep = step
+                    runCatching { notifyUpdateProgress(info.version, p) }
+                }
+            }
         }.onSuccess {
+            runCatching { notifyUpdateProgress(info.version, null) }
             _state.value = UpdateState.Idle
         }.onFailure {
+            runCatching { notifyUpdateProgress(info.version, null) }
             _state.value = UpdateState.Failed(info, it.message ?: "Download failed")
         }
     }

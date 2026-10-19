@@ -29,3 +29,51 @@ actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress:
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     )
 }
+
+private const val CHANNEL = "updates"
+private const val NOTIFICATION_ID = 4210
+
+private fun manager(): android.app.NotificationManager? {
+    val ctx = AndroidContext.app
+    val nm = ctx.getSystemService(android.app.NotificationManager::class.java) ?: return null
+    if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CHANNEL) == null) {
+        nm.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "App updates", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+    }
+    return nm
+}
+
+private fun openApp(): android.app.PendingIntent {
+    val ctx = AndroidContext.app
+    val intent = Intent(ctx, app.nocturne.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    return android.app.PendingIntent.getActivity(ctx, 7, intent, android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+}
+
+actual fun notifyUpdateAvailable(version: String, notes: String) {
+    val nm = manager() ?: return
+    val n = androidx.core.app.NotificationCompat.Builder(AndroidContext.app, CHANNEL)
+        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+        .setContentTitle("Nocturne $version is available")
+        .setContentText("Tap to update")
+        .setContentIntent(openApp())
+        .setAutoCancel(true)
+        .build()
+    runCatching { nm.notify(NOTIFICATION_ID, n) }
+}
+
+actual fun notifyUpdateProgress(version: String, progress: Float?) {
+    val nm = manager() ?: return
+    if (progress == null) {
+        nm.cancel(NOTIFICATION_ID)
+        return
+    }
+    val n = androidx.core.app.NotificationCompat.Builder(AndroidContext.app, CHANNEL)
+        .setSmallIcon(android.R.drawable.stat_sys_download)
+        .setContentTitle("Downloading Nocturne $version")
+        .setContentText("${(progress * 100).toInt()}%")
+        .setProgress(100, (progress * 100).toInt(), false)
+        .setOngoing(true)
+        .setOnlyAlertOnce(true)
+        .setContentIntent(openApp())
+        .build()
+    runCatching { nm.notify(NOTIFICATION_ID, n) }
+}

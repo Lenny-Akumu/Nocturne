@@ -26,6 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 
 class AppGraph(val engine: AudioEngine) {
@@ -76,10 +78,22 @@ class AppGraph(val engine: AudioEngine) {
     val updater = Updater(http, settings)
 
     init {
-        if (settings.value.autoCheckUpdates) {
-            scope.launch {
-                kotlinx.coroutines.delay(4000)
-                runCatching { updater.check(manual = false) }
+        scope.launch {
+            kotlinx.coroutines.delay(4000)
+            while (true) {
+                if (settings.value.autoCheckUpdates && updater.state.value is app.nocturne.data.UpdateState.Idle) {
+                    runCatching { updater.check(manual = false) }
+                }
+                kotlinx.coroutines.delay(6 * 60 * 60_000L)
+            }
+        }
+        scope.launch {
+            kotlinx.coroutines.delay(6000)
+            runCatching { syncLikes(force = true) }
+        }
+        scope.launch {
+            accounts.state.distinctUntilChangedBy { Triple(it.youtubeSignedIn, it.spotifySignedIn, it.soundcloudUserId) }.drop(1).collect {
+                runCatching { syncLikes(force = true) }
             }
         }
         scope.launch {
@@ -95,6 +109,52 @@ class AppGraph(val engine: AudioEngine) {
         accounts.update { it.copy(youtubeCookie = clean) }
         val name = runCatching { innerTube.accountName() }.getOrNull()
         accounts.update { it.copy(youtubeName = name ?: "YouTube Music user") }
+    }
+
+    private var recommendationCache: Pair<Long, List<Track>>? = null
+
+    suspend fun recommendations(force: Boolean = false): List<Track> {
+        recommendationCache?.let { (at, list) -> if (!force && nowMillis() - at < 30 * 60_000 && list.isNotEmpty()) return list }
+        val d = library.state.value
+        val enabled = settings.value.enabledSources
+        val seeds = (d.history.take(10).map { it.track } + d.liked.take(10))
+            .distinctBy { it.key }
+            .filter { it.source in enabled && !library.isBlocked(it) }
+            .shuffled()
+            .take(3)
+        if (seeds.isEmpty()) return emptyList()
+        val lists = kotlinx.coroutines.coroutineScope {
+            seeds.map { seed -> async { runCatching { provider(seed.source).related(seed) }.getOrDefault(emptyList()) } }.awaitAll()
+        }
+        val recent = d.history.take(40).map { it.track.key }.toSet()
+        val seen = mutableSetOf<String>()
+        val perArtist = mutableMapOf<String, Int>()
+        val out = mutableListOf<Track>()
+        val longest = lists.maxOfOrNull { it.size } ?: 0
+        for (i in 0 until longest) for (l in lists) {
+            val t = l.getOrNull(i) ?: continue
+            if (!seen.add(t.key) || t.key in recent || library.isBlocked(t)) continue
+            if (t.durationMs != 0L && t.durationMs !in 45_000L..15 * 60_000L) continue
+            if (settings.value.hideExplicit && t.explicit) continue
+            val artist = t.artists.firstOrNull()?.name?.lowercase().orEmpty()
+            if ((perArtist[artist] ?: 0) >= 2) continue
+            perArtist[artist] = (perArtist[artist] ?: 0) + 1
+            out += t
+        }
+        val result = out.take(40)
+        recommendationCache = nowMillis() to result
+        return result
+    }
+
+    private var lastSync = 0L
+
+    suspend fun syncLikes(force: Boolean = false) {
+        if (!force && nowMillis() - lastSync < 10 * 60_000) return
+        lastSync = nowMillis()
+        val remote = kotlinx.coroutines.coroutineScope {
+            enabledProviders().filter { it.isSignedIn }.map { p -> async { runCatching { p.likedTracks() }.getOrDefault(emptyList()) } }.awaitAll()
+        }
+        remote.forEach { library.mergeLiked(it) }
     }
 
     fun toggleLike(track: Track) {

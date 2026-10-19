@@ -17,6 +17,9 @@ import app.nocturne.model.Track
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.request
+import io.ktor.http.HttpMethod
+import io.ktor.http.encodeURLParameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
@@ -90,7 +93,19 @@ class SoundCloudProvider(
         )
     }
 
-    private suspend fun likedTracks(): List<Track> {
+    override suspend fun rate(track: Track, rating: Rating) {
+        val uid = accounts.value.soundcloudUserId ?: return
+        if (!isSignedIn) return
+        val url = track.url ?: track.id
+        val trackId = api("resolve?url=${url.encodeURLParameter()}").path("id").num ?: return
+        val clientId = newPipe.soundcloudClientId()
+        http.request("https://api-v2.soundcloud.com/users/$uid/track_likes/$trackId?client_id=$clientId") {
+            method = if (rating == Rating.LIKE) HttpMethod.Put else HttpMethod.Delete
+            header("Authorization", "OAuth ${accounts.value.soundcloudToken}")
+        }
+    }
+
+    override suspend fun likedTracks(): List<Track> {
         val id = accounts.value.soundcloudUserId ?: return emptyList()
         val tracks = mutableListOf<Track>()
         var next: String? = "users/$id/track_likes?limit=100"

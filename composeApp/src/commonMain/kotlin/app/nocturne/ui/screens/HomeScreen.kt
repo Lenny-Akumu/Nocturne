@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.width
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 private object HomeCache {
     var sections: List<Section>? = null
@@ -65,9 +66,11 @@ fun HomeScreen(contentPadding: PaddingValues) {
     var sections by remember(HomeCache.version) { mutableStateOf(HomeCache.sections) }
     var errors by remember { mutableStateOf<List<String>>(emptyList()) }
     var refreshing by remember { mutableStateOf(false) }
+    var recommended by remember { mutableStateOf<List<app.nocturne.model.Track>>(emptyList()) }
     var reload by rememberSaveable { mutableIntStateOf(0) }
 
     LaunchedEffect(reload, HomeCache.version) {
+        launch { recommended = runCatching { graph.recommendations(force = reload > 0) }.getOrDefault(emptyList()) }
         if (sections != null && reload == 0) return@LaunchedEffect
         refreshing = true
         val errs = mutableListOf<String>()
@@ -96,19 +99,21 @@ fun HomeScreen(contentPadding: PaddingValues) {
                     modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp),
                 )
             }
-            if (library.history.isNotEmpty()) {
+            val recs = recommended.filterNot { graph.library.isBlocked(it) }
+            if (recs.isNotEmpty()) {
                 item {
                     SectionView(
-                        Section("Listen again", library.history.take(24).map { MediaEntry.Song(it.track) }, SectionLayout.QUICK_PICKS),
-                    ) { list, i -> graph.player.play(list, i, "Listen again") }
+                        Section("Recommended for you", recs.map { MediaEntry.Song(it) }, SectionLayout.QUICK_PICKS),
+                        subtitle = "Based on what you've been listening to",
+                    ) { list, i -> playTrack(list, i, "Recommended for you") }
                 }
             }
             val mostPlayed = graph.library.mostPlayed(16)
             if (mostPlayed.size >= 4) {
                 item {
                     SectionView(Section("Your top tracks", mostPlayed.map { MediaEntry.Song(it) })) { list, i ->
-                        if (list.size == 1) graph.player.play(mostPlayed, mostPlayed.indexOfFirst { it.key == list[0].key }, "Your top tracks")
-                        else graph.player.play(list, i)
+                        if (list.size == 1) playTrack(mostPlayed, mostPlayed.indexOfFirst { it.key == list[0].key }, "Your top tracks")
+                        else playTrack(list, i)
                     }
                 }
             }
@@ -137,9 +142,17 @@ fun HomeScreen(contentPadding: PaddingValues) {
                     if (section.items.isNotEmpty()) item {
                         SectionView(section) { list, i ->
                             val songs = section.items.filterIsInstance<MediaEntry.Song>().map { it.track }
-                            if (list.size == 1 && songs.size > 1) graph.player.play(songs, songs.indexOfFirst { it.key == list[0].key }, section.title)
-                            else graph.player.play(list, i, section.title)
+                            if (list.size == 1 && songs.size > 1) playTrack(songs, songs.indexOfFirst { it.key == list[0].key }, section.title)
+                            else playTrack(list, i, section.title)
                         }
+                    }
+                }
+            }
+            if (library.history.isNotEmpty()) {
+                item {
+                    SectionView(Section("Listen again", library.history.take(20).map { MediaEntry.Song(it.track) })) { list, _ ->
+                        val all = library.history.take(20).map { it.track }
+                        playTrack(all, all.indexOfFirst { it.key == list[0].key }.coerceAtLeast(0), "Listen again")
                     }
                 }
             }
@@ -155,6 +168,13 @@ fun HomeScreen(contentPadding: PaddingValues) {
             item { Spacer(Modifier.height(24.dp)) }
         }
     }
+}
+
+private fun playTrack(list: List<app.nocturne.model.Track>, index: Int, title: String? = null) {
+    val graph = AppGraph.instance
+    val i = index.coerceIn(0, list.lastIndex.coerceAtLeast(0))
+    if (list.isEmpty()) return
+    if (graph.settings.value.autoplayRadio) graph.player.startRadio(list[i]) else graph.player.play(list, i, title)
 }
 
 @Composable

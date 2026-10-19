@@ -18,6 +18,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.runtime.rememberCoroutineScope
+import app.nocturne.PlatformKind
+import app.nocturne.platformKind
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -177,16 +187,49 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier, badge: (@Composa
 }
 
 @Composable
-fun SectionView(section: Section, onPlay: (List<Track>, Int) -> Unit) {
+fun SectionView(section: Section, subtitle: String? = null, onPlay: (List<Track>, Int) -> Unit) {
     val nav = AppGraph.instance.navigator
     val src = section.source
-    SectionHeader(section.title, badge = if (src != null) {
-        { SourceBadge(src, size = 18.dp) }
-    } else null)
-    if (section.layout == SectionLayout.QUICK_PICKS) {
+    val scope = rememberCoroutineScope()
+    val quick = section.layout == SectionLayout.QUICK_PICKS
+    val gridState = rememberLazyGridState()
+    val rowState = rememberLazyListState()
+    val desktop = platformKind == PlatformKind.DESKTOP
+    fun scroll(direction: Int) {
+        scope.launch {
+            if (quick) gridState.animateScrollBy(direction * gridState.layoutInfo.viewportSize.width * 0.85f)
+            else rowState.animateScrollBy(direction * rowState.layoutInfo.viewportSize.width * 0.85f)
+        }
+    }
+    val canBack = if (quick) gridState.canScrollBackward else rowState.canScrollBackward
+    val canForward = if (quick) gridState.canScrollForward else rowState.canScrollForward
+    SectionHeader(
+        section.title,
+        badge = if (src != null) {
+            { SourceBadge(src, size = 18.dp) }
+        } else null,
+        action = if (desktop && (canBack || canForward)) {
+            {
+                Row {
+                    FilledTonalIconButton(onClick = { scroll(-1) }, enabled = canBack, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Scroll left")
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    FilledTonalIconButton(onClick = { scroll(1) }, enabled = canForward, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "Scroll right")
+                    }
+                }
+            }
+        } else null,
+    )
+    subtitle?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 18.dp, bottom = 6.dp))
+    }
+    if (quick) {
         val songs = section.items.filterIsInstance<MediaEntry.Song>().map { it.track }
         LazyHorizontalGrid(
             rows = GridCells.Fixed(4),
+            state = gridState,
             modifier = Modifier.fillMaxWidth().height(272.dp),
             contentPadding = PaddingValues(horizontal = 6.dp),
         ) {
@@ -195,7 +238,7 @@ fun SectionView(section: Section, onPlay: (List<Track>, Int) -> Unit) {
             }
         }
     } else {
-        LazyRow(contentPadding = PaddingValues(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             items(section.items) { item ->
                 when (item) {
                     is MediaEntry.Song -> SongCard(item.track, onClick = { onPlay(listOf(item.track), 0) })

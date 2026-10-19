@@ -100,8 +100,10 @@ fun App(backdrop: Boolean = false) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     NocturneTheme(settings, backdrop = backdrop) {
-        TrackMenuHost { AppScaffold() }
-        UpdateDialog()
+        Box(Modifier.fillMaxSize()) {
+            TrackMenuHost { AppScaffold() }
+            UpdateBanner(Modifier.align(Alignment.TopCenter))
+        }
     }
 }
 

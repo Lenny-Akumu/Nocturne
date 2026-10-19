@@ -18,3 +18,29 @@ actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress:
         Desktop.getDesktop().open(file)
     }
 }
+
+private object Tray {
+    private var icon: java.awt.TrayIcon? = null
+
+    fun show(title: String, text: String) {
+        if (!java.awt.SystemTray.isSupported()) return
+        val tray = java.awt.SystemTray.getSystemTray()
+        val tIcon = icon ?: run {
+            val image = runCatching {
+                javax.imageio.ImageIO.read(Thread.currentThread().contextClassLoader.getResourceAsStream("nocturne.png"))
+            }.getOrNull() ?: java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            java.awt.TrayIcon(image, "Nocturne").apply {
+                isImageAutoSize = true
+                tray.add(this)
+                icon = this
+            }
+        }
+        tIcon.displayMessage(title, text, java.awt.TrayIcon.MessageType.INFO)
+    }
+}
+
+actual fun notifyUpdateAvailable(version: String, notes: String) {
+    runCatching { Tray.show("Nocturne $version is available", "Open Nocturne and click Update to install it.") }
+}
+
+actual fun notifyUpdateProgress(version: String, progress: Float?) = Unit

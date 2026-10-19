@@ -83,6 +83,13 @@ class Library(private val settings: SettingsStore) {
         return (fromLikes + fromPlays).groupingBy { it }.eachCount().filterValues { it >= 2 }.keys
     }
 
+    fun mergeLiked(remote: List<Track>) = mutate { d ->
+        val have = d.liked.map { it.key }.toSet()
+        val blocked = d.notInterested.map { it.key }.toSet()
+        val fresh = remote.filter { it.key !in have && it.key !in blocked }
+        if (fresh.isEmpty()) d else d.copy(liked = d.liked + fresh)
+    }
+
     fun isSaved(ref: CollectionRef) = _state.value.saved.any { it.key == ref.key }
 
     fun toggleSaved(ref: CollectionRef) = mutate { d ->

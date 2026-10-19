@@ -70,6 +70,7 @@ fun LibraryScreen(contentPadding: PaddingValues) {
     val library by graph.library.state.collectAsState()
     var tab by rememberSaveable { mutableStateOf(LibraryTab.ONLINE) }
     var creating by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { graph.syncLikes() } }
 
     Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
