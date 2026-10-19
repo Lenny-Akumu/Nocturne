@@ -73,7 +73,15 @@ expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
 expect val supportsWebLogin: Boolean
 
 @Composable
-expect fun WebLoginDialog(title: String, url: String, cookieUrl: String, cookieKey: String, onCookies: (String) -> Unit, onDismiss: () -> Unit)
+expect fun WebLoginDialog(
+    title: String,
+    url: String,
+    cookieUrls: List<String>,
+    cookieKey: String,
+    desktopMode: Boolean,
+    onCookies: (String) -> Unit,
+    onDismiss: () -> Unit,
+)
 
 expect fun clearWebLogins()
 

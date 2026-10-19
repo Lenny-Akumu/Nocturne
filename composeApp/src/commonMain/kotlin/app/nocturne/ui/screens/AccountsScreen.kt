@@ -1,6 +1,5 @@
 package app.nocturne.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import app.nocturne.AppGraph
 import app.nocturne.BuildInfo
 import app.nocturne.model.Source
-import app.nocturne.spotifyRedirectUri
 import app.nocturne.ui.WebLoginDialog
 import app.nocturne.ui.clearWebLogins
 import app.nocturne.ui.components.SourceBadge
@@ -112,38 +111,13 @@ fun AccountsSettings() {
             hint = "Log in with Spotify, Google, Facebook or Apple on the next screen",
             onSignOut = { graph.spotify.signOut(); invalidateHomeCache() },
             onOther = { spotifyDev = !spotifyDev },
-            otherLabel = "Developer settings",
+            otherLabel = "Set up Spotify app",
         ) {
             ProviderButton("Continue with Spotify", Source.SPOTIFY.brandColor, Color.Black) {
-                if (spotifyClientId.isBlank()) {
-                    spotifyDev = true
-                    error = "Spotify needs a Client ID once — see Developer settings below"
-                } else run(Source.SPOTIFY) { graph.spotify.signIn() }
+                if (spotifyClientId.isBlank()) spotifyDev = true
+                else run(Source.SPOTIFY) { graph.spotify.signIn() }
             }
         }
-        AnimatedVisibility(spotifyDev && !acc.spotifySignedIn) {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Create a free app at developer.spotify.com/dashboard (Web API), add the Redirect URI below and paste the app's Client ID here.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    var clientId by remember(settings.spotifyClientId) { mutableStateOf(settings.spotifyClientId) }
-                    OutlinedTextField(
-                        clientId,
-                        { clientId = it; graph.settings.update { s -> s.copy(spotifyClientId = it.trim()) } },
-                        label = { Text("Client ID") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(spotifyRedirectUri, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { clipboard.setText(AnnotatedString(spotifyRedirectUri)) }) { Icon(Icons.Rounded.ContentCopy, "Copy") }
-                    }
-                }
-            }
-        }
-
         AccountCard(
             source = Source.SOUNDCLOUD,
             signedInAs = acc.soundcloudName.takeIf { acc.soundcloudSignedIn },
@@ -160,15 +134,59 @@ fun AccountsSettings() {
     }
 
     when (web) {
-        WebLogin.YOUTUBE -> WebLoginDialog("YouTube Music", GOOGLE_LOGIN, "https://music.youtube.com", "SAPISID", onCookies = { c ->
+        WebLogin.YOUTUBE -> WebLoginDialog(
+            "YouTube Music", GOOGLE_LOGIN,
+            listOf("https://music.youtube.com", "https://www.youtube.com"), "SAPISID",
+            desktopMode = false,
+            onCookies = { c ->
             web = null
             run(Source.YOUTUBE_MUSIC) { graph.signInYouTube(c) }
         }, onDismiss = { web = null })
-        WebLogin.SOUNDCLOUD -> WebLoginDialog("SoundCloud", "https://soundcloud.com/signin", "https://soundcloud.com", "oauth_token", onCookies = { c ->
+        WebLogin.SOUNDCLOUD -> WebLoginDialog(
+            "SoundCloud", "https://soundcloud.com/signin",
+            listOf("https://soundcloud.com", "https://m.soundcloud.com", "https://secure.soundcloud.com", "https://api-auth.soundcloud.com"),
+            "oauth_token",
+            desktopMode = true,
+            onCookies = { c ->
             web = null
             run(Source.SOUNDCLOUD) { graph.soundcloud.signIn(c) }
         }, onDismiss = { web = null })
         null -> Unit
+    }
+
+    if (spotifyDev) {
+        val uri = androidx.compose.ui.platform.LocalUriHandler.current
+        var clientId by remember { mutableStateOf(settings.spotifyClientId) }
+        AlertDialog(
+            onDismissRequest = { spotifyDev = false },
+            icon = { SourceBadge(Source.SPOTIFY, size = 32.dp) },
+            title = { Text("Set up Spotify once") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                    Text("Spotify lets apps sign you in only through a registered app. It takes about a minute and you only do it once:", style = MaterialTheme.typography.bodyMedium)
+                    Step(1, "Open the Spotify dashboard and create an app (any name, select “Web API”).")
+                    TextButton(onClick = { uri.openUri("https://developer.spotify.com/dashboard/create") }) { Text("Open Spotify dashboard") }
+                    Step(2, "In “Redirect URIs” add both of these:")
+                    listOf("nocturne://spotify-callback", "http://127.0.0.1:8898/callback").forEach { r ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(r, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { clipboard.setText(AnnotatedString(r)) }) { Icon(Icons.Rounded.ContentCopy, "Copy") }
+                        }
+                    }
+                    Step(3, "Copy the app's Client ID and paste it here:")
+                    OutlinedTextField(clientId, { clientId = it.trim() }, label = { Text("Client ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Text("Then you sign in on Spotify's own page — with Google, Facebook, Apple or email.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    graph.settings.update { it.copy(spotifyClientId = clientId) }
+                    spotifyDev = false
+                    run(Source.SPOTIFY) { graph.spotify.signIn() }
+                }, enabled = clientId.length >= 16) { Text("Continue with Spotify") }
+            },
+            dismissButton = { TextButton(onClick = { spotifyDev = false }) { Text("Cancel") } },
+        )
     }
 
     paste?.let { source ->
@@ -195,6 +213,14 @@ fun AccountsSettings() {
             },
             dismissButton = { TextButton(onClick = { paste = null }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+private fun Step(n: Int, text: String) {
+    Row {
+        Text("$n.", fontWeight = FontWeight.Bold, modifier = Modifier.width(22.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

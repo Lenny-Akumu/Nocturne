@@ -28,7 +28,7 @@ internal object FxLogin {
         runCatching { cookies.cookieStore.removeAll() }
     }
 
-    fun open(title: String, url: String, cookieUrl: String, cookieKey: String, onCookies: (String) -> Unit, onClose: () -> Unit) {
+    fun open(title: String, url: String, cookieUrls: List<String>, cookieKey: String, onCookies: (String) -> Unit, onClose: () -> Unit) {
         val jar = cookies
         SwingUtilities.invokeLater {
             val frame = JFrame("Nocturne — $title")
@@ -38,19 +38,28 @@ internal object FxLogin {
             frame.setLocationRelativeTo(null)
             frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
             var done = false
+            val timer = java.util.Timer(true)
+            fun check(): Boolean {
+                if (done) return true
+                val header = cookieUrls.map { u -> jar.cookieStore.get(URI(u)).joinToString("; ") { "${it.name}=${it.value}" } }
+                    .firstOrNull { it.contains("$cookieKey=") } ?: return false
+                done = true
+                timer.cancel()
+                SwingUtilities.invokeLater { frame.dispose() }
+                onCookies(header)
+                return true
+            }
+            timer.schedule(object : java.util.TimerTask() {
+                override fun run() {
+                    SwingUtilities.invokeLater { check() }
+                }
+            }, 1000, 1000)
             frame.addWindowListener(object : WindowAdapter() {
                 override fun windowClosed(e: WindowEvent?) {
-                    if (!done) onClose()
+                    timer.cancel()
+                    if (!check()) onClose()
                 }
             })
-            fun check() {
-                val header = jar.cookieStore.get(URI(cookieUrl)).joinToString("; ") { "${it.name}=${it.value}" }
-                if (!done && header.contains("$cookieKey=")) {
-                    done = true
-                    SwingUtilities.invokeLater { frame.dispose() }
-                    onCookies(header)
-                }
-            }
             frame.isVisible = true
             Platform.setImplicitExit(false)
             Platform.runLater {

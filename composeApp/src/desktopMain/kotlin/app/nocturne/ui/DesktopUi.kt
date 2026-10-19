@@ -12,11 +12,19 @@ actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) = Unit
 actual val supportsWebLogin: Boolean = runCatching { Class.forName("javafx.scene.web.WebView") }.isSuccess
 
 @Composable
-actual fun WebLoginDialog(title: String, url: String, cookieUrl: String, cookieKey: String, onCookies: (String) -> Unit, onDismiss: () -> Unit) {
+actual fun WebLoginDialog(
+    title: String,
+    url: String,
+    cookieUrls: List<String>,
+    cookieKey: String,
+    desktopMode: Boolean,
+    onCookies: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val latestCookies by rememberUpdatedState(onCookies)
     val latestDismiss by rememberUpdatedState(onDismiss)
     DisposableEffect(url) {
-        FxLogin.open(title, url, cookieUrl, cookieKey, { c -> SwingUtilities.invokeLater { latestCookies(c) } }, { SwingUtilities.invokeLater { latestDismiss() } })
+        FxLogin.open(title, url, cookieUrls, cookieKey, { c -> SwingUtilities.invokeLater { latestCookies(c) } }, { SwingUtilities.invokeLater { latestDismiss() } })
         onDispose { }
     }
 }
