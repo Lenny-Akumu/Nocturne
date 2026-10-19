@@ -55,6 +55,7 @@ data class Settings(
     val eqPreset: String = "Default",
     val eqGains: List<Float> = List(6) { 0f },
     val showVideo: Boolean = false,
+    val videoFullWidth: Boolean = false,
 
     val showLyrics: Boolean = true,
     val lyricsTextSize: Int = 26,

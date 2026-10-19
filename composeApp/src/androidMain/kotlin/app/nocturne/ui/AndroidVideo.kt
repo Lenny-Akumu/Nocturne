@@ -22,7 +22,7 @@ import kotlin.math.abs
 
 @OptIn(UnstableApi::class)
 @Composable
-actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: Float, modifier: Modifier) {
+actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: Float, modifier: Modifier, fit: Boolean) {
     val context = LocalContext.current
     val player = remember(url) {
         val http = DefaultHttpDataSource.Factory().setUserAgent(InnerTube.USER_AGENT).setAllowCrossProtocolRedirects(true)
@@ -49,6 +49,9 @@ actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: 
                 this.player = player
             }
         },
-        update = { it.player = player },
+        update = {
+            it.player = player
+            it.resizeMode = if (fit) AspectRatioFrameLayout.RESIZE_MODE_FIT else AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+        },
     )
 }

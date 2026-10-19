@@ -64,6 +64,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -222,11 +224,40 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
     val video by produceState<String?>(null, track.key, settings.showVideo) {
         value = if (settings.showVideo) runCatching { graph.provider(track.source).videoStream(track) }.getOrNull() else null
     }
+    val full = video != null && settings.videoFullWidth
+    val ratio by animateFloatAsState(if (full) 16f / 9f else 1f, label = "ratio")
+    fun setFull(v: Boolean) { if (v != settings.videoFullWidth) graph.settings.update { it.copy(videoFullWidth = v) } }
     Box(
         Modifier
-            .widthIn(max = 520.dp)
+            .widthIn(max = if (full) 760.dp else 520.dp)
             .fillMaxWidth()
-            .aspectRatio(1f)
+            .aspectRatio(ratio)
+            .pointerInput(video != null) {
+                if (video == null) return@pointerInput
+                awaitEachGesture {
+                    var start = 0f
+                    var last = 0f
+                    while (true) {
+                        val e = awaitPointerEvent()
+                        if (e.type == PointerEventType.Scroll) {
+                            val dy = e.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+                            if (dy > 0) setFull(true) else if (dy < 0) setFull(false)
+                            e.changes.forEach { it.consume() }
+                        }
+                        val down = e.changes.filter { it.pressed }
+                        if (down.size >= 2) {
+                            val d = (down[0].position - down[1].position).getDistance()
+                            if (start == 0f) start = d
+                            last = d
+                            e.changes.forEach { it.consume() }
+                        }
+                        if (down.isEmpty()) break
+                    }
+                    if (start > 0f) {
+                        if (last < start * 0.85f) setFull(true) else if (last > start * 1.15f) setFull(false)
+                    }
+                }
+            }
             .offset { IntOffset(shift.roundToInt(), 0) }
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -244,7 +275,8 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
     ) {
         Artwork(track.artworkUrl, Modifier.fillMaxSize(), RoundedCornerShape(24.dp))
         video?.let { url ->
-            VideoSurface(url, state.positionMs, state.isPlaying, settings.playbackSpeed, Modifier.fillMaxSize())
+            if (full) Box(Modifier.fillMaxSize().background(Color.Black))
+            VideoSurface(url, state.positionMs, state.isPlaying, settings.playbackSpeed, Modifier.fillMaxSize(), fit = full)
         }
     }
 }

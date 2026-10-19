@@ -28,6 +28,7 @@ import java.nio.ByteBuffer
 import javax.swing.SwingUtilities
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 
 private object VideoFactory {
     val factory: MediaPlayerFactory? by lazy {
@@ -77,7 +78,7 @@ private class VideoFrames(url: String) {
 }
 
 @Composable
-actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: Float, modifier: Modifier) {
+actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: Float, modifier: Modifier, fit: Boolean) {
     val frames = remember(url) { VideoFrames(url) }
     var tick by remember { mutableIntStateOf(0) }
     DisposableEffect(frames) {
@@ -103,7 +104,7 @@ actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: 
         if (tick < 0) return@Canvas
         val bmp = frames.bitmap ?: return@Canvas
         val image = bmp.asComposeImageBitmap()
-        val scale = max(size.width / image.width, size.height / image.height)
+        val scale = if (fit) min(size.width / image.width, size.height / image.height) else max(size.width / image.width, size.height / image.height)
         val w = (image.width * scale).toInt()
         val h = (image.height * scale).toInt()
         drawImage(
