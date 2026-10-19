@@ -73,6 +73,7 @@ kotlin {
                 implementation(libs.media3.datasource)
                 implementation(libs.media3.ui)
                 implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+                implementation("androidx.fragment:fragment-ktx:1.8.9")
             }
         }
 
