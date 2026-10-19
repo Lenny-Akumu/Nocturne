@@ -101,6 +101,10 @@ Material You 3 на Android · Mica / Acrylic на Windows 11 · одна код
 
 Щоб підписати APK власним ключем, задай змінні середовища `NOCTURNE_KEYSTORE`, `NOCTURNE_KEYSTORE_PASSWORD`, `NOCTURNE_KEY_ALIAS` і `NOCTURNE_KEY_PASSWORD`. Без них використовується debug-ключ.
 
+Для CI додай у **Settings → Secrets and variables → Actions** секрети `NOCTURNE_KEYSTORE_BASE64` (вміст `.jks` у base64), `NOCTURNE_KEYSTORE_PASSWORD`, `NOCTURNE_KEY_ALIAS` і `NOCTURNE_KEY_PASSWORD`. Без них кожна збірка підписується новим тимчасовим ключем, і нова версія не встановиться поверх старої.
+
+Реліз з APK та інсталяторами створюється автоматично, коли пушиш тег: `git tag v1.0.0 && git push origin v1.0.0`.
+
 ## Архітектура
 
 ```
