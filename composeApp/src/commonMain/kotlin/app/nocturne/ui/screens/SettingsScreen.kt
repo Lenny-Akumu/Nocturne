@@ -165,6 +165,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }
+                            Toggle("Floating mini player", "Small always-on-top player at the top of the screen", Icons.Rounded.PlayCircle, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
                         }
                         Header("Player")
                         Choice("Player background", Icons.Rounded.Wallpaper, s.playerBackground, PlayerBackground.entries, { it.label }) { v -> set { it.copy(playerBackground = v) } }

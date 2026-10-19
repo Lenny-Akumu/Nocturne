@@ -52,6 +52,18 @@ actual fun ShortcutSettings() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
+        ListItem(
+            headlineContent = { Text("Work when Nocturne is minimized") },
+            supportingContent = { Text("Global shortcuts and media keys system-wide") },
+            trailingContent = {
+                androidx.compose.material3.Switch(
+                    checked = settings.globalHotkeys,
+                    onCheckedChange = { v -> graph.settings.update { it.copy(globalHotkeys = v) } },
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
         HotkeyAction.entries.forEach { action ->
             ListItem(
                 headlineContent = { Text(action.label) },

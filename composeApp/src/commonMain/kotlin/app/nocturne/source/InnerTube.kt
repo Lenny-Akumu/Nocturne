@@ -161,6 +161,13 @@ class InnerTube(
             .distinctBy { it.id }
     }
 
+    suspend fun lyrics(videoId: String): String? {
+        val raw = call("next") { mapOf("videoId" to primitive(videoId), "isAudioOnly" to kotlinx.serialization.json.JsonPrimitive(true)) }
+        val browseId = Regex("\"(MPLYt[A-Za-z0-9_-]+)\"").find(raw)?.groupValues?.get(1) ?: return null
+        val root = browse(browseId)
+        return root.findAll("musicDescriptionShelfRenderer").firstOrNull().path("description").runsText()
+    }
+
     suspend fun suggestions(query: String): List<String> {
         val raw = call("music/get_search_suggestions") { mapOf("input" to primitive(query)) }
         return json.parseToJsonElement(raw).findAll("searchSuggestionRenderer")

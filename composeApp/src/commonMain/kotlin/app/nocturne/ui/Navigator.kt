@@ -20,6 +20,7 @@ class Navigator {
     val stack = mutableStateListOf<Screen>(Screen.Home)
 
     var playerExpanded by mutableStateOf(false)
+    var homeRefresh by mutableStateOf(0)
 
     val current: Screen get() = stack.last()
     val currentTab: Screen get() = stack.lastOrNull { it in tabs || it == Screen.Settings } ?: Screen.Home
@@ -31,7 +32,10 @@ class Navigator {
     }
 
     fun selectTab(tab: Screen) {
-        if (current == tab) return
+        if (current == tab) {
+            if (tab == Screen.Home) homeRefresh++
+            return
+        }
         stack.clear()
         if (tab != Screen.Home) stack.add(Screen.Home)
         stack.add(tab)

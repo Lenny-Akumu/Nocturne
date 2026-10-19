@@ -68,6 +68,16 @@ fun HomeScreen(contentPadding: PaddingValues) {
     var refreshing by remember { mutableStateOf(false) }
     var recommended by remember { mutableStateOf<List<app.nocturne.model.Track>>(emptyList()) }
     var reload by rememberSaveable { mutableIntStateOf(0) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val homeRefresh = graph.navigator.homeRefresh
+    var handledRefresh by remember { mutableIntStateOf(homeRefresh) }
+    LaunchedEffect(homeRefresh) {
+        if (homeRefresh != handledRefresh) {
+            handledRefresh = homeRefresh
+            listState.animateScrollToItem(0)
+            reload++
+        }
+    }
 
     LaunchedEffect(reload, HomeCache.version) {
         launch { recommended = runCatching { graph.recommendations(force = reload > 0) }.getOrDefault(emptyList()) }
@@ -91,7 +101,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
     }
 
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = { reload++ }, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
             item {
                 Text(
                     greeting(),

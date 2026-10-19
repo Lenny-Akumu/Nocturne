@@ -66,6 +66,9 @@ data class Settings(
     val spotifyClientSecret: String = "",
 
     val hotkeys: Map<String, String> = emptyMap(),
+    val globalHotkeys: Boolean = true,
+    val floatingPlayer: Boolean = false,
+    val uiLanguage: String = "system",
 
     val autoCheckUpdates: Boolean = true,
     val skippedVersion: String = "",

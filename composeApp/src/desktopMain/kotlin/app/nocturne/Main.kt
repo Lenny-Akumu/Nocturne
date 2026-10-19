@@ -92,6 +92,8 @@ private fun launchApp() {
         val graph = remember { AppGraph.init(VlcAudioEngine()) }
         val settings by graph.settings.state.collectAsState()
         val windowState = rememberWindowState(size = DpSize(1280.dp, 820.dp))
+        val playing by graph.player.state.collectAsState()
+        if (settings.floatingPlayer && playing.current != null) app.nocturne.ui.FloatingPlayerWindow()
 
         Window(
             onCloseRequest = {
@@ -105,7 +107,6 @@ private fun launchApp() {
             onPreviewKeyEvent = { e ->
                 if (e.type != KeyEventType.KeyDown) return@Window false
                 val p = graph.player
-                val step = settings.seekStepSeconds * 1000L
                 when (e.key) {
                     Key.MediaPlayPause -> { p.toggle(); return@Window true }
                     Key.MediaNext -> { p.next(); return@Window true }
@@ -113,27 +114,12 @@ private fun launchApp() {
                     else -> Unit
                 }
                 if (Hotkeys.capturing) return@Window false
-                val current = p.state.value.current
-                when (Hotkeys.find(e, settings)) {
-                    HotkeyAction.PLAY_PAUSE -> p.toggle()
-                    HotkeyAction.NEXT -> p.next()
-                    HotkeyAction.PREVIOUS -> p.previous()
-                    HotkeyAction.SEEK_FORWARD -> p.seekBy(step)
-                    HotkeyAction.SEEK_BACK -> p.seekBy(-step)
-                    HotkeyAction.VOLUME_UP -> p.setVolume((settings.volume + 0.1f).coerceAtMost(1f))
-                    HotkeyAction.VOLUME_DOWN -> p.setVolume((settings.volume - 0.1f).coerceAtLeast(0f))
-                    HotkeyAction.LIKE -> current?.let { graph.toggleLike(it) }
-                    HotkeyAction.NOT_INTERESTED -> current?.let { graph.notInterested(it) }
-                    HotkeyAction.SHUFFLE -> p.toggleShuffle()
-                    HotkeyAction.REPEAT -> p.cycleRepeat()
-                    HotkeyAction.TOGGLE_PLAYER -> graph.navigator.playerExpanded = !graph.navigator.playerExpanded && current != null
-                    HotkeyAction.BACK -> return@Window graph.navigator.back()
-                    null -> return@Window false
-                }
-                true
+                Hotkeys.find(e, settings)?.let { performHotkey(it) } ?: false
             },
         ) {
             window.minimumSize = java.awt.Dimension(420, 600)
+            MainWindow.window = window
+            LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
             val dark = isDark(settings)
             var backdrop by remember { mutableStateOf(false) }
             LaunchedEffect(settings.windowBackdrop, dark) {

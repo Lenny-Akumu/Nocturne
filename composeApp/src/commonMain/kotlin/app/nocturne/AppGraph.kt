@@ -65,7 +65,7 @@ class AppGraph(val engine: AudioEngine) {
         youtube = youtube,
         accounts = accounts,
     )
-    val lyrics = LyricsProvider(http)
+    val lyrics = LyricsProvider(http, innerTube)
 
     private val allProviders: Map<Source, MusicProvider> = mapOf(
         Source.YOUTUBE_MUSIC to youtube,
