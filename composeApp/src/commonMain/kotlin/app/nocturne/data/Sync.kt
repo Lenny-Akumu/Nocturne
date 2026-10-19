@@ -6,7 +6,7 @@ import app.nocturne.aesEncrypt
 import app.nocturne.platformKind
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.request.timeout
+import io.ktor.client.plugins.timeout
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
