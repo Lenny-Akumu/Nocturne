@@ -78,7 +78,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
-import androidx.compose.ui.window.WindowDraggableArea
+import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberDialogState
 import app.nocturne.AppGraph
