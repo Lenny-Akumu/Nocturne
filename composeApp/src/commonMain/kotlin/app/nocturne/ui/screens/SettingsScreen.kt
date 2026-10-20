@@ -1,5 +1,22 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.material.icons.rounded.CleaningServices
+import androidx.compose.material.icons.rounded.PictureInPicture
+import androidx.compose.material.icons.rounded.Animation
+import androidx.compose.material.icons.rounded.UnfoldMore
+import androidx.compose.material.icons.rounded.OpenWith
+import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.ThumbDown
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.LinearScale
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import kotlin.math.roundToInt
+import app.nocturne.ui.FloatingEdit
 import app.nocturne.i18n.t
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -113,6 +130,7 @@ enum class SettingsCategory(val title: String, val summary: String, val icon: Im
     CONTENT("Content & sources", "YouTube Music, Spotify, SoundCloud, region", Icons.Rounded.Public),
     PLAYER("Player & audio", "Quality, autoplay, queue", Icons.Rounded.PlayCircle),
     LYRICS("Lyrics", "Synced lyrics display", Icons.Rounded.Lyrics),
+    FLOATING("Floating player", "Always-on-top mini player", Icons.Rounded.PictureInPicture),
     SHORTCUTS("Keyboard shortcuts", "Customize hotkeys", Icons.Rounded.Keyboard),
     DISCORD("Discord", "Rich Presence — show what you're listening to", Icons.Rounded.SportsEsports),
     SPOTIFY("Spotify", "API credentials", Icons.Rounded.Key),
@@ -128,18 +146,34 @@ fun SettingsScreen(contentPadding: PaddingValues) {
         item {
             Text(t("Settings"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 12.dp))
         }
-        items(SettingsCategory.entries.filter { (it != SettingsCategory.SHORTCUTS && it != SettingsCategory.DISCORD) || platformKind == PlatformKind.DESKTOP }) { c ->
-            ListItem(
-                headlineContent = { Text(t(c.title)) },
-                supportingContent = { Text(t(c.summary)) },
-                leadingContent = {
-                    Box(Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                        Icon(c.icon, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clickable { nav.push(Screen.SettingsPage(c)) }.padding(horizontal = 8.dp),
-            )
+        val desktopOnly = setOf(SettingsCategory.SHORTCUTS, SettingsCategory.DISCORD, SettingsCategory.FLOATING)
+        val visible = SettingsCategory.entries.filter { it !in desktopOnly || platformKind == PlatformKind.DESKTOP }
+        val groups = listOf(
+            visible.filter { it in listOf(SettingsCategory.ACCOUNTS, SettingsCategory.APPEARANCE, SettingsCategory.CONTENT, SettingsCategory.PLAYER, SettingsCategory.LYRICS) },
+            visible.filter { it in desktopOnly },
+            visible.filter { it in listOf(SettingsCategory.SPOTIFY, SettingsCategory.STORAGE, SettingsCategory.PRIVACY, SettingsCategory.ABOUT) },
+        ).filter { it.isNotEmpty() }
+        items(groups) { group ->
+            Column(
+                Modifier.padding(horizontal = 14.dp, vertical = 6.dp).clip(RoundedCornerShape(26.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+            ) {
+                group.forEachIndexed { i, c ->
+                    ListItem(
+                        headlineContent = { Text(t(c.title), fontWeight = FontWeight.Medium) },
+                        supportingContent = { Text(t(c.summary), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        leadingContent = {
+                            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                                Icon(c.icon, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
+                            }
+                        },
+                        trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { nav.push(Screen.SettingsPage(c)) }.padding(horizontal = 4.dp, vertical = 2.dp),
+                    )
+                    if (i < group.lastIndex) HorizontalDivider(Modifier.padding(start = 76.dp, end = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                }
+            }
         }
     }
 }
@@ -163,6 +197,31 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                 when (category) {
                     SettingsCategory.ACCOUNTS -> AccountsSettings()
                     SettingsCategory.SHORTCUTS -> ShortcutSettings()
+                    SettingsCategory.FLOATING -> {
+                        Toggle("Floating mini player", "Small always-on-top player on your screen", Icons.Rounded.PictureInPicture, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
+                        SliderPref("Size", "${(s.floatingScale * 100).roundToInt()}%", s.floatingScale, 0.7f..1.6f, 8) { v -> set { it.copy(floatingScale = (v * 10).roundToInt() / 10f) } }
+                        Choice("Expands to", Icons.Rounded.UnfoldMore, s.floatingAnchor, listOf(0, 1, 2), { when (it) { 0 -> "Right"; 2 -> "Left"; else -> "Both sides" } }) { v -> set { it.copy(floatingAnchor = v) } }
+                        Header("Position")
+                        Action("Edit position", if (FloatingEdit.editing) "Drag the player, then press Done" else "Move the player anywhere on the screen", Icons.Rounded.OpenWith) {
+                            set { it.copy(floatingPlayer = true) }
+                            FloatingEdit.editing = true
+                        }
+                        Action("Reset position", "Top center of the screen", Icons.Rounded.Restore) { set { it.copy(floatingX = -1, floatingY = -1) } }
+                        Header("Buttons")
+                        listOf(
+                            Triple("prev", "Previous", Icons.Rounded.SkipPrevious),
+                            Triple("next", "Next", Icons.Rounded.SkipNext),
+                            Triple("like", "Like", Icons.Rounded.FavoriteBorder),
+                            Triple("dislike", "Not interested", Icons.Rounded.ThumbDown),
+                            Triple("volume", "Volume", Icons.AutoMirrored.Rounded.VolumeUp),
+                            Triple("seek", "Timeline", Icons.Rounded.LinearScale),
+                            Triple("open", "Open Nocturne", Icons.AutoMirrored.Rounded.OpenInNew),
+                        ).forEach { (key, label, icon) ->
+                            Toggle(label, null, icon, key in s.floatingButtons) { v ->
+                                set { it.copy(floatingButtons = if (v) it.floatingButtons + key else it.floatingButtons - key) }
+                            }
+                        }
+                    }
                     SettingsCategory.DISCORD -> {
                         val player by graph.player.state.collectAsState()
                         Toggle("Discord Rich Presence", DiscordPresence.status.ifBlank { null }, Icons.Rounded.SportsEsports, s.discordRpc) { v -> set { it.copy(discordRpc = v) } }
@@ -217,10 +276,12 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }
-                            Toggle("Floating mini player", "Small always-on-top player at the top of the screen", Icons.Rounded.PlayCircle, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
                         }
                         Header("Player")
                         Choice("Player background", Icons.Rounded.Wallpaper, s.playerBackground, PlayerBackground.entries, { it.label }) { v -> set { it.copy(playerBackground = v) } }
+                        if (s.playerBackground != PlayerBackground.SOLID) {
+                            Toggle("Animated", "Slowly flowing colors over the background", Icons.Rounded.Animation, s.animatedBackground) { v -> set { it.copy(animatedBackground = v) } }
+                        }
                         Toggle("Artwork-tinted player", "Theme the player with album colors", Icons.Rounded.Palette, s.playerArtworkTint) { v -> set { it.copy(playerArtworkTint = v) } }
                         Header("Lists")
                         Toggle("Source badges", "Show YouTube Music / Spotify / SoundCloud icons", Icons.Rounded.Tune, s.showSourceBadges) { v -> set { it.copy(showSourceBadges = v) } }
@@ -276,6 +337,23 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     SettingsCategory.STORAGE -> {
                         if (!desktop) {
                             SliderPref("Audio cache", "${s.cacheSizeMb} MB (applies after restart)", s.cacheSizeMb.toFloat(), 128f..4096f, 30) { v -> set { it.copy(cacheSizeMb = (v / 128).toInt() * 128) } }
+                        }
+                        val ctx = coil3.compose.LocalPlatformContext.current
+                        val cacheScope = androidx.compose.runtime.rememberCoroutineScope()
+                        var cacheInfo by remember { mutableStateOf<String?>(null) }
+                        Action("Clear cache", cacheInfo ?: "Cached images, audio and videos", Icons.Rounded.CleaningServices) {
+                            cacheInfo = t("Cleaning…")
+                            cacheScope.launch {
+                                val freed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                                    val loader = coil3.SingletonImageLoader.get(ctx)
+                                    val img = loader.diskCache?.size ?: 0L
+                                    loader.diskCache?.clear()
+                                    loader.memoryCache?.clear()
+                                    img + runCatching { graph.engine.clearCache() }.getOrDefault(0L)
+                                }
+                                graph.clearMemoryCaches()
+                                cacheInfo = t("Freed %s MB", (freed / (1024 * 1024)).toString())
+                            }
                         }
                         Action("Clear listening history", null, Icons.Rounded.History) { graph.library.clearHistory() }
                         Action("Clear search history", null, Icons.Rounded.Search) { graph.library.clearSearchHistory() }

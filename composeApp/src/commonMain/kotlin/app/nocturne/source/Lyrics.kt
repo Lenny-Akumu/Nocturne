@@ -22,6 +22,8 @@ class LyricsProvider(private val http: HttpClient, private val innerTube: InnerT
     private val json = Json { ignoreUnknownKeys = true }
     private val cache = mutableMapOf<String, Lyrics>()
 
+    fun clearCache() = cache.clear()
+
     suspend fun lyrics(track: Track): Lyrics {
         cache[track.key]?.let { return it }
         val (title, artist) = cleanup(track)

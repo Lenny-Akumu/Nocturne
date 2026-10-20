@@ -36,6 +36,7 @@ kotlin {
             "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
             "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi",
             "-opt-in=kotlin.io.encoding.ExperimentalEncodingApi",
+            "-opt-in=kotlinx.coroutines.FlowPreview",
         )
     }
 

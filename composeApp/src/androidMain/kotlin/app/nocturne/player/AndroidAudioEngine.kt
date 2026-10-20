@@ -28,6 +28,12 @@ import java.io.File
 
 @OptIn(UnstableApi::class)
 class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
+    override fun clearCache(): Long {
+        val before = cache.cacheSpace
+        cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
+        return (before - cache.cacheSpace).coerceAtLeast(0)
+    }
+
     private val cache = SimpleCache(
         File(context.cacheDir, "audio"),
         LeastRecentlyUsedCacheEvictor(cacheMb.coerceAtLeast(64) * 1024L * 1024L),

@@ -18,7 +18,11 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import androidx.compose.ui.window.rememberWindowState
+import androidx.compose.ui.window.WindowPlacement
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.debounce
 import app.nocturne.player.VlcAudioEngine
 import app.nocturne.ui.App
 import app.nocturne.ui.theme.isDark
@@ -91,9 +95,32 @@ private fun launchApp() {
     application {
         val graph = remember { AppGraph.init(VlcAudioEngine()) }
         val settings by graph.settings.state.collectAsState()
-        val windowState = rememberWindowState(size = DpSize(1280.dp, 820.dp))
+        val windowState = remember {
+            val s0 = graph.settings.value
+            val onScreen = s0.windowX != Int.MIN_VALUE && java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().screenDevices.any {
+                it.defaultConfiguration.bounds.contains(s0.windowX + 60, s0.windowY + 20)
+            }
+            WindowState(
+                placement = if (s0.windowMaximized) WindowPlacement.Maximized else WindowPlacement.Floating,
+                position = if (onScreen) WindowPosition(s0.windowX.dp, s0.windowY.dp) else WindowPosition.PlatformDefault,
+                size = DpSize(s0.windowW.coerceAtLeast(420).dp, s0.windowH.coerceAtLeast(600).dp),
+            )
+        }
+        LaunchedEffect(windowState) {
+            snapshotFlow { Triple(windowState.placement, windowState.position, windowState.size) }
+                .debounce(600)
+                .collect { (placement, pos, size) ->
+                    graph.settings.update {
+                        if (placement == WindowPlacement.Floating && pos is WindowPosition.Absolute) it.copy(
+                            windowMaximized = false,
+                            windowX = pos.x.value.toInt(), windowY = pos.y.value.toInt(),
+                            windowW = size.width.value.toInt(), windowH = size.height.value.toInt(),
+                        ) else it.copy(windowMaximized = placement == WindowPlacement.Maximized)
+                    }
+                }
+        }
         val playing by graph.player.state.collectAsState()
-        if (settings.floatingPlayer && playing.current != null) app.nocturne.ui.FloatingPlayerWindow()
+        if (settings.floatingPlayer && (playing.current != null || app.nocturne.ui.FloatingEdit.editing)) app.nocturne.ui.FloatingPlayerWindow()
 
         Window(
             onCloseRequest = {

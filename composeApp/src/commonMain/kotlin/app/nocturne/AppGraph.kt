@@ -96,6 +96,13 @@ class AppGraph(val engine: AudioEngine) {
             runCatching { syncLikes(force = true) }
         }
         scope.launch {
+            kotlinx.coroutines.flow.combine(player.state, settings.state) { p, s ->
+                if (s.showVideo) listOfNotNull(p.current, p.queue.getOrNull(p.index + 1)) else emptyList()
+            }.distinctUntilChangedBy { list -> list.map { it.key } }.collect { list ->
+                list.forEach { t -> launch { runCatching { provider(t.source).videoStream(t) } } }
+            }
+        }
+        scope.launch {
             accounts.state.distinctUntilChangedBy { Triple(it.youtubeSignedIn, it.spotifySignedIn, it.soundcloudUserId) }.drop(1).collect {
                 runCatching { syncLikes(force = true) }
             }
@@ -181,6 +188,12 @@ class AppGraph(val engine: AudioEngine) {
     fun signOutYouTube() = accounts.update { it.copy(youtubeCookie = "", youtubeName = null) }
 
     fun provider(source: Source): MusicProvider = allProviders.getValue(source)
+
+    fun clearMemoryCaches() {
+        youtube.clearVideoCache()
+        lyrics.clearCache()
+        recommendationCache = null
+    }
 
     fun enabledProviders(): List<MusicProvider> =
         Source.entries.filter { it in settings.value.enabledSources }.map { allProviders.getValue(it) }

@@ -72,6 +72,7 @@ fun AccountsSettings() {
     var paste by remember { mutableStateOf<Source?>(null) }
     var spotifyDev by remember { mutableStateOf(false) }
     var importOpen by remember { mutableStateOf(false) }
+    var scHelp by remember { mutableStateOf(false) }
     var importStatus by remember { mutableStateOf<String?>(null) }
 
     fun run(source: Source, block: suspend () -> Unit) {
@@ -135,7 +136,8 @@ fun AccountsSettings() {
             onOther = { paste = Source.SOUNDCLOUD },
         ) {
             ProviderButton("Continue to SoundCloud", Source.SOUNDCLOUD.brandColor, Color.White) {
-                if (supportsWebLogin) web = WebLogin.SOUNDCLOUD else paste = Source.SOUNDCLOUD
+                if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) scHelp = true
+                else if (supportsWebLogin) web = WebLogin.SOUNDCLOUD else paste = Source.SOUNDCLOUD
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -194,6 +196,27 @@ fun AccountsSettings() {
                 }, enabled = clientId.length >= 16) { Text(t("Continue with Spotify")) }
             },
             dismissButton = { TextButton(onClick = { spotifyDev = false }) { Text(t("Cancel")) } },
+        )
+    }
+
+    if (scHelp) {
+        AlertDialog(
+            onDismissRequest = { scHelp = false },
+            icon = { SourceBadge(Source.SOUNDCLOUD, size = 32.dp) },
+            title = { Text(t("SoundCloud on Windows")) },
+            text = {
+                Text(
+                    t("SoundCloud's sign-in page doesn't load in the built-in browser on Windows. The easiest way: sign in to SoundCloud in Nocturne on your phone, then press “Show QR code” above and scan it — your account moves here in seconds."),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = { TextButton(onClick = { scHelp = false; paste = Source.SOUNDCLOUD }) { Text(t("Paste token")) } },
+            dismissButton = {
+                Row {
+                    if (supportsWebLogin) TextButton(onClick = { scHelp = false; web = WebLogin.SOUNDCLOUD }) { Text(t("Try anyway")) }
+                    TextButton(onClick = { scHelp = false }) { Text(t("Close")) }
+                }
+            },
         )
     }
 

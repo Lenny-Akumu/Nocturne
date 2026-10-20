@@ -11,6 +11,7 @@ interface EngineListener {
 }
 
 interface AudioEngine {
+    fun clearCache(): Long = 0
     val positionMs: Long
     val durationMs: Long
     val isPlaying: Boolean

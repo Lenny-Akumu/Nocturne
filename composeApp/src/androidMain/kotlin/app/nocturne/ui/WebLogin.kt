@@ -99,7 +99,14 @@ actual fun WebLoginDialog(
                             cookies.setAcceptThirdPartyCookies(web, true)
                             web.webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, pageUrl: String?) {
-                                    check()
+                                    if (check()) return
+                                    view?.evaluateJavascript("document.cookie") { raw ->
+                                        val jar = raw?.trim('"').orEmpty()
+                                        if (!done[0] && jar.contains("$cookieKey=")) {
+                                            done[0] = true
+                                            onCookies(jar)
+                                        }
+                                    }
                                 }
 
                                 override fun doUpdateVisitedHistory(view: WebView?, pageUrl: String?, isReload: Boolean) {

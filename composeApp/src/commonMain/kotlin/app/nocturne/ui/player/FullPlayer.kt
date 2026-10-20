@@ -66,6 +66,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -95,6 +96,7 @@ import app.nocturne.ui.Screen
 import app.nocturne.ui.components.Artwork
 import app.nocturne.ui.components.LocalTrackMenu
 import app.nocturne.ui.components.SourceBadge
+import app.nocturne.ui.components.FlowingColors
 import app.nocturne.ui.components.TrackMenuContext
 import app.nocturne.ui.theme.NocturneTheme
 import app.nocturne.ui.theme.isDark
@@ -139,6 +141,9 @@ fun FullPlayer(onCollapse: () -> Unit) {
                     )
                 )
                 PlayerBackground.SOLID -> Unit
+            }
+            if (settings.animatedBackground && settings.playerBackground != PlayerBackground.SOLID) {
+                FlowingColors(listOf(cs.primary, cs.tertiary, cs.secondary, cs.primaryContainer), Modifier.fillMaxSize(), 0.32f)
             }
             PlayerContent(onCollapse)
         }
@@ -234,16 +239,24 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
             .aspectRatio(ratio)
             .pointerInput(video != null) {
                 if (video == null) return@pointerInput
-                awaitEachGesture {
-                    var start = 0f
-                    var last = 0f
+                awaitPointerEventScope {
                     while (true) {
-                        val e = awaitPointerEvent()
+                        val e = awaitPointerEvent(PointerEventPass.Initial)
                         if (e.type == PointerEventType.Scroll) {
                             val dy = e.changes.firstOrNull()?.scrollDelta?.y ?: 0f
                             if (dy > 0) setFull(true) else if (dy < 0) setFull(false)
                             e.changes.forEach { it.consume() }
                         }
+                    }
+                }
+            }
+            .pointerInput(video != null) {
+                if (video == null) return@pointerInput
+                awaitEachGesture {
+                    var start = 0f
+                    var last = 0f
+                    while (true) {
+                        val e = awaitPointerEvent()
                         val down = e.changes.filter { it.pressed }
                         if (down.size >= 2) {
                             val d = (down[0].position - down[1].position).getDistance()

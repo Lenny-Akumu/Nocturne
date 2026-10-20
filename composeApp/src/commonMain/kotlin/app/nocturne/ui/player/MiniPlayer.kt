@@ -136,6 +136,9 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
                 Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.5f)))
             }
         }
+        if (settings.animatedBackground && settings.playerBackground != PlayerBackground.SOLID) {
+            app.nocturne.ui.components.FlowingColors(listOf(cs.primary, cs.tertiary, cs.secondary), Modifier.matchParentSize(), 0.28f)
+        }
         Column {
         Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Artwork(track.artworkUrl, Modifier.size(if (wide) 52.dp else 46.dp), RoundedCornerShape(10.dp))

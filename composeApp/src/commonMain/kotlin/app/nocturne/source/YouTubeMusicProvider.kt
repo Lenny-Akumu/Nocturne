@@ -25,13 +25,18 @@ class YouTubeMusicProvider(
         if (isSignedIn) innerTube.rate(track.id, rating)
     }
 
-    private val videoCache = mutableMapOf<String, String?>()
+    private val videoCache = mutableMapOf<String, kotlinx.coroutines.CompletableDeferred<String?>>()
+
+    fun clearVideoCache() = videoCache.clear()
 
     override suspend fun videoStream(track: Track): String? {
-        if (videoCache.containsKey(track.id)) return videoCache[track.id]
+        videoCache[track.id]?.let { return it.await() }
+        val pending = kotlinx.coroutines.CompletableDeferred<String?>()
+        videoCache[track.id] = pending
         val id = runCatching { innerTube.musicVideoId(track.id) }.getOrDefault(track.id)
         val url = id?.let { runCatching { newPipe.videoStream(source, watchUrl(it), 480) }.getOrNull() }
-        videoCache[track.id] = url
+        pending.complete(url)
+        if (url == null) videoCache.remove(track.id)
         return url
     }
 
