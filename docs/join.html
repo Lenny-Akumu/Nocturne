@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listen together · Nocturne</title>
+<meta name="description" content="Join a Nocturne listening session">
+<meta property="og:title" content="Listen together on Nocturne">
+<meta property="og:description" content="Hear the same song at the same moment.">
+<meta property="og:image" content="https://lenny-akumu.github.io/Nocturne/icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  :root { --bg: #0e0b16; --card: #1a1526; --fg: #f1ecff; --muted: #a59cbd; --accent: #a78bfa; --line: #2c2440; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f6f3fc; --card: #fff; --fg: #1b1530; --muted: #6b6385; --accent: #6d28d9; --line: #e4ddf3; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 16px; }
+  main { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 32px 24px; text-align: center; }
+  img { width: 72px; height: 72px; border-radius: 18px; }
+  h1 { font-size: 1.4rem; margin: 16px 0 4px; }
+  p { color: var(--muted); margin: 0 0 16px; }
+  .code { font: 800 2rem/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .08em; color: var(--accent);
+          margin: 8px 0 20px; cursor: pointer; user-select: all; }
+  .btn { display: block; padding: 12px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; margin: 8px 0; }
+  .primary { background: var(--accent); color: #fff; }
+  .ghost { border: 1px solid var(--line); color: var(--fg); }
+  #dl { display: none; margin-top: 20px; border-top: 1px solid var(--line); padding-top: 16px; }
+  small { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <img src="icon.png" alt="">
+  <h1>Listen together</h1>
+  <p>You're invited to a Nocturne session.</p>
+  <div class="code" id="code" title="Copy">—</div>
+  <a class="btn primary" id="open" href="#">Open in Nocturne</a>
+  <small id="hint">Opening Nocturne…</small>
+  <section id="dl">
+    <p>Don't have Nocturne yet? Install it, then open this page again or enter the code under Devices → Listen together.</p>
+    <div id="assets"></div>
+    <a class="btn ghost" href="https://github.com/Lenny-Akumu/Nocturne/releases/latest">All downloads</a>
+  </section>
+</main>
+<script>
+  var raw = new URLSearchParams(location.search).get("code") || "";
+  var code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
+  var link = "nocturne://join?code=" + encodeURIComponent(code);
+  var codeEl = document.getElementById("code");
+  var hint = document.getElementById("hint");
+  var dl = document.getElementById("dl");
+  if (code.length >= 8) {
+    codeEl.textContent = code.match(/.{1,4}/g).join("-");
+    document.getElementById("open").href = link;
+    codeEl.onclick = function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(code).then(function () { hint.textContent = "Code copied"; });
+    };
+    setTimeout(function () { location.href = link; }, 300);
+  } else {
+    codeEl.textContent = "No code";
+    document.getElementById("open").style.display = "none";
+  }
+  // Still here after a moment: the app probably isn't installed.
+  setTimeout(function () { if (!document.hidden) { hint.textContent = ""; dl.style.display = "block"; } }, 2000);
+
+  var ua = navigator.userAgent;
+  var platform = /Android/i.test(ua) ? "android" : /iPhone|iPad|iPod/i.test(ua) ? "ios" : /Windows/i.test(ua) ? "windows" : "";
+  var want = { android: /\.apk$/i, ios: /\.ipa$/i, windows: /Setup.*\.exe$|\.exe$/i }[platform];
+  var label = { android: "Download for Android", ios: "Download for iPhone", windows: "Download for Windows" }[platform];
+  if (want) {
+    fetch("https://api.github.com/repos/Lenny-Akumu/Nocturne/releases/latest").then(function (r) { return r.json(); }).then(function (rel) {
+      var a = (rel.assets || []).find(function (x) { return want.test(x.name); });
+      if (!a) return;
+      var el = document.createElement("a");
+      el.className = "btn primary";
+      el.href = a.browser_download_url;
+      el.textContent = label + " (" + rel.tag_name + ")";
+      document.getElementById("assets").appendChild(el);
+    }).catch(function () {});
+  }
+</script>
+</body>
+</html>

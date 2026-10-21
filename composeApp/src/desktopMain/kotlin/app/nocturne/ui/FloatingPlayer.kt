@@ -138,6 +138,7 @@ fun FloatingPlayerWindow() {
         focusable = false,
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
+        LaunchedEffect(settings.iconBackground, settings.iconPalette) { app.nocturne.AppIcon.update(settings.iconBackground, settings.iconPalette).takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
         LaunchedEffect(ax, ay, anchor, editing, scale) {
             val k = window.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
             val margin = 4

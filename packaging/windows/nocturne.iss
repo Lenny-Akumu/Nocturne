@@ -55,6 +55,13 @@ Name: "{group}\Nocturne"; Filename: "{app}\Nocturne.exe"
 Name: "{group}\{cm:UninstallProgram,Nocturne}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Nocturne"; Filename: "{app}\Nocturne.exe"; Tasks: desktopicon
 
+[Registry]
+; nocturne:// links (Listen together invites)
+Root: HKCU; Subkey: "Software\Classes\nocturne"; ValueType: string; ValueName: ""; ValueData: "URL:Nocturne"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\nocturne"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\nocturne\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\Nocturne.exe"",0"
+Root: HKCU; Subkey: "Software\Classes\nocturne\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Nocturne.exe"" ""%1"""
+
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
 

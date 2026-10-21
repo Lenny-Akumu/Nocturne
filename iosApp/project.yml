@@ -37,6 +37,7 @@ targets:
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: "YES"
         FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../composeApp/build/bin/iosArm64/releaseFramework
         OTHER_LDFLAGS: ["-framework", "ComposeApp"]
         CODE_SIGNING_ALLOWED: "NO"

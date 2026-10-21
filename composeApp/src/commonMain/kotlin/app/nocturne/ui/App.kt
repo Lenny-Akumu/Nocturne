@@ -128,6 +128,9 @@ fun App(backdrop: Boolean = false) {
                     Box(Modifier.fillMaxSize()) {
                         TrackMenuHost { AppScaffold() }
                         UpdateBanner(Modifier.align(Alignment.TopCenter))
+                        // Opened by a nocturne://join link.
+                        val partySheet by graph.party.sheet.collectAsState()
+                        if (partySheet) app.nocturne.ui.player.ConnectSheet(onDismiss = { graph.party.sheet.value = false }, onCarMode = { graph.navigator.playerExpanded = true })
                     }
                 }
             }

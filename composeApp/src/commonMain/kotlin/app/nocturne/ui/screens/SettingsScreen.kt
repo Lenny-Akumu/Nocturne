@@ -303,6 +303,8 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }
                         }
+                        Header("App icon")
+                        AppIconSettings(s, set)
                         Header("Player")
                         Choice("Player background", Icons.Rounded.Wallpaper, s.playerBackground, PlayerBackground.entries, { it.label }) { v -> set { it.copy(playerBackground = v) } }
                         if (s.playerBackground != PlayerBackground.SOLID) {

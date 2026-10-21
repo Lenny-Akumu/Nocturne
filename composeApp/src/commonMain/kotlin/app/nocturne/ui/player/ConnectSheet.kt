@@ -15,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cast
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Groups
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.rounded.Speaker
 import app.nocturne.ui.kit.CircularProgressIndicator
 import app.nocturne.ui.kit.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import app.nocturne.ui.kit.Switch
 import androidx.compose.material3.MaterialTheme
 import app.nocturne.ui.kit.ModalBottomSheet
 import app.nocturne.ui.kit.OutlinedButton
@@ -40,11 +44,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.nocturne.AppGraph
 import app.nocturne.i18n.t
+import kotlinx.coroutines.delay
 
 @Composable
 fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
@@ -103,8 +110,30 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
             when {
                 hosting.isNotEmpty() -> {
                     partyCode?.let { code ->
+                        val clipboard = LocalClipboardManager.current
+                        var copied by remember { mutableStateOf(false) }
+                        LaunchedEffect(copied) { if (copied) { delay(1800); copied = false } }
+                        val copy: () -> Unit = { clipboard.setText(AnnotatedString(code)); copied = true }
                         Text(t("Share this code with friends:"), style = MaterialTheme.typography.bodyMedium)
-                        Text(code.chunked(4).joinToString("-"), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                code.chunked(4).joinToString("-"),
+                                Modifier.clip(MaterialTheme.shapes.small).clickable(onClick = copy).padding(horizontal = 4.dp),
+                                fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary,
+                            )
+                            IconButton(onClick = copy) { Icon(if (copied) Icons.Rounded.Check else Icons.Rounded.ContentCopy, t("Copy code")) }
+                        }
+                        if (copied) Text(t("Code copied"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                        if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) {
+                            val inDiscord by party.showInDiscord.collectAsState()
+                            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(t("Show in Discord"), style = MaterialTheme.typography.bodyLarge)
+                                    Text(t("Adds a “Listen together” button to your Discord status"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Switch(inDiscord, { party.setShowInDiscord(it) })
+                            }
+                        }
                     }
                     partyStatus?.let { Text(t(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     Spacer(Modifier.height(6.dp))

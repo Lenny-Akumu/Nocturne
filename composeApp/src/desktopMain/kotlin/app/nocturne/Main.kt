@@ -76,6 +76,12 @@ fun main(args: Array<String>) {
     if (System.getProperty("skiko.vsync.enabled") == null) System.setProperty("skiko.vsync.enabled", "true")
     AppDirs.root = dataDir().apply { mkdirs() }
     args.firstOrNull { it.startsWith("--smoke-test=") }?.let { smokeTest(File(it.substringAfter('='))) }
+    // nocturne://join?code=… (registered by the installer): hand it to a running instance, else handle it ourselves.
+    args.firstOrNull { it.startsWith("nocturne:", ignoreCase = true) }?.let { url ->
+        if (LinkForwarder.forward(url)) exitProcess(0)
+        app.nocturne.party.PartyLinks.handle(url)
+    }
+    LinkForwarder.listen()
     Thread.setDefaultUncaughtExceptionHandler { _, e ->
         reportCrash(e)
         exitProcess(1)
@@ -162,7 +168,9 @@ private fun launchApp() {
             },
         ) {
             window.minimumSize = java.awt.Dimension(420, 600)
-            LaunchedEffect(Unit) { AppIcon.images.takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
+            LaunchedEffect(settings.iconBackground, settings.iconPalette) {
+                AppIcon.update(settings.iconBackground, settings.iconPalette).takeIf { it.isNotEmpty() }?.let { window.iconImages = it }
+            }
             MainWindow.window = window
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
             LaunchedEffect(Unit) { DiscordRpc.start() }

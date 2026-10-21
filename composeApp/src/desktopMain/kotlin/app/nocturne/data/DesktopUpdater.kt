@@ -34,6 +34,7 @@ private object Tray {
                 icon = this
             }
         }
+        app.nocturne.AppIcon.forSize(tray.trayIconSize.width)?.let { tIcon.image = it }
         tIcon.displayMessage(title, text, java.awt.TrayIcon.MessageType.INFO)
     }
 }

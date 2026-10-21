@@ -108,9 +108,14 @@ object DiscordRpc {
             }
             val url = track.shareUrl()
             val label = DiscordPresence.fill(s.discordButton, track).take(32)
-            if (s.discordShowButton && label.isNotEmpty() && url.startsWith("http")) {
-                putJsonArray("buttons") { addJsonObject { put("label", label); put("url", url.take(512)) } }
-            }
+            // Listen-together invite: https page that opens nocturne://join (Discord buttons must be https, max 2, label <= 32).
+            val invite = AppGraph.instance.party.discordInvite
+            val buttons = buildList<Pair<String, String>> {
+                invite?.let { add(app.nocturne.i18n.t("Listen together").take(32) to app.nocturne.party.PartyLinks.joinUrl(it)) }
+                if (s.discordShowButton && label.isNotEmpty() && url.startsWith("http")) add(label to url.take(512))
+            }.take(2)
+            if (buttons.isNotEmpty()) putJsonArray("buttons") { buttons.forEach { (l, u) -> addJsonObject { put("label", l); put("url", u) } } }
+            invite?.let { putJsonObject("party") { put("id", "nocturne-${it.lowercase()}") } }
         }
     }
 

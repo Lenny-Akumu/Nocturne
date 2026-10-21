@@ -53,6 +53,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.data?.scheme == "nocturne" && intent.data?.host == "join") {
+            intent.dataString?.let { app.nocturne.party.PartyLinks.handle(it) }
+            return
+        }
         if (intent?.data?.scheme == "nocturne") {
             intent.dataString?.let { AuthRedirect.pending?.complete(it) }
             return
@@ -63,6 +67,7 @@ class MainActivity : ComponentActivity() {
             else -> null
         } ?: return
         val url = Regex("https?://\\S+").find(text)?.value ?: return
+        if (app.nocturne.party.PartyLinks.handle(url)) return
         val graph = AppGraph.instance
         graph.scope.launch {
             when (val entry = runCatching { graph.openUrl(url) }.getOrNull()) {

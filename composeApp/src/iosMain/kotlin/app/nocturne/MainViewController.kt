@@ -13,6 +13,11 @@ import platform.UIKit.UIViewController
 
 private val graph by lazy { AppGraph.init(IosAudioEngine()) }
 
+// Called from SwiftUI onOpenURL (nocturne://join?code=…).
+fun handleUrl(url: String) {
+    app.nocturne.party.PartyLinks.handle(url)
+}
+
 fun MainViewController(): UIViewController {
     val g = graph
     val shot = NSProcessInfo.processInfo.arguments.filterIsInstance<String>().firstOrNull { it.startsWith("--shot=") }?.substringAfter('=')

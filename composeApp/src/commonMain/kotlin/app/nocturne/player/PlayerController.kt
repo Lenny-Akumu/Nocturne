@@ -62,6 +62,12 @@ class PlayerController(
     private var loadJob: Job? = null
     private var radioJob: Job? = null
     private var retried = false
+    private var loadingKey: String? = null
+    private var loadedKey: String? = null
+    private var pendingPlay: Boolean? = null
+    private var pendingStartMs: Long? = null
+    private var loadGen = 0
+    private var synced = false
     private val json = Json { ignoreUnknownKeys = true }
 
     init {
@@ -93,7 +99,7 @@ class PlayerController(
             while (isActive) {
                 delay(500)
                 val s = _state.value
-                if (s.current != null) {
+                if (s.current != null && loadingKey == null) {
                     _state.update { it.copy(positionMs = engine.positionMs, durationMs = engine.durationMs.takeIf { d -> d > 0 } ?: it.current?.durationMs ?: 0) }
                 }
                 s.sleepAtMs?.let { if (nowMillis() >= it) { pause(); _state.update { st -> st.copy(sleepAtMs = null) } } }
@@ -108,6 +114,7 @@ class PlayerController(
         if (filtered.isEmpty()) return
         val start = filtered.indexOfFirst { it.key == tracks.getOrNull(startIndex)?.key }.coerceAtLeast(0)
         originalOrder = filtered
+        synced = false
         val queue = if (shuffle) {
             val first = filtered[start]
             listOf(first) + (filtered - first).shuffled()
@@ -117,6 +124,18 @@ class PlayerController(
     }
 
     fun playTrack(track: Track) = play(listOf(track), 0, null)
+
+    // Listen-together guest: plays [track] alone; startAt() is read once the stream is resolved so the start lands on the host's position.
+    fun playSynced(track: Track, title: String, playing: Boolean, startAt: () -> Long) {
+        originalOrder = listOf(track)
+        synced = true
+        _state.update { it.copy(queue = listOf(track), index = 0, shuffle = false, queueTitle = title, error = null) }
+        loadCurrent(startAt(), playing, startAt)
+    }
+
+    /** True while the current track's stream is still being resolved (engine still holds no / the previous media). */
+    val isLoading: Boolean get() = loadingKey != null
+    val isLoaded: Boolean get() = loadedKey != null && loadedKey == _state.value.current?.key
 
     fun startRadio(track: Track) {
         play(listOf(track), title = "Radio • ${track.title}")
@@ -174,18 +193,23 @@ class PlayerController(
 
     fun resume() {
         val s = _state.value
-        if (s.current == null) return
-        if (engine.durationMs <= 0 && !s.isBuffering) loadCurrent(s.positionMs, true) else engine.play()
+        val cur = s.current ?: return
+        // While loading, the engine still holds the previous media: play() would restart the old track.
+        if (loadingKey != null) { pendingPlay = true; return }
+        if (loadedKey != cur.key || engine.durationMs <= 0 && !s.isBuffering) loadCurrent(s.positionMs, true) else engine.play()
     }
 
-    fun pause() = engine.pause()
+    fun pause() {
+        if (loadingKey != null) pendingPlay = false
+        engine.pause()
+    }
 
     fun next() {
         val s = _state.value
         when {
             s.index < s.queue.lastIndex -> { _state.update { it.copy(index = it.index + 1) }; loadCurrent(0, true) }
             s.repeat == RepeatMode.ALL && s.queue.isNotEmpty() -> { _state.update { it.copy(index = 0) }; loadCurrent(0, true) }
-            else -> s.current?.let { if (settings.value.autoplayRadio) fetchRadio(it, replace = false, advance = true) }
+            else -> s.current?.let { if (settings.value.autoplayRadio && !synced) fetchRadio(it, replace = false, advance = true) }
         }
     }
 
@@ -196,7 +220,7 @@ class PlayerController(
     }
 
     fun seekTo(ms: Long) {
-        engine.seekTo(ms)
+        if (loadingKey != null) pendingStartMs = ms else engine.seekTo(ms)
         _state.update { it.copy(positionMs = ms) }
     }
 
@@ -289,6 +313,9 @@ class PlayerController(
     fun showMessage(msg: String) = _state.update { it.copy(error = msg) }
 
     fun stop() {
+        loadJob?.cancel()
+        loadingKey = null
+        loadedKey = null
         engine.stop()
         _state.update { PlayerState(shuffle = it.shuffle, repeat = it.repeat) }
         FileStore.delete(QUEUE_FILE)
@@ -355,27 +382,40 @@ class PlayerController(
         }
     }
 
-    private fun loadCurrent(startMs: Long, playWhenReady: Boolean) {
+    private fun loadCurrent(startMs: Long, playWhenReady: Boolean, startAt: (() -> Long)? = null) {
         val track = _state.value.current ?: return
         loadJob?.cancel()
         retried = false
+        val gen = ++loadGen
+        loadingKey = track.key
+        loadedKey = null
+        pendingPlay = null
+        pendingStartMs = null
         engine.stop()
         _state.update { it.copy(positionMs = startMs, durationMs = track.durationMs, isBuffering = true, error = null) }
         queueChanged()
         loadJob = scope.launch {
             try {
                 val stream = resolve(track)
-                if (_state.value.current?.key != track.key) return@launch
-                engine.load(stream, track, startMs, playWhenReady)
-                if (playWhenReady) library.recordPlay(track)
+                if (_state.value.current?.key != track.key) { if (gen == loadGen) loadingKey = null; return@launch }
+                val play = pendingPlay ?: playWhenReady
+                val start = pendingStartMs ?: startAt?.invoke() ?: startMs
+                engine.load(stream, track, start, play)
+                loadedKey = track.key
+                loadingKey = null
+                pendingPlay = null
+                pendingStartMs = null
+                _state.update { it.copy(positionMs = start) }
+                if (play) library.recordPlay(track)
                 prefetchNext()
                 val s = _state.value
-                if (settings.value.autoplayRadio && s.repeat == RepeatMode.OFF && s.index >= s.queue.lastIndex - 1) {
+                if (settings.value.autoplayRadio && !synced && s.repeat == RepeatMode.OFF && s.index >= s.queue.lastIndex - 1) {
                     fetchRadio(track, replace = false)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Throwable) {
+                if (gen == loadGen) loadingKey = null
                 _state.update { it.copy(isBuffering = false, error = "Can't play “${track.title}”: ${e.message ?: e::class.simpleName}") }
                 delay(1500)
                 if (_state.value.current?.key == track.key && _state.value.index < _state.value.queue.lastIndex) next()

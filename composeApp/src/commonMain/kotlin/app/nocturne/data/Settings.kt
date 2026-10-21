@@ -32,6 +32,15 @@ fun defaultDesignStyle(): DesignStyle = when (app.nocturne.platformKind) {
 }
 
 @Serializable
+enum class IconBackground(val label: String) { NONE("None"), ACRYLIC("Acrylic circle"), CIRCLE("Black circle"), SQUARE("Black rounded square") }
+
+@Serializable
+enum class IconPalette(val label: String) {
+    STANDARD("Standard"), SYSTEM("System"), OCEAN("Ocean"), SUNSET("Sunset"), EMERALD("Emerald"),
+    ROSE("Rose"), GOLD("Gold"), MONO("Mono"), AURORA("Aurora"),
+}
+
+@Serializable
 enum class LyricsAlign(val label: String) { START("Left"), CENTER("Center") }
 
 @Serializable
@@ -50,6 +59,8 @@ data class Settings(
     val designStyle: DesignStyle = defaultDesignStyle(),
     val colorStyle: String = "TonalSpot",
     val fontStyle: String = "default",
+    val iconBackground: IconBackground = IconBackground.SQUARE,
+    val iconPalette: IconPalette = IconPalette.STANDARD,
 
     val enabledSources: Set<Source> = setOf(Source.YOUTUBE_MUSIC, Source.SOUNDCLOUD, Source.SPOTIFY),
     val defaultSearchSource: Source = Source.YOUTUBE_MUSIC,

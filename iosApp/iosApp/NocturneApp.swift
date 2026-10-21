@@ -8,6 +8,7 @@ struct NocturneApp: App {
             ComposeView()
                 .ignoresSafeArea()
                 .preferredColorScheme(nil)
+                .onOpenURL { url in MainViewControllerKt.handleUrl(url: url.absoluteString) }
         }
     }
 }

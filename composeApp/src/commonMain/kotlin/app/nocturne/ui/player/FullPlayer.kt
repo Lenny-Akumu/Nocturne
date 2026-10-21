@@ -256,6 +256,7 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
     var dx by remember { mutableFloatStateOf(0f) }
     val shift by animateFloatAsState(dx, label = "shift")
     val video by produceState<String?>(null, track.key, settings.showVideo) {
+        value = null // drop the previous track's video right away, or its frames linger over the new track
         value = if (settings.showVideo) runCatching { graph.provider(track.source).videoStream(track) }.getOrNull() else null
     }
     val full = video != null && settings.videoFullWidth
