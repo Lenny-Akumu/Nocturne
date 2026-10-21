@@ -56,7 +56,7 @@ fun CarModeDialog(onDismiss: () -> Unit) {
                     Text(track?.title ?: "Nocturne", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(track?.artistNames.orEmpty(), color = Color.White.copy(alpha = 0.7f), fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                BigButton(Icons.Rounded.Close, Color(0xFF2A2A30), Modifier.size(84.dp), onDismiss)
+                BigButton(Icons.Rounded.Close, Color(0xFF2A2A30), Modifier.size(84.dp), onClick = onDismiss)
             }
             Spacer(Modifier.height(24.dp))
             Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
