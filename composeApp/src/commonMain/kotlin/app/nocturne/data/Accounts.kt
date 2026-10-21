@@ -27,15 +27,28 @@ data class Accounts(
 
 class AccountsStore {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    private val _state = MutableStateFlow(
-        FileStore.read(FILE)?.let { runCatching { json.decodeFromString<Accounts>(it) }.getOrNull() } ?: Accounts()
-    )
+    private val _state = MutableStateFlow(load())
     val state: StateFlow<Accounts> = _state.asStateFlow()
     val value: Accounts get() = _state.value
 
     fun update(transform: (Accounts) -> Accounts) {
         _state.update(transform)
-        FileStore.write(FILE, json.encodeToString(Accounts.serializer(), _state.value))
+        save(_state.value)
+    }
+
+    private fun decode(s: String?) = s?.let { runCatching { json.decodeFromString<Accounts>(it) }.getOrNull() }
+
+    private fun load(): Accounts {
+        decode(SecureStore.read(FILE))?.let { return it }
+        // migrate the old plaintext file into the keystore
+        val legacy = decode(FileStore.read(FILE)) ?: return Accounts()
+        save(legacy)
+        return legacy
+    }
+
+    private fun save(a: Accounts) {
+        val text = json.encodeToString(Accounts.serializer(), a)
+        if (SecureStore.write(FILE, text)) FileStore.delete(FILE) else FileStore.write(FILE, text)
     }
 
     companion object {
