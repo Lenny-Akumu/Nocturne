@@ -128,7 +128,7 @@ class IosAudioEngine : AudioEngine {
         failed = false
         this.track = track
         loadArtwork(track.artworkUrl)
-        val asset = avAsset(stream.url)
+        val asset = avAsset(url)
         if (asset == null) {
             listener?.onError(IllegalArgumentException("Invalid stream URL"))
             return
