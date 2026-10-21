@@ -12,13 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Restore
-import androidx.compose.material3.AlertDialog
+import app.nocturne.ui.kit.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
+import app.nocturne.ui.kit.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.nocturne.ui.kit.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -57,7 +57,7 @@ actual fun ShortcutSettings() {
             headlineContent = { Text(t("Work when Nocturne is minimized")) },
             supportingContent = { Text(t("Global shortcuts and media keys system-wide")) },
             trailingContent = {
-                androidx.compose.material3.Switch(
+                app.nocturne.ui.kit.Switch(
                     checked = settings.globalHotkeys,
                     onCheckedChange = { v -> graph.settings.update { it.copy(globalHotkeys = v) } },
                 )

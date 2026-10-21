@@ -51,9 +51,9 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.Snackbar
+import app.nocturne.ui.kit.Snackbar
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.nocturne.ui.kit.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

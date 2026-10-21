@@ -29,15 +29,15 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
+import app.nocturne.ui.kit.AlertDialog
+import app.nocturne.ui.kit.FilledTonalButton
+import app.nocturne.ui.kit.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import app.nocturne.ui.kit.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.nocturne.ui.kit.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -223,7 +223,7 @@ private fun LocalMusic(padding: PaddingValues) {
             MessageBox(Icons.Rounded.LibraryMusic, "Music on this device", "Allow access to play the songs stored on your phone.")
             FilledTonalButton(onClick = { app.nocturne.source.requestLocalAudioAccess { ok -> allowed = ok } }) { Text(t("Allow access")) }
         }
-        tracks == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
+        tracks == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { app.nocturne.ui.kit.CircularProgressIndicator() }
         else -> TrackList(tracks.orEmpty(), t("On device"), padding, Icons.Rounded.LibraryMusic, "No music found",
             if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) "Put music into your Music folder or add a folder in Settings → Storage." else "Songs you download or copy to your phone will show up here.",
             action = { IconButton(onClick = { scope.launch { graph.local.rescan() } }) { Icon(Icons.Rounded.Refresh, "Rescan") } })

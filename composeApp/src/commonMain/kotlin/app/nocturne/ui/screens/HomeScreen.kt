@@ -210,7 +210,7 @@ fun SourceRow(modifier: Modifier = Modifier) {
 @Composable
 private fun ConnectSpotifyCard() {
     val nav = AppGraph.instance.navigator
-    androidx.compose.material3.Card(
+    app.nocturne.ui.kit.Card(
         onClick = { nav.push(app.nocturne.ui.Screen.SettingsPage(SettingsCategory.ACCOUNTS)) },
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Source.SPOTIFY.brandColor.copy(alpha = 0.16f)),

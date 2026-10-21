@@ -78,19 +78,22 @@ import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Window
-import androidx.compose.material3.AlertDialog
+import app.nocturne.ui.kit.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
+import app.nocturne.ui.kit.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import app.nocturne.ui.kit.OutlinedTextField
+import app.nocturne.ui.kit.RadioButton
+import app.nocturne.ui.kit.Slider
+import app.nocturne.ui.kit.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.nocturne.ui.kit.TextButton
+import app.nocturne.ui.kit.IosGroupedColumn
+import app.nocturne.ui.kit.LocalIosStyle
+import app.nocturne.ui.kit.iosGroupRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -145,6 +148,7 @@ enum class SettingsCategory(val title: String, val summary: String, val icon: Im
 @Composable
 fun SettingsScreen(contentPadding: PaddingValues) {
     val nav = AppGraph.instance.navigator
+    val ios = LocalIosStyle.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
             Text(t("Settings"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 12.dp))
@@ -158,23 +162,27 @@ fun SettingsScreen(contentPadding: PaddingValues) {
         ).filter { it.isNotEmpty() }
         items(groups) { group ->
             Column(
-                Modifier.padding(horizontal = 14.dp, vertical = 6.dp).clip(RoundedCornerShape(26.dp))
+                Modifier.padding(horizontal = if (ios) 16.dp else 14.dp, vertical = 6.dp).clip(RoundedCornerShape(if (ios) 22.dp else 26.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerLow),
             ) {
                 group.forEachIndexed { i, c ->
                     ListItem(
-                        headlineContent = { Text(t(c.title), fontWeight = FontWeight.Medium) },
+                        headlineContent = { Text(t(c.title), fontWeight = if (ios) FontWeight.Normal else FontWeight.Medium) },
                         supportingContent = { Text(t(c.summary), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         leadingContent = {
-                            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                            if (ios) IosBadge(c.icon, categoryColor(c))
+                            else Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
                                 Icon(c.icon, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
                             }
                         },
-                        trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = { Chevron() },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.clickable { nav.push(Screen.SettingsPage(c)) }.padding(horizontal = 4.dp, vertical = 2.dp),
+                        modifier = Modifier.clickable { nav.push(Screen.SettingsPage(c)) }.padding(horizontal = if (ios) 0.dp else 4.dp, vertical = 2.dp),
                     )
-                    if (i < group.lastIndex) HorizontalDivider(Modifier.padding(start = 76.dp, end = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    if (i < group.lastIndex) {
+                        if (ios) HorizontalDivider(Modifier.padding(start = 61.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        else HorizontalDivider(Modifier.padding(start = 76.dp, end = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    }
                 }
             }
         }
@@ -187,6 +195,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
     val s by graph.settings.state.collectAsState()
     val set: ((Settings) -> Settings) -> Unit = { graph.settings.update(it) }
     val desktop = platformKind == PlatformKind.DESKTOP
+    val ios = LocalIosStyle.current
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
@@ -196,7 +205,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
             }
         }
         item {
-            Column {
+            val body: @Composable () -> Unit = {
                 when (category) {
                     SettingsCategory.ACCOUNTS -> AccountsSettings()
                     SettingsCategory.SHORTCUTS -> ShortcutSettings()
@@ -414,6 +423,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     }
                 }
             }
+            if (ios) IosGroupedColumn(Modifier.padding(top = 4.dp), content = body) else Column { body() }
         }
     }
 }
@@ -427,36 +437,87 @@ private fun sourceSummary(src: Source, s: Settings) = when (src) {
 
 @Composable
 private fun Header(text: String) {
+    if (LocalIosStyle.current) {
+        Text(
+            t(text).uppercase(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 24.dp, bottom = 7.dp),
+        )
+        return
+    }
     Text(t(text), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 6.dp))
 }
 
 @Composable
 private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked: Boolean, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
+    val ios = LocalIosStyle.current
     ListItem(
         headlineContent = { Text(t(title)) },
         supportingContent = summary?.let { { Text(t(it)) } },
-        leadingContent = leading ?: icon?.let { { Icon(it, null) } },
+        leadingContent = leading ?: icon?.let { { if (ios) IosBadge(it, badgeColor(title)) else Icon(it, null) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable { onChange(!checked) }.padding(horizontal = 8.dp),
+        modifier = rowModifier(ios, leading != null || icon != null).clickable { onChange(!checked) }.padding(horizontal = if (ios) 0.dp else 8.dp),
     )
 }
 
 @Composable
-private fun Action(title: String, summary: String?, icon: ImageVector, onClick: () -> Unit) {
+private fun Action(title: String, summary: String?, icon: ImageVector, chevron: Boolean = false, onClick: () -> Unit) {
+    val ios = LocalIosStyle.current
     ListItem(
         headlineContent = { Text(t(title)) },
         supportingContent = summary?.let { { Text(t(it)) } },
-        leadingContent = { Icon(icon, null) },
+        leadingContent = { if (ios) IosBadge(icon, badgeColor(title)) else Icon(icon, null) },
+        trailingContent = if (ios && chevron) { { Chevron() } } else null,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp),
+        modifier = rowModifier(ios, true).clickable(onClick = onClick).padding(horizontal = if (ios) 0.dp else 8.dp),
     )
+}
+
+private fun rowModifier(ios: Boolean, leading: Boolean): Modifier = if (ios) Modifier.iosGroupRow(if (leading) 61.dp else 16.dp) else Modifier
+
+@Composable
+private fun Chevron() {
+    val ios = LocalIosStyle.current
+    Icon(
+        Icons.AutoMirrored.Rounded.KeyboardArrowRight, null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (ios) 0.7f else 1f),
+    )
+}
+
+// iOS Settings-style rounded icon tile.
+@Composable
+private fun IosBadge(icon: ImageVector, color: Color) {
+    Box(Modifier.size(29.dp).clip(RoundedCornerShape(7.dp)).background(color), contentAlignment = Alignment.Center) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(19.dp))
+    }
+}
+
+private val IosBadgeColors = listOf(
+    Color(0xFF007AFF), Color(0xFF34C759), Color(0xFFFF9500), Color(0xFFFF3B30), Color(0xFF5856D6),
+    Color(0xFFAF52DE), Color(0xFFFF2D55), Color(0xFF32ADE6), Color(0xFF8E8E93), Color(0xFF00C7BE),
+)
+
+private fun badgeColor(key: String) = IosBadgeColors[(key.hashCode() and 0x7fffffff) % IosBadgeColors.size]
+
+private fun categoryColor(c: SettingsCategory) = when (c) {
+    SettingsCategory.ACCOUNTS -> Color(0xFF007AFF)
+    SettingsCategory.APPEARANCE -> Color(0xFF5856D6)
+    SettingsCategory.CONTENT -> Color(0xFF34C759)
+    SettingsCategory.PLAYER -> Color(0xFFFA2D48)
+    SettingsCategory.LYRICS -> Color(0xFFFF2D55)
+    SettingsCategory.FLOATING -> Color(0xFF32ADE6)
+    SettingsCategory.SHORTCUTS -> Color(0xFF8E8E93)
+    SettingsCategory.DISCORD -> Color(0xFF5865F2)
+    SettingsCategory.SPOTIFY -> Color(0xFF1DB954)
+    SettingsCategory.STORAGE -> Color(0xFF8E8E93)
+    SettingsCategory.PRIVACY -> Color(0xFF007AFF)
+    SettingsCategory.ABOUT -> Color(0xFF8E8E93)
 }
 
 @Composable
 private fun <T> Choice(title: String, icon: ImageVector, value: T, options: List<T>, label: (T) -> String, onSelect: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    Action(title, t(label(value)), icon) { open = true }
+    Action(title, t(label(value)), icon, chevron = true) { open = true }
     if (open) {
         AlertDialog(
             onDismissRequest = { open = false },
@@ -488,7 +549,7 @@ private fun TextPref(title: String, hint: String?, icon: ImageVector, value: Str
         secret -> "•".repeat(minOf(value.length, 16))
         else -> value
     }
-    Action(title, shown, icon) { open = true }
+    Action(title, shown, icon, chevron = true) { open = true }
     if (open) {
         var text by remember { mutableStateOf(value) }
         AlertDialog(
@@ -510,7 +571,8 @@ private fun TextPref(title: String, hint: String?, icon: ImageVector, value: Str
 @Composable
 private fun SliderPref(title: String, valueLabel: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, onChange: (Float) -> Unit) {
     var local by remember(value) { mutableFloatStateOf(value) }
-    Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+    val ios = LocalIosStyle.current
+    Column(rowModifier(ios, false).padding(horizontal = if (ios) 16.dp else 24.dp, vertical = 8.dp)) {
         Row {
             Text(t(title), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Text(valueLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -521,7 +583,8 @@ private fun SliderPref(title: String, valueLabel: String, value: Float, range: C
 
 @Composable
 private fun AccentPicker(selected: Long, onSelect: (Long) -> Unit) {
-    FlowRow(Modifier.padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val ios = LocalIosStyle.current
+    FlowRow(rowModifier(ios, false).padding(horizontal = if (ios) 16.dp else 24.dp, vertical = if (ios) 14.dp else 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         AccentPresets.forEach { c ->
             Box(
                 Modifier.size(44.dp).clip(CircleShape).background(Color(c))
@@ -531,5 +594,5 @@ private fun AccentPicker(selected: Long, onSelect: (Long) -> Unit) {
             ) { if (c == selected) Icon(Icons.Rounded.Check, null, tint = Color.White) }
         }
     }
-    HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+    if (!ios) HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
 }
