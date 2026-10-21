@@ -104,9 +104,18 @@ fun App(backdrop: Boolean = false) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     NocturneTheme(settings, backdrop = backdrop) {
-        Box(Modifier.fillMaxSize()) {
-            TrackMenuHost { AppScaffold() }
-            UpdateBanner(Modifier.align(Alignment.TopCenter))
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val base = androidx.compose.ui.platform.LocalDensity.current
+            val landscapePhone = app.nocturne.platformKind == app.nocturne.PlatformKind.ANDROID && maxHeight < 480.dp && maxWidth > maxHeight
+            val k = settings.uiScale.coerceIn(0.5f, 2f) * if (landscapePhone) 0.82f else 1f
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density * k, base.fontScale),
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    TrackMenuHost { AppScaffold() }
+                    UpdateBanner(Modifier.align(Alignment.TopCenter))
+                }
+            }
         }
     }
 }

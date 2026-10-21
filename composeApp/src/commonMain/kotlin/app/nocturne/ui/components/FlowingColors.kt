@@ -8,7 +8,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -19,11 +18,11 @@ import kotlin.math.sin
 
 @Composable
 fun FlowingColors(colors: List<Color>, modifier: Modifier = Modifier, intensity: Float = 0.55f) {
-    val t by rememberInfiniteTransition(label = "flow").animateFloat(
+    val t = rememberInfiniteTransition(label = "flow").animateFloat(
         0f, 1f, infiniteRepeatable(tween(36_000, easing = LinearEasing), RepeatMode.Restart), label = "t",
     )
     Canvas(modifier) {
-        val a = (t * 2 * PI).toFloat()
+        val a = (t.value * 2 * PI).toFloat()
         val r = size.maxDimension * 0.62f
         colors.take(4).forEachIndexed { i, c ->
             val k = i + 1

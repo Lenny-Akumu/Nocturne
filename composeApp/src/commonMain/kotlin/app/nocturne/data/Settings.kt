@@ -34,6 +34,7 @@ data class Settings(
     val showSourceBadges: Boolean = true,
     val windowBackdrop: WindowBackdrop = WindowBackdrop.MICA,
     val compactLists: Boolean = false,
+    val uiScale: Float = 1f,
 
     val enabledSources: Set<Source> = setOf(Source.YOUTUBE_MUSIC, Source.SOUNDCLOUD, Source.SPOTIFY),
     val defaultSearchSource: Source = Source.YOUTUBE_MUSIC,
@@ -71,6 +72,7 @@ data class Settings(
     val globalHotkeys: Boolean = true,
     val floatingPlayer: Boolean = false,
     val floatingScale: Float = 1f,
+    val floatingStyle: Int = 0,
     val floatingAnchor: Int = 1,
     val floatingButtons: Set<String> = setOf("prev", "next", "like", "volume", "seek"),
     val floatingX: Int = -1,

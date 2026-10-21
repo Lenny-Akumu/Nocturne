@@ -164,7 +164,7 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
                 }
             }
             IconButton(onClick = graph.player::next) { Icon(Icons.Rounded.SkipNext, "Next") }
-            if (wide) {
+            if (wide && app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) {
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }

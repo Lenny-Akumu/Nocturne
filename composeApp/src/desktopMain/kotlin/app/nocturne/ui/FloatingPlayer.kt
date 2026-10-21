@@ -69,6 +69,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isTertiaryPressed
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -119,6 +123,7 @@ fun FloatingPlayerWindow() {
         focusable = false,
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
+        LaunchedEffect(FloatingEdit.editing) { if (FloatingEdit.editing) runCatching { window.shape = null } }
         val base = LocalDensity.current
         NocturneTheme(settings, forceDark = true) {
             CompositionLocalProvider(LocalDensity provides Density(base.density * scale, base.fontScale)) {
@@ -130,7 +135,7 @@ fun FloatingPlayerWindow() {
                 Box(Modifier.fillMaxSize().padding(6.dp), contentAlignment = align) {
                     if (FloatingEdit.editing) {
                         WindowDraggableArea(Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp)).background(Color(0x55000000))) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = align) { Pill(interactive = false) }
+                            Box(Modifier.fillMaxSize(), contentAlignment = align) { Pill(interactive = false, window = null) }
                         }
                         FilledTonalButton(
                             onClick = {
@@ -141,7 +146,7 @@ fun FloatingPlayerWindow() {
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
                         ) { Text(t("Done")) }
                     } else {
-                        Pill(interactive = true)
+                        Pill(interactive = true, window = window)
                     }
                 }
             }
@@ -150,7 +155,7 @@ fun FloatingPlayerWindow() {
 }
 
 @Composable
-private fun Pill(interactive: Boolean) {
+private fun Pill(interactive: Boolean, window: java.awt.Window?) {
     val graph = AppGraph.instance
     val state by graph.player.state.collectAsState()
     val settings by graph.settings.state.collectAsState()
@@ -159,7 +164,9 @@ private fun Pill(interactive: Boolean) {
     val hover = remember { MutableInteractionSource() }
     val hovered by hover.collectIsHoveredAsState()
     val open = interactive && hovered
-    val accent = rememberArtworkSeed(track?.artworkUrl) ?: MaterialTheme.colorScheme.primary
+    val glass = settings.floatingStyle == 1
+    val dens = LocalDensity.current.density
+    val accent = if (glass) Color.White else rememberArtworkSeed(track?.artworkUrl) ?: MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(30.dp)
     val b = settings.floatingButtons
     val anchor = settings.floatingAnchor
@@ -191,15 +198,42 @@ private fun Pill(interactive: Boolean) {
 
     Box(
         Modifier
-            .shadow(14.dp, shape)
+            .onGloballyPositioned { c ->
+                val w = window ?: return@onGloballyPositioned
+                val r = c.boundsInWindow()
+                val k = w.graphicsConfiguration?.defaultTransform?.scaleX?.toFloat() ?: 1f
+                val corner = 60f * dens / k
+                javax.swing.SwingUtilities.invokeLater {
+                    runCatching { w.shape = java.awt.geom.RoundRectangle2D.Float(r.left / k, r.top / k, r.width / k, r.height / k, corner, corner) }
+                }
+            }
+            .then(if (glass) Modifier else Modifier.shadow(14.dp, shape))
             .clip(shape)
-            .background(Color(0xCC0E0E12))
-            .hoverable(hover),
+            .background(if (glass) Color(0x8C1C1C22) else Color(0xCC0E0E12))
+            .hoverable(hover)
+            .pointerInput(window) {
+                val w = window ?: return@pointerInput
+                awaitPointerEventScope {
+                    while (true) {
+                        val e = awaitPointerEvent()
+                        if (e.type != PointerEventType.Press || !e.buttons.isTertiaryPressed) continue
+                        val start = java.awt.MouseInfo.getPointerInfo()?.location ?: continue
+                        val origin = w.location
+                        do {
+                            val m = awaitPointerEvent()
+                            val p = java.awt.MouseInfo.getPointerInfo()?.location ?: break
+                            w.setLocation(origin.x + p.x - start.x, origin.y + p.y - start.y)
+                        } while (m.buttons.isTertiaryPressed)
+                        val loc = w.location
+                        AppGraph.instance.settings.update { it.copy(floatingX = loc.x, floatingY = loc.y) }
+                    }
+                }
+            },
     ) {
-        if (track != null) {
+        if (track != null && !glass) {
             AsyncImage(track.artworkUrl, null, Modifier.matchParentSize().blur(36.dp).alpha(0.75f), contentScale = ContentScale.Crop)
         }
-        Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
+        if (!glass) Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
         Column(Modifier.width(IntrinsicSize.Max)) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Side(open, Alignment.End, if (anchor == 1) sideW else null, leftExtras)

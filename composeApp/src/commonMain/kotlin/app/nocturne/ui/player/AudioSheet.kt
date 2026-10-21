@@ -128,7 +128,7 @@ private fun EqGraph(gains: List<Float>, modifier: Modifier, onChange: (List<Floa
     var dragIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
 
     fun columnX(i: Int, width: Float) = width * (i + 0.5f) / gains.size
-    fun gainFromY(y: Float, height: Float) = ((0.5f - y / height) * 2 * Eq.MAX_DB).coerceIn(-Eq.MAX_DB, Eq.MAX_DB).let { (it * 2).roundToInt() / 2f }
+    fun gainFromY(y: Float, height: Float) = ((0.5f - y / height) * 2 * Eq.MAX_DB).coerceIn(-Eq.MAX_DB, Eq.MAX_DB).let { (it * 10).roundToInt() / 10f }
 
     Canvas(
         modifier
@@ -155,7 +155,13 @@ private fun EqGraph(gains: List<Float>, modifier: Modifier, onChange: (List<Floa
         drawLine(grid.copy(alpha = 0.5f), Offset(0f, h / 2), Offset(size.width, h / 2), strokeWidth = 1.5f)
         val line = Path().apply {
             moveTo(0f, points.first().y)
-            points.forEach { lineTo(it.x, it.y) }
+            lineTo(points.first().x, points.first().y)
+            for (i in 1 until points.size) {
+                val a = points[i - 1]
+                val b = points[i]
+                val mx = (a.x + b.x) / 2
+                cubicTo(mx, a.y, mx, b.y, b.x, b.y)
+            }
             lineTo(size.width, points.last().y)
         }
         val fill = Path().apply {

@@ -178,15 +178,29 @@ private fun PlayerContent(onCollapse: () -> Unit) {
             }
 
             if (wide) {
-                val shown = if (pane == Pane.ARTWORK) Pane.LYRICS.takeIf { settings.showLyrics && !noLyrics } ?: Pane.QUEUE else pane
-                Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                val short = maxHeight < 560.dp
+                val auto = Pane.LYRICS.takeIf { settings.showLyrics && !noLyrics } ?: Pane.QUEUE
+                val shown = if (pane == Pane.ARTWORK && !short) auto else pane
+                Row(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = if (short) 20.dp else 32.dp, vertical = if (short) 6.dp else 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (short) 24.dp else 40.dp),
+                ) {
                     Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { ArtworkView(track, state.isPlaying) }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
-                        Box(Modifier.weight(1f)) {
-                            PaneContent(shown)
+                        if (shown != Pane.ARTWORK) {
+                            Box(Modifier.weight(1f)) { PaneContent(shown) }
+                            Controls(compact = short)
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                            Controls()
+                            Spacer(Modifier.weight(1f))
                         }
-                        Controls()
-                        BottomActions(shown, { pane = it }, { sleepDialog = true }, hideArtworkToggle = true)
+                        BottomActions(
+                            shown,
+                            { p -> pane = if (short && pane == p) Pane.ARTWORK else p },
+                            { sleepDialog = true },
+                            hideArtworkToggle = !short,
+                        )
                     }
                 }
             } else {
@@ -295,7 +309,7 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
 }
 
 @Composable
-private fun Controls() {
+private fun Controls(compact: Boolean = false) {
     val graph = AppGraph.instance
     val state by graph.player.state.collectAsState()
     val library by graph.library.state.collectAsState()
@@ -303,9 +317,9 @@ private fun Controls() {
     val track = state.current ?: return
     val cs = MaterialTheme.colorScheme
 
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = if (compact) 6.dp else 16.dp)) {
         Column(Modifier.weight(1f)) {
-            Text(track.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.basicMarquee())
+            Text(track.title, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.basicMarquee())
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (settings.showSourceBadges) { SourceBadge(track.source, size = 16.dp); Spacer(Modifier.width(6.dp)) }
                 val artist = track.artists.firstOrNull()
@@ -338,7 +352,7 @@ private fun Controls() {
         value = seeking ?: state.progress,
         onValueChange = { seeking = it },
         onValueChangeFinished = { seeking?.let { graph.player.seekTo((it * duration).toLong()) }; seeking = null },
-        modifier = Modifier.padding(top = 8.dp),
+        modifier = Modifier.padding(top = if (compact) 0.dp else 8.dp),
         colors = SliderDefaults.colors(thumbColor = cs.primary, activeTrackColor = cs.primary, inactiveTrackColor = cs.onSurface.copy(alpha = 0.18f)),
     )
     Row {
@@ -347,7 +361,7 @@ private fun Controls() {
         Text(state.durationMs.formatDuration(), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
     }
 
-    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 2.dp else 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         IconToggleButton(checked = state.shuffle, onCheckedChange = { graph.player.toggleShuffle() }) {
             Icon(Icons.Rounded.Shuffle, "Shuffle", tint = if (state.shuffle) cs.primary else cs.onSurfaceVariant)
         }
@@ -358,7 +372,7 @@ private fun Controls() {
             shape = RoundedCornerShape(corner),
             color = cs.primary,
             contentColor = cs.onPrimary,
-            modifier = Modifier.size(width = 88.dp, height = 72.dp),
+            modifier = if (compact) Modifier.size(width = 68.dp, height = 52.dp) else Modifier.size(width = 88.dp, height = 72.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 if (state.isBuffering) CircularProgressIndicator(Modifier.size(36.dp), color = cs.onPrimary, strokeWidth = 3.dp)

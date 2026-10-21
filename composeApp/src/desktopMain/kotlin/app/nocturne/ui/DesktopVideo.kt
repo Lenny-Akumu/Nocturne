@@ -10,11 +10,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.asComposeImageBitmap
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import app.nocturne.player.VlcAudioEngine
-import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ImageInfo
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
@@ -28,6 +26,7 @@ import java.nio.ByteBuffer
 import javax.swing.SwingUtilities
 import kotlin.math.abs
 import kotlin.math.max
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import kotlin.math.min
 
 private object VideoFactory {
@@ -38,7 +37,7 @@ private object VideoFactory {
 }
 
 private class VideoFrames(url: String) {
-    @Volatile var bitmap: Bitmap? = null
+    @Volatile var image: org.jetbrains.skia.Image? = null
     private var bytes = ByteArray(0)
     var onFrame: () -> Unit = {}
     val player: EmbeddedMediaPlayer? = VideoFactory.factory?.mediaPlayers()?.newEmbeddedMediaPlayer()
@@ -48,8 +47,6 @@ private class VideoFrames(url: String) {
         if (f != null && player != null) {
             val format = object : BufferFormatCallbackAdapter() {
                 override fun getBufferFormat(sourceWidth: Int, sourceHeight: Int): BufferFormat {
-                    bitmap = Bitmap().apply { allocPixels(ImageInfo.makeN32(sourceWidth, sourceHeight, ColorAlphaType.OPAQUE)) }
-                    bytes = ByteArray(sourceWidth * sourceHeight * 4)
                     return RV32BufferFormat(sourceWidth, sourceHeight)
                 }
             }
@@ -57,12 +54,18 @@ private class VideoFrames(url: String) {
                 override fun lock(mediaPlayer: MediaPlayer) = Unit
                 override fun unlock(mediaPlayer: MediaPlayer) = Unit
                 override fun display(mediaPlayer: MediaPlayer, nativeBuffers: Array<ByteBuffer>, bufferFormat: BufferFormat, displayWidth: Int, displayHeight: Int) {
-                    val bmp = bitmap ?: return
                     val buf = nativeBuffers.firstOrNull() ?: return
-                    if (bytes.size != buf.capacity()) bytes = ByteArray(buf.capacity())
+                    val w = bufferFormat.width
+                    val h = bufferFormat.height
+                    val pitch = bufferFormat.pitches.firstOrNull() ?: (w * 4)
+                    val need = pitch * h
+                    if (w <= 0 || h <= 0 || buf.capacity() < need) return
+                    if (bytes.size != need) bytes = ByteArray(need)
                     buf.rewind()
-                    buf.get(bytes)
-                    bmp.installPixels(bytes)
+                    buf.get(bytes, 0, need)
+                    image = runCatching {
+                        org.jetbrains.skia.Image.makeRaster(ImageInfo.makeN32(w, h, ColorAlphaType.OPAQUE), bytes, pitch)
+                    }.getOrNull() ?: return
                     SwingUtilities.invokeLater { onFrame() }
                 }
             }
@@ -102,8 +105,7 @@ actual fun VideoSurface(url: String, positionMs: Long, playing: Boolean, speed: 
     }
     Canvas(modifier) {
         if (tick < 0) return@Canvas
-        val bmp = frames.bitmap ?: return@Canvas
-        val image = bmp.asComposeImageBitmap()
+        val image = runCatching { frames.image?.toComposeImageBitmap() }.getOrNull() ?: return@Canvas
         val scale = if (fit) min(size.width / image.width, size.height / image.height) else max(size.width / image.width, size.height / image.height)
         val w = (image.width * scale).toInt()
         val h = (image.height * scale).toInt()

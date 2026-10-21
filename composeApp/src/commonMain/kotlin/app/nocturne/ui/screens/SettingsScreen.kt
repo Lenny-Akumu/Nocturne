@@ -200,6 +200,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     SettingsCategory.FLOATING -> {
                         Toggle("Floating mini player", "Small always-on-top player on your screen", Icons.Rounded.PictureInPicture, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
                         SliderPref("Size", "${(s.floatingScale * 100).roundToInt()}%", s.floatingScale, 0.7f..1.6f, 8) { v -> set { it.copy(floatingScale = (v * 10).roundToInt() / 10f) } }
+                        Choice("Style", Icons.Rounded.Palette, s.floatingStyle, listOf(0, 1), { if (it == 0) "Artwork colors" else "Subtle glass" }) { v -> set { it.copy(floatingStyle = v) } }
                         Choice("Expands to", Icons.Rounded.UnfoldMore, s.floatingAnchor, listOf(0, 1, 2), { when (it) { 0 -> "Right"; 2 -> "Left"; else -> "Both sides" } }) { v -> set { it.copy(floatingAnchor = v) } }
                         Header("Position")
                         Action("Edit position", if (FloatingEdit.editing) "Drag the player, then press Done" else "Move the player anywhere on the screen", Icons.Rounded.OpenWith) {
@@ -265,6 +266,9 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Interface language", Icons.Rounded.Language, s.uiLanguage, app.nocturne.i18n.I18n.languages.map { it.first }, { code ->
                             app.nocturne.i18n.I18n.languages.firstOrNull { it.first == code }?.second ?: code
                         }) { v -> set { it.copy(uiLanguage = v) } }
+                        if (desktop) {
+                            SliderPref("Interface scale", "${(s.uiScale * 100).roundToInt()}%  ·  Ctrl + / Ctrl −", s.uiScale, 0.6f..1.8f, 11) { v -> set { it.copy(uiScale = (v * 10).roundToInt() / 10f) } }
+                        }
                         Header("Theme")
                         Choice("Theme", Icons.Rounded.DarkMode, s.themeMode, ThemeMode.entries, { it.label }) { v -> set { it.copy(themeMode = v) } }
                         Toggle(

@@ -28,6 +28,7 @@ import app.nocturne.ui.App
 import app.nocturne.ui.theme.isDark
 import java.io.File
 import kotlin.system.exitProcess
+import kotlin.math.roundToInt
 
 private fun dataDir(): File {
     val appData = System.getenv("APPDATA")
@@ -141,6 +142,20 @@ private fun launchApp() {
                     else -> Unit
                 }
                 if (Hotkeys.capturing) return@Window false
+                if (e.isCtrlPressed) {
+                    val step = when (e.key) {
+                        Key.Equals, Key.Plus, Key.NumPadAdd -> 0.1f
+                        Key.Minus, Key.NumPadSubtract -> -0.1f
+                        Key.Zero, Key.NumPad0 -> 0f
+                        else -> null
+                    }
+                    if (step != null) {
+                        graph.settings.update { s ->
+                            s.copy(uiScale = if (step == 0f) 1f else ((s.uiScale + step) * 10).roundToInt().div(10f).coerceIn(0.6f, 1.8f))
+                        }
+                        return@Window true
+                    }
+                }
                 Hotkeys.find(e, settings)?.let { performHotkey(it) } ?: false
             },
         ) {
