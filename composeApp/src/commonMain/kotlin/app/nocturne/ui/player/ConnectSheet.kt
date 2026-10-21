@@ -58,6 +58,7 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
     val hosting by party.hosting.collectAsState()
     val joined by party.joined.collectAsState()
     val partyStatus by party.status.collectAsState()
+    val partyCode by party.code.collectAsState()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     LaunchedEffect(Unit) { if (device == null) cast.scan() }
 
@@ -97,18 +98,24 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
 
             Spacer(Modifier.height(18.dp))
             Header(Icons.Rounded.Groups, "Listen together")
-            Text(t("Everyone on the same Wi-Fi hears the same song at the same moment."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(t("Friends anywhere hear the same song at the same moment."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             when {
                 hosting.isNotEmpty() -> {
-                    Text(t("Friends join with this address:"), style = MaterialTheme.typography.bodyMedium)
-                    hosting.forEach { Text(it, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) }
+                    partyCode?.let { code ->
+                        Text(t("Share this code with friends:"), style = MaterialTheme.typography.bodyMedium)
+                        Text(code.chunked(4).joinToString("-"), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                    partyStatus?.let { Text(t(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    Spacer(Modifier.height(6.dp))
+                    Text(t("On the same Wi-Fi they can also use:"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    hosting.forEach { Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium) }
                     Spacer(Modifier.height(8.dp))
                     FilledTonalButton(onClick = { party.stopHosting() }) { Text(t("Stop session")) }
                 }
                 joined != null -> {
                     Text(t("Listening with %s", joined!!), color = MaterialTheme.colorScheme.primary)
-                    partyStatus?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    partyStatus?.let { Text(t(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     Spacer(Modifier.height(8.dp))
                     FilledTonalButton(onClick = { party.leave() }) { Text(t("Leave")) }
                 }
@@ -118,9 +125,9 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
                         FilledTonalButton(onClick = { party.host() }) { Text(t("Start a session")) }
                     }
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(address, { address = it }, singleLine = true, label = { Text(t("Friend's address")) }, placeholder = { Text("192.168.1.5:41234") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(address, { address = it }, singleLine = true, label = { Text(t("Session code")) }, placeholder = { Text("ABCD-1234") }, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(6.dp))
-                    OutlinedButton(onClick = { party.join(address) }, enabled = address.contains(':')) { Text(t("Join")) }
+                    OutlinedButton(onClick = { party.join(address) }, enabled = address.count { it.isLetterOrDigit() } >= 8) { Text(t("Join")) }
                 }
             }
 
