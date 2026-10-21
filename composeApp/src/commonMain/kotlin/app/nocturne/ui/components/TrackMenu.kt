@@ -4,6 +4,13 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import app.nocturne.i18n.t
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.LaunchedEffect
+import app.nocturne.ui.kit.CircularProgressIndicator
+import app.nocturne.ui.kit.FilterChip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -61,7 +68,7 @@ import app.nocturne.model.Source
 import app.nocturne.model.Track
 import app.nocturne.ui.Screen
 
-data class TrackMenuContext(val playlistId: String? = null, val queueIndex: Int? = null)
+data class TrackMenuContext(val playlistId: String? = null, val queueIndex: Int? = null, val remotePlaylist: CollectionRef? = null)
 
 val LocalTrackMenu = staticCompositionLocalOf<(Track, TrackMenuContext) -> Unit> { { _, _ -> } }
 
@@ -131,6 +138,9 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                 ctx.playlistId?.let { pid ->
                     MenuItem(Icons.Rounded.Delete, "Remove from playlist") { graph.library.removeFromPlaylist(pid, track); close() }
                 }
+                ctx.remotePlaylist?.let { ref ->
+                    MenuItem(Icons.Rounded.Delete, "Remove from playlist") { graph.remotePlaylists.remove(ref, track); close() }
+                }
                 ctx.queueIndex?.let { qi ->
                     MenuItem(Icons.Rounded.Delete, "Remove from queue") { graph.player.removeAt(qi); close() }
                 }
@@ -154,17 +164,44 @@ private fun MenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 @Composable
+private fun GroupHeader(source: Source?, label: String) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (source != null) { SourceBadge(source, size = 16.dp); Spacer(Modifier.width(8.dp)) }
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
 fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
     val graph = AppGraph.instance
     val library by graph.library.state.collectAsState()
-    var creating by remember { mutableStateOf(library.playlists.isEmpty()) }
+    val remote by graph.remotePlaylists.state.collectAsState()
+    val services = remember { graph.remotePlaylists.services() }
+    LaunchedEffect(Unit) { graph.remotePlaylists.refresh() }
+    var creating by remember { mutableStateOf(library.playlists.isEmpty() && services.isEmpty()) }
+    var target by remember { mutableStateOf(Source.LOCAL) }
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(t(if (creating) "New playlist" else "Add to playlist")) },
         text = {
             if (creating) {
-                OutlinedTextField(name, { name = it }, label = { Text(t("Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Column {
+                    OutlinedTextField(name, { name = it }, label = { Text(t("Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    if (services.isNotEmpty()) {
+                        Text(t("Save to"), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            (listOf(Source.LOCAL) + services).forEach { s ->
+                                FilterChip(
+                                    selected = target == s,
+                                    onClick = { target = s },
+                                    label = { Text(if (s == Source.LOCAL) "Nocturne" else s.label) },
+                                    leadingIcon = if (s == Source.LOCAL) null else ({ SourceBadge(s, size = 16.dp) }),
+                                )
+                            }
+                        }
+                    }
+                }
             } else {
                 LazyColumn {
                     item {
@@ -174,19 +211,50 @@ fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
                             modifier = Modifier.clickable { creating = true },
                         )
                     }
-                    items(library.playlists, key = { it.id }) { p ->
+                    if (services.isNotEmpty()) item(key = "h:local") { GroupHeader(null, "Nocturne") }
+                    items(library.playlists, key = { "local:" + it.id }) { p ->
                         ListItem(
                             headlineContent = { Text(p.name) },
                             supportingContent = { Text(t("%s songs", p.tracks.size)) },
                             leadingContent = { Artwork(p.tracks.firstOrNull()?.artworkUrl, Modifier.size(44.dp)) },
-                            modifier = Modifier.clickable { graph.library.addToPlaylist(p.id, tracks); onDismiss() },
+                            modifier = Modifier.clickable { graph.library.addToPlaylist(p.id, tracks); graph.toast(t("Added to %s", p.name)); onDismiss() },
                         )
+                    }
+                    services.forEach { s ->
+                        item(key = "h:${s.name}") { GroupHeader(s, s.label) }
+                        val lists = remote.lists[s]
+                        when {
+                            lists == null && s in remote.loading -> item(key = "l:${s.name}") {
+                                Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                }
+                            }
+                            lists.isNullOrEmpty() -> item(key = "e:${s.name}") {
+                                Text(
+                                    remote.errors[s] ?: t("No editable playlists"),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (remote.errors[s] != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                            }
+                            else -> items(lists.orEmpty(), key = { it.key }) { ref ->
+                                ListItem(
+                                    headlineContent = { Text(ref.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    supportingContent = { Text(ref.subtitle ?: ref.source.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    leadingContent = { Artwork(ref.artworkUrl, Modifier.size(44.dp)) },
+                                    modifier = Modifier.clickable { graph.remotePlaylists.add(ref, tracks); onDismiss() },
+                                )
+                            }
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            if (creating) TextButton(onClick = { graph.library.createPlaylist(name, tracks); onDismiss() }) { Text(t("Create")) }
+            if (creating) TextButton(onClick = {
+                if (target == Source.LOCAL) graph.library.createPlaylist(name, tracks) else graph.remotePlaylists.create(target, name, tracks)
+                onDismiss()
+            }) { Text(t("Create")) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(t("Cancel")) } },
     )

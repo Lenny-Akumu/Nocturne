@@ -285,6 +285,9 @@ class PlayerController(
 
     fun dismissError() = _state.update { it.copy(error = null) }
 
+    // Reuses the error snackbar for short notices.
+    fun showMessage(msg: String) = _state.update { it.copy(error = msg) }
+
     fun stop() {
         engine.stop()
         _state.update { PlayerState(shuffle = it.shuffle, repeat = it.repeat) }

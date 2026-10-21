@@ -284,5 +284,17 @@ internal object Uk {
         "e.g. en, uk, de" to "напр. en, uk, de",
         "Language" to "Мова",
         "Interface language" to "Мова інтерфейсу",
+        "Save to" to "Зберегти в",
+        "No editable playlists" to "Немає плейлистів, які можна редагувати",
+        "Added to %s" to "Додано в «%s»",
+        "Adding to %s…" to "Додаємо в «%s»…",
+        "Added %s of %s songs to %s" to "Додано %s з %s пісень у «%s»",
+        "Couldn't add to %s: %s" to "Не вдалося додати в «%s»: %s",
+        "Couldn't find “%s” on %s" to "Не вдалося знайти «%s» на %s",
+        "Couldn't find these songs on %s" to "Не вдалося знайти ці пісні на %s",
+        "Removed from %s" to "Прибрано з «%s»",
+        "Couldn't remove: %s" to "Не вдалося прибрати: %s",
+        "Created “%s” on %s" to "Створено «%s» на %s",
+        "Couldn't create playlist: %s" to "Не вдалося створити плейлист: %s",
     )
 }

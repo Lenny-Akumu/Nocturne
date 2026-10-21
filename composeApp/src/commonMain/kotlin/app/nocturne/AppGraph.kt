@@ -56,7 +56,7 @@ class AppGraph(val engine: AudioEngine) {
         cookie = { accounts.value.youtubeCookie },
     )
 
-    val youtube = YouTubeMusicProvider(innerTube, newPipe) { accounts.value.youtubeSignedIn }
+    val youtube = YouTubeMusicProvider(innerTube, newPipe, { accounts.value.youtubeSignedIn }, { accounts.value.youtubeName })
     val soundcloud = SoundCloudProvider(newPipe, http, accounts)
     val spotify = SpotifyProvider(
         http,
@@ -76,6 +76,23 @@ class AppGraph(val engine: AudioEngine) {
     )
 
     val player = PlayerController(engine, allProviders, settings, library, scope)
+    val remotePlaylists = app.nocturne.data.RemotePlaylists(
+        scope,
+        accounts = { enabledProviders().filter { it.source != Source.LOCAL && it.isSignedIn } },
+        provider = { provider(it) },
+        notify = { toast(it) },
+    )
+    private var toastJob: kotlinx.coroutines.Job? = null
+
+    // Short auto-dismissing notice on the app snackbar.
+    fun toast(msg: String) {
+        player.showMessage(msg)
+        toastJob?.cancel()
+        toastJob = scope.launch {
+            kotlinx.coroutines.delay(4000)
+            if (player.state.value.error == msg) player.dismissError()
+        }
+    }
     val cast = app.nocturne.cast.CastSession(this, scope)
     val party = app.nocturne.party.Party(this, scope)
     val downloads = app.nocturne.data.Downloads(scope) { t -> provider(t.source).stream(t, settings.value.downloadQuality) }.also { d ->
@@ -119,6 +136,7 @@ class AppGraph(val engine: AudioEngine) {
         }
         scope.launch {
             accounts.state.distinctUntilChangedBy { Triple(it.youtubeSignedIn, it.spotifySignedIn, it.soundcloudUserId) }.drop(1).collect {
+                remotePlaylists.invalidate()
                 runCatching { syncLikes(force = true) }
             }
         }

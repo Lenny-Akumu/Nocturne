@@ -27,6 +27,12 @@ interface MusicProvider {
     suspend fun videoStream(track: Track): String? = null
     suspend fun library(): AccountLibrary? = null
 
+    // Account playlists the user can edit; tracks passed in are already from this source.
+    suspend fun editablePlaylists(): List<CollectionRef> = emptyList()
+    suspend fun addToPlaylist(playlistId: String, tracks: List<Track>): Unit = throw SourceUnavailableException("Not supported")
+    suspend fun removeFromPlaylist(playlistId: String, track: Track): Unit = throw SourceUnavailableException("Not supported")
+    suspend fun createPlaylist(name: String, tracks: List<Track>): CollectionRef = throw SourceUnavailableException("Not supported")
+
     fun canOpen(url: String): Boolean = false
     suspend fun open(url: String): MediaEntry? = null
 }

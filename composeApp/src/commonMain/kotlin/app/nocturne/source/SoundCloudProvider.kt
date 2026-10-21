@@ -18,12 +18,18 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.request
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.encodeURLParameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 class SoundCloudProvider(
     private val newPipe: NewPipeBackend,
@@ -72,6 +78,57 @@ class SoundCloudProvider(
             }
         }.getOrDefault(emptyList())
         return AccountLibrary(source, LikesRef, own + liked, albums, artists)
+    }
+
+    private val playlistIds = mutableMapOf<String, Long>()
+
+    override suspend fun editablePlaylists(): List<CollectionRef> {
+        val id = accounts.value.soundcloudUserId ?: return emptyList()
+        if (!isSignedIn) return emptyList()
+        return api("users/$id/playlists_without_albums?limit=100").path("collection").arr.orEmpty().mapNotNull { e ->
+            playlistRef(e)?.also { ref -> e.path("id").num?.let { playlistIds[ref.id] = it } }
+        }
+    }
+
+    private suspend fun resolveId(url: String): Long =
+        api("resolve?url=${url.encodeURLParameter()}").path("id").num ?: throw SourceUnavailableException("SoundCloud: not found")
+
+    private suspend fun playlistTrackIds(pid: Long): List<Long> =
+        api("playlists/$pid").path("tracks").arr.orEmpty().mapNotNull { it.path("id").num }
+
+    private suspend fun write(method: HttpMethod, path: String, playlist: Map<String, JsonElement>): JsonElement? {
+        val clientId = newPipe.soundcloudClientId()
+        val r = http.request("https://api-v2.soundcloud.com/$path?client_id=$clientId") {
+            this.method = method
+            header("Authorization", "OAuth ${accounts.value.soundcloudToken}")
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(mapOf("playlist" to JsonObject(playlist))).toString())
+        }
+        if (r.status.value == 401) throw SourceUnavailableException("SoundCloud session expired, sign in again")
+        if (!r.status.isSuccess()) throw SourceUnavailableException("SoundCloud: ${r.status}")
+        return runCatching { json.parseToJsonElement(r.bodyAsText()) }.getOrNull()
+    }
+
+    private fun ids(list: List<Long>) = JsonArray(list.map { JsonPrimitive(it) })
+
+    override suspend fun addToPlaylist(playlistId: String, tracks: List<Track>) {
+        val pid = playlistIds[playlistId] ?: resolveId(playlistId)
+        val add = tracks.map { resolveId(it.url ?: it.id) }
+        write(HttpMethod.Put, "playlists/$pid", mapOf("tracks" to ids((playlistTrackIds(pid) + add).distinct())))
+    }
+
+    override suspend fun removeFromPlaylist(playlistId: String, track: Track) {
+        val pid = playlistIds[playlistId] ?: resolveId(playlistId)
+        val tid = resolveId(track.url ?: track.id)
+        write(HttpMethod.Put, "playlists/$pid", mapOf("tracks" to ids(playlistTrackIds(pid).filter { it != tid })))
+    }
+
+    override suspend fun createPlaylist(name: String, tracks: List<Track>): CollectionRef {
+        val add = tracks.map { resolveId(it.url ?: it.id) }
+        val created = write(HttpMethod.Post, "playlists", mapOf("title" to JsonPrimitive(name), "sharing" to JsonPrimitive("private"), "tracks" to ids(add)))
+        val ref = playlistRef(created) ?: throw SourceUnavailableException("Couldn't create playlist")
+        created.path("id").num?.let { playlistIds[ref.id] = it }
+        return ref
     }
 
     private fun playlistRef(e: JsonElement?): CollectionRef? {

@@ -82,9 +82,15 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     val localPage = if (!local) null
     else if (ref.id == LikedRef.id) CollectionPage(LikedRef.copy(subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl), library.liked)
     else library.playlists.firstOrNull { it.id == ref.id }?.let { CollectionPage(it.ref, it.tracks) }
+    val remoteRev = graph.remotePlaylists.revisions.collectAsState().value[ref.key] ?: 0
+    val remoteLists by graph.remotePlaylists.state.collectAsState()
+    val editable = !local && ref.type == CollectionType.PLAYLIST && remoteLists.lists[ref.source]?.any { it.id.removePrefix("VL") == ref.id.removePrefix("VL") } == true
+    if (!local && ref.type == CollectionType.PLAYLIST) LaunchedEffect(ref.key) { graph.remotePlaylists.refresh() }
+    var loadedRev by remember(ref.key) { mutableIntStateOf(0) }
     if (!local) {
-        LaunchedEffect(ref.key, attempt) {
-            if (page != null) return@LaunchedEffect
+        LaunchedEffect(ref.key, attempt, remoteRev) {
+            if (page != null && loadedRev == remoteRev) return@LaunchedEffect
+            loadedRev = remoteRev
             error = null
             runCatching { graph.provider(ref.source).collection(ref) }
                 .onSuccess { page = it; pageCache[ref.key] = it }
@@ -177,7 +183,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                             p.tracks[i],
                             onClick = { graph.player.play(p.tracks, i, header.title) },
                             index = if (header.type == CollectionType.ALBUM) i + 1 else null,
-                            menuContext = TrackMenuContext(playlistId = if (local && ref.id != LikedRef.id) ref.id else null),
+                            menuContext = TrackMenuContext(playlistId = if (local && ref.id != LikedRef.id) ref.id else null, remotePlaylist = if (editable) ref.copy(title = header.title) else null),
                         )
                     }
                 }

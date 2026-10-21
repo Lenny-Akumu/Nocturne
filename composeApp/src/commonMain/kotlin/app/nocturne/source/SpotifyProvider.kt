@@ -24,6 +24,10 @@ import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.request
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.http.HttpMethod
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.encodeURLParameter
@@ -33,7 +37,10 @@ import kotlin.io.encoding.Base64
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 class SpotifyProvider(
     private val http: HttpClient,
@@ -126,6 +133,70 @@ class SpotifyProvider(
         val albums = runCatching { api("me/albums?limit=50&market=${market()}").path("items").arr.orEmpty().mapNotNull { parseAlbumRef(it.path("album")) } }.getOrDefault(emptyList())
         val artists = runCatching { api("me/following?type=artist&limit=50").path("artists", "items").arr.orEmpty().mapNotNull { parseArtistRef(it) } }.getOrDefault(emptyList())
         return AccountLibrary(source, LikedRef, playlists, albums, artists)
+    }
+
+    private var me: Pair<String, String>? = null
+
+    private suspend fun userId(): String {
+        val rt = accounts.value.spotifyRefreshToken
+        me?.let { if (it.first == rt) return it.second }
+        val id = api("me").path("id").str ?: throw SourceUnavailableException("Spotify: unknown user")
+        me = rt to id
+        return id
+    }
+
+    override suspend fun editablePlaylists(): List<CollectionRef> {
+        if (!isSignedIn) return emptyList()
+        val uid = userId()
+        val out = mutableListOf<CollectionRef>()
+        var page: JsonElement? = api("me/playlists?limit=50")
+        var pages = 0
+        while (page != null && pages++ < 10) {
+            page.path("items").arr.orEmpty()
+                .filter { it.path("owner", "id").str == uid || it.path("collaborative").bool == true }
+                .mapNotNullTo(out) { parsePlaylistRef(it) }
+            page = page.path("next").str?.let { api(it) }
+        }
+        return out
+    }
+
+    private suspend fun raw(method: HttpMethod, path: String, body: String?): HttpResponse =
+        http.request("https://api.spotify.com/v1/$path") {
+            this.method = method
+            header("Authorization", "Bearer ${accessToken()}")
+            if (body != null) { contentType(ContentType.Application.Json); setBody(body) }
+        }
+
+    private suspend fun ok(r: HttpResponse): JsonElement? {
+        if (r.status.value == 403) throw SourceUnavailableException("Spotify denied the change. Sign in to Spotify again to allow playlist editing.")
+        if (!r.status.isSuccess()) throw SourceUnavailableException("Spotify: ${r.status}")
+        return r.bodyAsText().takeIf { it.isNotBlank() }?.let { runCatching { json.parseToJsonElement(it) }.getOrNull() }
+    }
+
+    // POST/DELETE playlist items; retries the newer /items path if /tracks is gone.
+    private suspend fun editItems(method: HttpMethod, id: String, body: (String) -> String) {
+        val r = raw(method, "playlists/$id/tracks", body("tracks"))
+        ok(if (r.status.value == 404 || r.status.value == 410) raw(method, "playlists/$id/items", body("items")) else r)
+    }
+
+    private fun uri(t: Track) = JsonPrimitive("spotify:track:${t.id}")
+
+    override suspend fun addToPlaylist(playlistId: String, tracks: List<Track>) {
+        tracks.chunked(100).forEach { chunk ->
+            editItems(HttpMethod.Post, playlistId) { JsonObject(mapOf("uris" to JsonArray(chunk.map { uri(it) }))).toString() }
+        }
+    }
+
+    override suspend fun removeFromPlaylist(playlistId: String, track: Track) =
+        editItems(HttpMethod.Delete, playlistId) { k -> JsonObject(mapOf(k to JsonArray(listOf(JsonObject(mapOf("uri" to uri(track))))))).toString() }
+
+    override suspend fun createPlaylist(name: String, tracks: List<Track>): CollectionRef {
+        val body = JsonObject(mapOf("name" to JsonPrimitive(name), "public" to JsonPrimitive(false))).toString()
+        val r = raw(HttpMethod.Post, "me/playlists", body)
+        val created = ok(if (r.status.value == 404 || r.status.value == 405) raw(HttpMethod.Post, "users/${userId()}/playlists", body) else r)
+        val ref = parsePlaylistRef(created) ?: throw SourceUnavailableException("Couldn't create playlist")
+        if (tracks.isNotEmpty()) addToPlaylist(ref.id, tracks)
+        return ref.copy(artworkUrl = ref.artworkUrl ?: tracks.firstOrNull()?.artworkUrl)
     }
 
     private suspend fun appToken(): String = tokenLock.withLock {
@@ -371,6 +442,6 @@ class SpotifyProvider(
 
     companion object {
         val LikedRef = CollectionRef("me:liked", Source.SPOTIFY, CollectionType.PLAYLIST, "Liked Songs", "Spotify")
-        private const val SCOPES = "user-read-private user-library-read user-library-modify playlist-read-private playlist-read-collaborative user-follow-read user-top-read"
+        private const val SCOPES = "user-read-private user-library-read user-library-modify playlist-read-private playlist-read-collaborative user-follow-read user-top-read playlist-modify-public playlist-modify-private"
     }
 }

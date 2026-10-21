@@ -16,6 +16,7 @@ class YouTubeMusicProvider(
     val innerTube: InnerTube,
     private val newPipe: NewPipeBackend,
     private val signedIn: () -> Boolean = { false },
+    private val owner: () -> String? = { null },
 ) : MusicProvider {
     override val source = Source.YOUTUBE_MUSIC
 
@@ -58,6 +59,18 @@ class YouTubeMusicProvider(
             albums = albums,
             artists = artists,
         )
+    }
+
+    override suspend fun editablePlaylists(): List<CollectionRef> =
+        if (isSignedIn) innerTube.editablePlaylists(owner()) else emptyList()
+
+    override suspend fun addToPlaylist(playlistId: String, tracks: List<Track>) = innerTube.addToPlaylist(playlistId, tracks.map { it.id })
+
+    override suspend fun removeFromPlaylist(playlistId: String, track: Track) = innerTube.removeFromPlaylist(playlistId, track.id)
+
+    override suspend fun createPlaylist(name: String, tracks: List<Track>): CollectionRef {
+        val id = innerTube.createPlaylist(name, tracks.map { it.id })
+        return CollectionRef("VL$id", source, CollectionType.PLAYLIST, name, owner(), tracks.firstOrNull()?.artworkUrl)
     }
 
     override suspend fun search(query: String, filter: SearchFilter) = newPipe.search(source, query, filter)

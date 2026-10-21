@@ -17,6 +17,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -96,6 +97,52 @@ class InnerTube(
 
     suspend fun libraryCollections(browseId: String): List<CollectionRef> =
         entries(browse(browseId)).filterIsInstance<MediaEntry.Collection>().map { it.ref }.distinctBy { it.id }
+
+    // Owned playlists: library items whose menu offers edit/delete; falls back to the owner's name.
+    suspend fun editablePlaylists(owner: String?): List<CollectionRef> {
+        val root = browse("FEmusic_liked_playlists")
+        val items = (root.findAll("musicTwoRowItemRenderer").map { it to parseTwoRow(it) } +
+            root.findAll("musicResponsiveListItemRenderer").map { it to parseListCollection(it) })
+            .mapNotNull { (r, e) -> (e as? MediaEntry.Collection)?.ref?.takeIf { it.type == CollectionType.PLAYLIST }?.let { r to it } }
+            .filter { (_, ref) -> ref.id.removePrefix("VL").let { it != "LM" && it != "SE" && !it.startsWith("RD") } }
+        val own = items.filter { (r, _) -> r.path("menu")?.findAll("iconType")?.any { it.str == "EDIT" || it.str == "DELETE" } == true }
+            .ifEmpty { items.filter { (_, ref) -> !owner.isNullOrBlank() && ref.subtitle?.contains(owner) == true } }
+        return own.map { it.second }.distinctBy { it.id }
+    }
+
+    private fun ensureOk(root: JsonElement) {
+        root.path("error", "message").str?.let { throw SourceUnavailableException("YouTube Music: $it") }
+        val status = root.path("status").str
+        if (status != null && status != "STATUS_SUCCEEDED") throw SourceUnavailableException("YouTube Music: $status")
+    }
+
+    private suspend fun editPlaylist(playlistId: String, actions: List<JsonObject>) = ensureOk(
+        request("browse/edit_playlist", mapOf("playlistId" to primitive(playlistId.removePrefix("VL")), "actions" to JsonArray(actions)))
+    )
+
+    suspend fun addToPlaylist(playlistId: String, videoIds: List<String>) = editPlaylist(
+        playlistId,
+        videoIds.map { JsonObject(mapOf("action" to primitive("ACTION_ADD_VIDEO"), "addedVideoId" to primitive(it))) },
+    )
+
+    suspend fun removeFromPlaylist(playlistId: String, videoId: String) {
+        val root = browse("VL" + playlistId.removePrefix("VL"))
+        val setId = root.findAll("playlistItemData").firstOrNull { it.path("videoId").str == videoId }.path("playlistSetVideoId").str
+            ?: throw SourceUnavailableException("Track not found in this playlist")
+        editPlaylist(playlistId, listOf(JsonObject(mapOf(
+            "action" to primitive("ACTION_REMOVE_VIDEO"), "setVideoId" to primitive(setId), "removedVideoId" to primitive(videoId),
+        ))))
+    }
+
+    suspend fun createPlaylist(title: String, videoIds: List<String>): String {
+        val root = request("playlist/create", mapOf(
+            "title" to primitive(title),
+            "privacyStatus" to primitive("PRIVATE"),
+            "videoIds" to JsonArray(videoIds.map { primitive(it) }),
+        ))
+        ensureOk(root)
+        return root.path("playlistId").str ?: throw SourceUnavailableException("Couldn't create playlist")
+    }
 
     suspend fun playlistTracks(playlistId: String): Pair<String?, List<Track>> {
         val root = browse(if (playlistId.startsWith("VL")) playlistId else "VL$playlistId")
