@@ -22,6 +22,7 @@ import platform.Foundation.NSData
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSURL
+import platform.Foundation.create
 import platform.MediaPlayer.*
 import platform.UIKit.UIImage
 
@@ -63,7 +64,6 @@ class IosAudioEngine : AudioEngine {
         runCatching {
             val session = AVAudioSession.sharedInstance()
             session.setCategory(AVAudioSessionCategoryPlayback, null)
-            session.setActive(true, null)
         }
         setupRemote()
         scope.launch { while (isActive) { runCatching { tick() }; delay(250) } }
@@ -149,7 +149,7 @@ class IosAudioEngine : AudioEngine {
         if (speed != 1f) player.rate = speed
     }
 
-    private fun seekNow(ms: Long) = player.seekToTime(msTime(ms), toleranceBefore = kCMTimeZero, toleranceAfter = kCMTimeZero)
+    private fun seekNow(ms: Long) = player.seekToTime(msTime(ms), toleranceBefore = CMTimeMake(0, 1), toleranceAfter = CMTimeMake(0, 1))
 
     private fun detach() {
         val center = NSNotificationCenter.defaultCenter
@@ -201,7 +201,7 @@ class IosAudioEngine : AudioEngine {
         if (url == null) return
         scope.launch {
             val image = withContext(Dispatchers.Default) {
-                runCatching { NSURL.URLWithString(url)?.let { NSData.dataWithContentsOfURL(it) }?.let { UIImage.imageWithData(it) } }.getOrNull()
+                runCatching { NSURL.URLWithString(url)?.let { NSData.create(contentsOfURL = it) }?.let { UIImage.imageWithData(it) } }.getOrNull()
             } ?: return@launch
             if (artworkUrl != url) return@launch
             artwork = MPMediaItemArtwork(boundsSize = image.size, requestHandler = { _ -> image })

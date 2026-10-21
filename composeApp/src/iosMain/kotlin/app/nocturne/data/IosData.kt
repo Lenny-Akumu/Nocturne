@@ -88,8 +88,8 @@ private fun notify(heading: String, text: String) {
         center.requestAuthorizationWithOptions(UNAuthorizationOptionAlert or UNAuthorizationOptionSound) { _, _ -> }
     }
     val content = UNMutableNotificationContent()
-    content.title = heading
-    content.body = text
+    content.setTitle(heading)
+    content.setBody(text)
     center.addNotificationRequest(UNNotificationRequest.requestWithIdentifier("nocturne-${heading.hashCode()}", content, null), null)
 }
 

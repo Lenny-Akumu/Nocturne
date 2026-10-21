@@ -1,6 +1,13 @@
 package app.nocturne.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -53,7 +60,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,8 +77,6 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isTertiaryPressed
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -94,6 +98,7 @@ import app.nocturne.ui.components.Artwork
 import app.nocturne.ui.theme.NocturneTheme
 import app.nocturne.ui.theme.rememberArtworkSeed
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
 
 private val BASE = DpSize(820.dp, 132.dp)
 private val BTN = 40.dp
@@ -103,16 +108,13 @@ fun FloatingPlayerWindow() {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val scale = settings.floatingScale.coerceIn(0.5f, 2f)
-    val size = DpSize(BASE.width * scale, BASE.height * scale)
+    val editing = FloatingEdit.editing
     val bounds = remember { java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds }
-    fun position(): WindowPosition =
-        if (settings.floatingX < 0) WindowPosition((bounds.x + (bounds.width - size.width.value) / 2).dp, (bounds.y + 4).dp)
-        else WindowPosition(settings.floatingX.dp, settings.floatingY.dp)
-    val state = rememberDialogState(position = position(), size = size)
-    LaunchedEffect(scale, settings.floatingX, settings.floatingY) {
-        state.size = size
-        state.position = position()
-    }
+    val anchor = settings.floatingAnchor
+    val ax = if (settings.floatingX < 0) bounds.x + bounds.width / 2 + when (anchor) { 0 -> -180; 2 -> 180; else -> 0 } else settings.floatingX
+    val ay = if (settings.floatingX < 0) bounds.y + 6 else settings.floatingY
+    val state = rememberDialogState(position = WindowPosition((ax - 200).dp, ay.dp), size = DpSize(400.dp, 80.dp))
+    var pillPx by remember { mutableStateOf(IntSize.Zero) }
     DialogWindow(
         onCloseRequest = { graph.settings.update { it.copy(floatingPlayer = false) } },
         state = state,
@@ -123,30 +125,51 @@ fun FloatingPlayerWindow() {
         focusable = false,
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
-        LaunchedEffect(FloatingEdit.editing) { if (FloatingEdit.editing) runCatching { window.shape = null } }
+        LaunchedEffect(pillPx, ax, ay, anchor, editing, scale) {
+            if (pillPx == IntSize.Zero) return@LaunchedEffect
+            val k = window.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
+            val margin = 4
+            val full = (BASE.width.value * scale).toInt() to (BASE.height.value * scale).toInt()
+            val fit = ((pillPx.width / k).toInt() + margin * 2) to ((pillPx.height / k).toInt() + margin * 2)
+            fun place(size: Pair<Int, Int>) {
+                val (w, h) = size
+                val x = when (anchor) { 0 -> ax - margin; 2 -> ax - w + margin; else -> ax - w / 2 }
+                if (window.x != x || window.y != ay || window.width != w || window.height != h) window.setBounds(x, ay, w, h)
+            }
+            when {
+                editing -> place(full)
+                fit.first > window.width || fit.second > window.height -> place(full)
+                else -> { delay(450); place(fit) }
+            }
+        }
         val base = LocalDensity.current
         NocturneTheme(settings, forceDark = true) {
             CompositionLocalProvider(LocalDensity provides Density(base.density * scale, base.fontScale)) {
-                val align = when (settings.floatingAnchor) {
+                val align = when (anchor) {
                     0 -> Alignment.TopStart
                     2 -> Alignment.TopEnd
                     else -> Alignment.TopCenter
                 }
-                Box(Modifier.fillMaxSize().padding(6.dp), contentAlignment = align) {
-                    if (FloatingEdit.editing) {
+                Box(Modifier.fillMaxSize(), contentAlignment = align) {
+                    val pillModifier = Modifier
+                        .wrapContentSize(align, unbounded = true)
+                        .padding(4.dp)
+                        .onSizeChanged { pillPx = it }
+                    if (editing) {
                         WindowDraggableArea(Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp)).background(Color(0x55000000))) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = align) { Pill(interactive = false, window = null) }
+                            Box(Modifier.fillMaxSize(), contentAlignment = align) { Box(pillModifier) { Pill(interactive = false, window = null) } }
                         }
                         FilledTonalButton(
                             onClick = {
-                                val loc = window.location
-                                graph.settings.update { it.copy(floatingX = loc.x, floatingY = loc.y) }
+                                val r = window.bounds
+                                val nx = when (anchor) { 0 -> r.x + 4; 2 -> r.x + r.width - 4; else -> r.x + r.width / 2 }
+                                graph.settings.update { it.copy(floatingX = nx, floatingY = r.y) }
                                 FloatingEdit.editing = false
                             },
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
                         ) { Text(t("Done")) }
                     } else {
-                        Pill(interactive = true, window = window)
+                        Box(pillModifier) { Pill(interactive = true, window = window) }
                     }
                 }
             }
@@ -165,7 +188,6 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
     val hovered by hover.collectIsHoveredAsState()
     val open = interactive && hovered
     val glass = settings.floatingStyle == 1
-    val dens = LocalDensity.current.density
     val accent = if (glass) Color.White else rememberArtworkSeed(track?.artworkUrl) ?: MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(30.dp)
     val b = settings.floatingButtons
@@ -198,15 +220,6 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
 
     Box(
         Modifier
-            .onGloballyPositioned { c ->
-                val w = window ?: return@onGloballyPositioned
-                val r = c.boundsInWindow()
-                val k = w.graphicsConfiguration?.defaultTransform?.scaleX?.toFloat() ?: 1f
-                val corner = 60f * dens / k
-                javax.swing.SwingUtilities.invokeLater {
-                    runCatching { w.shape = java.awt.geom.RoundRectangle2D.Float(r.left / k, r.top / k, r.width / k, r.height / k, corner, corner) }
-                }
-            }
             .then(if (glass) Modifier else Modifier.shadow(14.dp, shape))
             .clip(shape)
             .background(if (glass) Color(0x8C1C1C22) else Color(0xCC0E0E12))
@@ -224,8 +237,10 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
                             val p = java.awt.MouseInfo.getPointerInfo()?.location ?: break
                             w.setLocation(origin.x + p.x - start.x, origin.y + p.y - start.y)
                         } while (m.buttons.isTertiaryPressed)
-                        val loc = w.location
-                        AppGraph.instance.settings.update { it.copy(floatingX = loc.x, floatingY = loc.y) }
+                        val r = w.bounds
+                        val anchorNow = AppGraph.instance.settings.value.floatingAnchor
+                        val nx = when (anchorNow) { 0 -> r.x + 4; 2 -> r.x + r.width - 4; else -> r.x + r.width / 2 }
+                        AppGraph.instance.settings.update { it.copy(floatingX = nx, floatingY = r.y) }
                     }
                 }
             },
@@ -249,7 +264,11 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
                 Side(open, Alignment.Start, if (anchor == 1) sideW else null, rightExtras)
             }
             if ("seek" in b) {
-                AnimatedVisibility(open, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                AnimatedVisibility(
+                    open,
+                    enter = expandVertically(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(240, delayMillis = 80)),
+                    exit = shrinkVertically(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(120)),
+                ) {
                     Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(state.positionMs.formatDuration(), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
                         Spacer(Modifier.width(8.dp))
@@ -270,8 +289,8 @@ private fun Side(open: Boolean, from: Alignment.Horizontal, width: Dp?, items: L
     if (items.isEmpty() && width == null) return
     AnimatedVisibility(
         open,
-        enter = expandHorizontally(expandFrom = from) + fadeIn(),
-        exit = shrinkHorizontally(shrinkTowards = from) + fadeOut(),
+        enter = expandHorizontally(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow), expandFrom = from) + fadeIn(tween(260, delayMillis = 60)),
+        exit = shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium), shrinkTowards = from) + fadeOut(tween(140)),
     ) {
         Row(
             (if (width != null) Modifier.width(width) else Modifier),
