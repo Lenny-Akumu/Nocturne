@@ -282,8 +282,8 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Color style", Icons.Rounded.Palette, s.colorStyle, listOf("TonalSpot", "Vibrant", "Expressive", "Fidelity", "Content", "Rainbow", "FruitSalad", "Neutral", "Monochrome"), {
                             when (it) { "TonalSpot" -> "Balanced"; "FruitSalad" -> "Fruit salad"; else -> it }
                         }) { v -> set { it.copy(colorStyle = v) } }
-                        Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive"), {
-                            when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; else -> "Default" }
+                        Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive", "minecraft"), {
+                            when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; "minecraft" -> "Minecraft"; else -> "Default" }
                         }) { v -> set { it.copy(fontStyle = v) } }
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
                         if (desktop) {

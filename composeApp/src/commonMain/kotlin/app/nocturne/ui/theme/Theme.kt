@@ -46,6 +46,7 @@ private fun nocturneTypography(font: String): Typography {
         "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
         "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
         "cursive" -> androidx.compose.ui.text.font.FontFamily.Cursive
+        "minecraft" -> minecraftFont() ?: androidx.compose.ui.text.font.FontFamily.Monospace
         else -> null
     }
     val plain = Typography()
@@ -123,3 +124,5 @@ private fun Color.isGrayish(): Boolean {
     val mn = minOf(red, green, blue)
     return mx - mn < 0.07f || (mx > 0f && (mx - mn) / mx < 0.12f)
 }
+
+expect fun minecraftFont(): androidx.compose.ui.text.font.FontFamily?

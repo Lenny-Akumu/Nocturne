@@ -10,3 +10,5 @@ captures/
 *.jks
 !composeApp/nocturne-release.jks
 composeApp/resources/windows/vlc/
+composeApp/src/androidMain/res/font/monocraft.*
+composeApp/src/desktopMain/resources/fonts/

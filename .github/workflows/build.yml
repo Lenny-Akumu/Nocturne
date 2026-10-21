@@ -38,6 +38,33 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      - name: Fetch Minecraft font
+        shell: bash
+        run: |
+          set +e
+          json=$(curl -sL -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/repos/IdreesInc/Monocraft/releases/latest)
+          urls=$(echo "$json" | grep -o '"browser_download_url": *"[^"]*' | sed 's/.*"//')
+          mkdir -p "$RUNNER_TEMP/mc" composeApp/src/androidMain/res/font composeApp/src/desktopMain/resources/fonts
+          url=$(echo "$urls" | grep -iE '/Monocraft\.(ttf|otf)$' | head -1)
+          if [ -n "$url" ]; then
+            curl -sL "$url" -o "$RUNNER_TEMP/mc/font.${url##*.}"
+          else
+            zip=$(echo "$urls" | grep -iE 'ttf.*\.zip$|\.zip$' | head -1)
+            [ -n "$zip" ] && curl -sL "$zip" -o "$RUNNER_TEMP/mc/f.zip" && unzip -o -q "$RUNNER_TEMP/mc/f.zip" -d "$RUNNER_TEMP/mc/x"
+            f=$(find "$RUNNER_TEMP/mc" -iname 'Monocraft*.ttf' ! -iname '*bold*' ! -iname '*italic*' | head -1)
+            [ -z "$f" ] && f=$(find "$RUNNER_TEMP/mc" -iname 'Monocraft*.otf' ! -iname '*bold*' | head -1)
+            [ -n "$f" ] && cp "$f" "$RUNNER_TEMP/mc/font.${f##*.}"
+          fi
+          src=$(ls "$RUNNER_TEMP"/mc/font.* 2>/dev/null | head -1)
+          if [ -n "$src" ]; then
+            ext="${src##*.}"
+            cp "$src" "composeApp/src/androidMain/res/font/monocraft.$ext"
+            cp "$src" "composeApp/src/desktopMain/resources/fonts/monocraft.$ext"
+            echo "Font bundled: $src"
+          else
+            echo "Monocraft font not found, building without it"
+          fi
+          exit 0
       - name: Prepare signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.NOCTURNE_KEYSTORE_BASE64 }}
@@ -78,6 +105,33 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      - name: Fetch Minecraft font
+        shell: bash
+        run: |
+          set +e
+          json=$(curl -sL -H "Authorization: Bearer ${{ github.token }}" https://api.github.com/repos/IdreesInc/Monocraft/releases/latest)
+          urls=$(echo "$json" | grep -o '"browser_download_url": *"[^"]*' | sed 's/.*"//')
+          mkdir -p "$RUNNER_TEMP/mc" composeApp/src/androidMain/res/font composeApp/src/desktopMain/resources/fonts
+          url=$(echo "$urls" | grep -iE '/Monocraft\.(ttf|otf)$' | head -1)
+          if [ -n "$url" ]; then
+            curl -sL "$url" -o "$RUNNER_TEMP/mc/font.${url##*.}"
+          else
+            zip=$(echo "$urls" | grep -iE 'ttf.*\.zip$|\.zip$' | head -1)
+            [ -n "$zip" ] && curl -sL "$zip" -o "$RUNNER_TEMP/mc/f.zip" && unzip -o -q "$RUNNER_TEMP/mc/f.zip" -d "$RUNNER_TEMP/mc/x"
+            f=$(find "$RUNNER_TEMP/mc" -iname 'Monocraft*.ttf' ! -iname '*bold*' ! -iname '*italic*' | head -1)
+            [ -z "$f" ] && f=$(find "$RUNNER_TEMP/mc" -iname 'Monocraft*.otf' ! -iname '*bold*' | head -1)
+            [ -n "$f" ] && cp "$f" "$RUNNER_TEMP/mc/font.${f##*.}"
+          fi
+          src=$(ls "$RUNNER_TEMP"/mc/font.* 2>/dev/null | head -1)
+          if [ -n "$src" ]; then
+            ext="${src##*.}"
+            cp "$src" "composeApp/src/androidMain/res/font/monocraft.$ext"
+            cp "$src" "composeApp/src/desktopMain/resources/fonts/monocraft.$ext"
+            echo "Font bundled: $src"
+          else
+            echo "Monocraft font not found, building without it"
+          fi
+          exit 0
       - name: Bundle libVLC
         shell: pwsh
         run: |

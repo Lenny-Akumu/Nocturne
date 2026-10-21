@@ -130,7 +130,7 @@ composeApp/src/
 | Відтворення | Media3 ExoPlayer (Android), libVLC через vlcj (Windows) |
 
 ## Подяки
-[Metrolist](https://github.com/mostafaalagamy/Metrolist), [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor), [LRCLIB](https://lrclib.net), [MaterialKolor](https://github.com/jordond/MaterialKolor).
+[Metrolist](https://github.com/mostafaalagamy/Metrolist), [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor), [LRCLIB](https://lrclib.net), [MaterialKolor](https://github.com/jordond/MaterialKolor), шрифт [Monocraft](https://github.com/IdreesInc/Monocraft) (SIL OFL 1.1).
 
 ## Дисклеймер
 Nocturne — неофіційний клієнт, не пов'язаний з YouTube, Google, Spotify чи SoundCloud. Усі торгові марки належать їхнім власникам. Користуйся відповідно до умов сервісів і законів своєї країни.
