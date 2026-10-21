@@ -55,7 +55,8 @@ fun Modifier.liquidGlass(shape: Shape, elevation: Dp = 16.dp, overlay: Boolean =
             state,
             HazeStyle(
                 backgroundColor = surface,
-                tints = listOf(HazeTint(surface.copy(alpha = if (dark) 0.36f else 0.42f))),
+                // Overlays hold body text: a denser tint keeps it readable over bright artwork.
+                tints = listOf(HazeTint(surface.copy(alpha = if (overlay) (if (dark) 0.62f else 0.6f) else if (dark) 0.36f else 0.42f))),
                 blurRadius = 24.dp,
                 noiseFactor = 0.05f,
             ),

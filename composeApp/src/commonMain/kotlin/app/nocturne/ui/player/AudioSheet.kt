@@ -1,6 +1,19 @@
 package app.nocturne.ui.player
 
 import androidx.compose.ui.draw.clip
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.rotate
+import app.nocturne.player.AudioFx
 import androidx.compose.foundation.clickable
 import app.nocturne.i18n.t
 import androidx.compose.foundation.Canvas
@@ -57,6 +70,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val fx = graph.player.audioFx
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
@@ -86,58 +100,70 @@ fun AudioSheet(onDismiss: () -> Unit) {
             )
 
             Spacer(Modifier.height(20.dp))
-            Text(t("Effects"), style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(4.dp))
-            FxSwitch("Normalize volume", "Even out loud and quiet tracks", settings.normalizeVolume) { v -> graph.settings.update { it.copy(normalizeVolume = v) } }
-            FxSwitch("Spatial sound", "Wider, more open stereo", settings.spatialAudio) { v -> graph.settings.update { it.copy(spatialAudio = v) } }
-            if (app.nocturne.platformKind == app.nocturne.PlatformKind.ANDROID) {
-                FxSwitch("8D audio", "Sound slowly circles around your head — best with headphones", settings.eightD) { v -> graph.settings.update { it.copy(eightD = v) } }
+            var fxOpen by rememberSaveable { mutableStateOf(false) }
+            val chevron by animateFloatAsState(if (fxOpen) 180f else 0f)
+            Row(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { fxOpen = !fxOpen }.padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(t("Effects"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                Icon(Icons.Rounded.ExpandMore, null, Modifier.rotate(chevron), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            FxSwitch("Vocal remover", "Karaoke: cuts the centered vocals", settings.vocalRemover) { v -> graph.settings.update { it.copy(vocalRemover = v) } }
-            var fade by remember(settings.crossfadeSec) { mutableFloatStateOf(settings.crossfadeSec.toFloat()) }
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                Text(t("Crossfade"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Text(if (fade < 1f) t("Off") else t("%s s", fade.roundToInt()), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            }
-            Slider(
-                value = fade,
-                onValueChange = { fade = it.roundToInt().toFloat() },
-                onValueChangeFinished = { graph.settings.update { it.copy(crossfadeSec = fade.roundToInt()) } },
-                valueRange = 0f..12f,
-                steps = 11,
-            )
-
-            Spacer(Modifier.height(20.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(t("Equalizer"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                Switch(checked = settings.eqEnabled, onCheckedChange = { v -> graph.settings.update { it.copy(eqEnabled = v) } })
-            }
-            Spacer(Modifier.height(12.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
-                val names = listOf("Custom") + Eq.presets.keys
-                items(names) { name ->
-                    FilterChip(
-                        selected = settings.eqPreset == name,
-                        onClick = {
-                            val gains = Eq.presets[name]
-                            graph.settings.update {
-                                if (gains == null) it.copy(eqPreset = name, eqEnabled = true)
-                                else it.copy(eqPreset = name, eqGains = gains, eqEnabled = true)
-                            }
-                        },
-                        label = { Text(name) },
+            AnimatedVisibility(fxOpen, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                Column {
+                    Spacer(Modifier.height(4.dp))
+                    if (AudioFx.NORMALIZE in fx) FxSwitch("Normalize volume", "Even out loud and quiet tracks", settings.normalizeVolume) { v -> graph.settings.update { it.copy(normalizeVolume = v) } }
+                    if (AudioFx.SPATIAL in fx) FxSwitch("Spatial sound", "Wider, more open stereo", settings.spatialAudio) { v -> graph.settings.update { it.copy(spatialAudio = v) } }
+                    if (AudioFx.EIGHT_D in fx) FxSwitch("8D audio", "Sound slowly circles around your head — best with headphones", settings.eightD) { v -> graph.settings.update { it.copy(eightD = v) } }
+                    if (AudioFx.VOCAL_REMOVER in fx) FxSwitch("Vocal remover", "Karaoke: cuts the centered vocals", settings.vocalRemover) { v -> graph.settings.update { it.copy(vocalRemover = v) } }
+                    var fade by remember(settings.crossfadeSec) { mutableFloatStateOf(settings.crossfadeSec.toFloat()) }
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                        Text(t("Crossfade"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text(if (fade < 1f) t("Off") else t("%s s", fade.roundToInt()), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Slider(
+                        value = fade,
+                        onValueChange = { fade = it.roundToInt().toFloat() },
+                        onValueChangeFinished = { graph.settings.update { it.copy(crossfadeSec = fade.roundToInt()) } },
+                        valueRange = 0f..12f,
+                        steps = 11,
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
-            EqGraph(
-                gains = settings.eqGains.takeIf { it.size == Eq.bands.size } ?: List(Eq.bands.size) { 0f },
-                modifier = Modifier.fillMaxWidth().height(200.dp).alpha(if (settings.eqEnabled) 1f else 0.45f),
-            ) { gains -> graph.settings.update { it.copy(eqGains = gains, eqPreset = "Custom", eqEnabled = true) } }
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Eq.bands.forEach { hz ->
-                    Text(bandLabel(hz), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+
+            if (AudioFx.EQUALIZER in fx) {
+                Spacer(Modifier.height(20.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(t("Equalizer"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    Switch(checked = settings.eqEnabled, onCheckedChange = { v -> graph.settings.update { it.copy(eqEnabled = v) } })
+                }
+                Spacer(Modifier.height(12.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
+                    val names = listOf("Custom") + Eq.presets.keys
+                    items(names) { name ->
+                        FilterChip(
+                            selected = settings.eqPreset == name,
+                            onClick = {
+                                val gains = Eq.presets[name]
+                                graph.settings.update {
+                                    if (gains == null) it.copy(eqPreset = name, eqEnabled = true)
+                                    else it.copy(eqPreset = name, eqGains = gains, eqEnabled = true)
+                                }
+                            },
+                            label = { Text(name) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                EqGraph(
+                    gains = settings.eqGains.takeIf { it.size == Eq.bands.size } ?: List(Eq.bands.size) { 0f },
+                    modifier = Modifier.fillMaxWidth().height(200.dp).alpha(if (settings.eqEnabled) 1f else 0.45f),
+                ) { gains -> graph.settings.update { it.copy(eqGains = gains, eqPreset = "Custom", eqEnabled = true) } }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Eq.bands.forEach { hz ->
+                        Text(bandLabel(hz), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }

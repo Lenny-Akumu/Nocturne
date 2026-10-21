@@ -10,7 +10,11 @@ interface EngineListener {
     fun onBufferingChanged(buffering: Boolean)
 }
 
+enum class AudioFx { NORMALIZE, SPATIAL, EIGHT_D, VOCAL_REMOVER, EQUALIZER }
+
 interface AudioEngine {
+    /** Effects this engine really applies; the UI hides the rest. */
+    val fx: Set<AudioFx> get() = emptySet()
     fun clearCache(): Long = 0
     val positionMs: Long
     val durationMs: Long

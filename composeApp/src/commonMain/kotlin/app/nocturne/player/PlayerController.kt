@@ -251,6 +251,8 @@ class PlayerController(
         settings.update { it.copy(volume = v) }
     }
 
+    val audioFx: Set<AudioFx> get() = engine.fx
+
     fun applyAudioSettings() {
         engine.setSkipSilence(settings.value.skipSilence)
         engine.setPlaybackSpeed(settings.value.playbackSpeed)

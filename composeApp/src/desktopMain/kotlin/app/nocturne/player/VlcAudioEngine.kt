@@ -11,7 +11,7 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 
 class VlcAudioEngine : AudioEngine {
-    private val factory: MediaPlayerFactory? = runCatching {
+    private val nativeOk: Boolean = runCatching {
         val bundled = bundledDir()
         if (bundled != null) {
             NativeLibrary.addSearchPath("libvlc", bundled.absolutePath)
@@ -20,64 +20,93 @@ class VlcAudioEngine : AudioEngine {
         } else {
             systemVlc = NativeDiscovery().discover()
         }
-        MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500", "--no-audio-time-stretch")
-    }.getOrNull()
+        true
+    }.getOrDefault(false)
 
-    private val player: MediaPlayer? = runCatching { factory?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
+    // libVLC 3 builds the audio filter chain from instance args only (per-media ":audio-filter" is ignored),
+    // so toggling an effect swaps in a fresh instance and resumes at the same position.
+    @Volatile private var factory: MediaPlayerFactory? = null
+    @Volatile private var player: MediaPlayer? = null
+    private var filters = emptyList<String>()
     private var listener: EngineListener? = null
     @Volatile private var volume = 100
     @Volatile private var time = 0L
     @Volatile private var length = 0L
     @Volatile private var playing = false
+    @Volatile private var ended = false
 
     val available: Boolean get() = player != null
     val mediaFactory: MediaPlayerFactory? get() = factory
 
+    override val fx = setOf(AudioFx.NORMALIZE, AudioFx.SPATIAL, AudioFx.VOCAL_REMOVER, AudioFx.EQUALIZER)
+
+    private val events = object : MediaPlayerEventAdapter() {
+        override fun playing(mediaPlayer: MediaPlayer) {
+            if (mediaPlayer !== player) return
+            playing = true
+            mediaPlayer.submit {
+                mediaPlayer.audio().setVolume(volume)
+                if (speed != 1f) mediaPlayer.controls().setRate(speed)
+            }
+            listener?.onPlayingChanged(true)
+            listener?.onBufferingChanged(false)
+        }
+
+        override fun paused(mediaPlayer: MediaPlayer) {
+            if (mediaPlayer !== player) return
+            playing = false
+            listener?.onPlayingChanged(false)
+        }
+
+        override fun stopped(mediaPlayer: MediaPlayer) {
+            if (mediaPlayer !== player) return
+            playing = false
+            listener?.onPlayingChanged(false)
+        }
+
+        override fun finished(mediaPlayer: MediaPlayer) {
+            if (mediaPlayer !== player) return
+            playing = false
+            ended = true
+            listener?.onPlayingChanged(false)
+            listener?.onEnded()
+        }
+
+        override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) {
+            if (mediaPlayer === player) time = newTime.coerceAtLeast(0)
+        }
+
+        override fun lengthChanged(mediaPlayer: MediaPlayer, newLength: Long) {
+            if (mediaPlayer === player) length = newLength.coerceAtLeast(0)
+        }
+
+        override fun buffering(mediaPlayer: MediaPlayer, newCache: Float) {
+            if (mediaPlayer === player) listener?.onBufferingChanged(newCache < 100f)
+        }
+
+        override fun error(mediaPlayer: MediaPlayer) {
+            if (mediaPlayer !== player) return
+            playing = false
+            listener?.onError(IllegalStateException("VLC could not play this stream"))
+        }
+    }
+
     init {
-        player?.events()?.addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
-            override fun playing(mediaPlayer: MediaPlayer) {
-                playing = true
-                mediaPlayer.submit {
-                    mediaPlayer.audio().setVolume(volume)
-                    if (speed != 1f) mediaPlayer.controls().setRate(speed)
-                }
-                listener?.onPlayingChanged(true)
-                listener?.onBufferingChanged(false)
-            }
+        if (nativeOk) open(emptyList())
+    }
 
-            override fun paused(mediaPlayer: MediaPlayer) {
-                playing = false
-                listener?.onPlayingChanged(false)
-            }
-
-            override fun stopped(mediaPlayer: MediaPlayer) {
-                playing = false
-                listener?.onPlayingChanged(false)
-            }
-
-            override fun finished(mediaPlayer: MediaPlayer) {
-                playing = false
-                listener?.onPlayingChanged(false)
-                listener?.onEnded()
-            }
-
-            override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) {
-                time = newTime.coerceAtLeast(0)
-            }
-
-            override fun lengthChanged(mediaPlayer: MediaPlayer, newLength: Long) {
-                length = newLength.coerceAtLeast(0)
-            }
-
-            override fun buffering(mediaPlayer: MediaPlayer, newCache: Float) {
-                listener?.onBufferingChanged(newCache < 100f)
-            }
-
-            override fun error(mediaPlayer: MediaPlayer) {
-                playing = false
-                listener?.onError(IllegalStateException("VLC could not play this stream"))
-            }
-        })
+    private fun open(chain: List<String>) {
+        val args = buildList {
+            addAll(listOf("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500", "--no-audio-time-stretch"))
+            if (chain.isNotEmpty()) add("--audio-filter=${chain.joinToString(":")}")
+            if ("normvol" in chain) addAll(listOf("--norm-buff-size=20", "--norm-max-level=1.5"))
+        }
+        val f = runCatching { MediaPlayerFactory(*args.toTypedArray()) }.getOrNull()
+        val p = runCatching { f?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
+        if (p == null) runCatching { f?.release() }
+        p?.events()?.addMediaPlayerEventListener(events)
+        factory = f.takeIf { p != null }
+        player = p
     }
 
     override val positionMs: Long get() = time
@@ -104,10 +133,9 @@ class VlcAudioEngine : AudioEngine {
             add(":http-user-agent=${InnerTube.USER_AGENT}")
             if (startPositionMs > 0) add(":start-time=${startPositionMs / 1000.0}")
             add(":meta-title=${track.title}")
-            val filters = listOfNotNull("normvol".takeIf { fxNormalize }, "spatializer".takeIf { fxSpatial }, "karaoke".takeIf { fxKaraoke })
-            if (filters.isNotEmpty()) add(":audio-filter=${filters.joinToString(":")}")
         }.toTypedArray()
-        lastLoad = Triple(stream, track, playWhenReady)
+        ended = false
+        lastLoad = stream to track
         async { if (playWhenReady) media().play(stream.url, *options) else media().startPaused(stream.url, *options) }
     }
 
@@ -117,6 +145,7 @@ class VlcAudioEngine : AudioEngine {
 
     override fun stop() {
         playing = false
+        lastLoad = null
         async { controls().stop() }
     }
 
@@ -132,32 +161,47 @@ class VlcAudioEngine : AudioEngine {
         async { controls().setRate(this@VlcAudioEngine.speed) }
     }
 
+    private var eq: Pair<Boolean, List<Float>> = false to emptyList()
+
     override fun setEqualizer(enabled: Boolean, gains: List<Float>) {
+        eq = enabled to gains
         val f = factory ?: return
         async {
             if (!enabled) audio().setEqualizer(null)
             else {
                 val bands = f.equalizer().bands()
-                val eq = f.equalizer().newEqualizer()
-                eq.setPreamp(12f)
-                bands.forEachIndexed { i, hz -> eq.setAmp(i, Eq.gainAt(hz, gains).coerceIn(-20f, 20f)) }
-                audio().setEqualizer(eq)
+                val e = f.equalizer().newEqualizer()
+                e.setPreamp(12f)
+                bands.forEachIndexed { i, hz -> e.setAmp(i, Eq.gainAt(hz, gains).coerceIn(-20f, 20f)) }
+                audio().setEqualizer(e)
             }
         }
     }
 
-    private var fxNormalize = false
-    private var fxSpatial = false
-    private var fxKaraoke = false
-    private var lastLoad: Triple<ResolvedStream, Track, Boolean>? = null
+    private var lastLoad: Pair<ResolvedStream, Track>? = null
 
     override fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {
-        val changed = normalize != fxNormalize || spatial != fxSpatial || vocalRemover != fxKaraoke
-        fxNormalize = normalize
-        fxSpatial = spatial
-        fxKaraoke = vocalRemover
-        val last = lastLoad ?: return
-        if (changed && length > 0) load(last.first, last.second, time, playing)
+        val chain = listOfNotNull("normvol".takeIf { normalize }, "stereo_widen".takeIf { spatial }, "karaoke".takeIf { vocalRemover })
+        if (chain == filters || !nativeOk) return
+        filters = chain
+        val oldPlayer = player
+        val oldFactory = factory
+        val wasPlaying = playing
+        val at = time
+        open(chain)
+        if (player == null) { // new chain failed: keep the old instance
+            factory = oldFactory
+            player = oldPlayer
+            return
+        }
+        Thread {
+            runCatching { oldPlayer?.controls()?.stop() }
+            runCatching { oldPlayer?.release() }
+            runCatching { oldFactory?.release() }
+        }.apply { isDaemon = true }.start()
+        setEqualizer(eq.first, eq.second)
+        val last = lastLoad
+        if (last != null && !ended) load(last.first, last.second, at, wasPlaying)
     }
 
     override fun setVolume(volume: Float) {

@@ -146,6 +146,9 @@ jobs:
           foreach ($d in "gui","video_splitter","visualization","lua","services_discovery","control","spu","text_renderer","stream_out","mux","d3d9","d3d11","keystore") {
             Remove-Item -Recurse -Force "$dst\plugins\$d" -ErrorAction SilentlyContinue
           }
+          # Rebuild the plugin cache after pruning: effect toggles recreate the libVLC instance, a stale cache forces a full rescan.
+          if (Test-Path "$src\vlc-cache-gen.exe") { & "$src\vlc-cache-gen.exe" "$dst\plugins"; $global:LASTEXITCODE = 0 }
+          if (-not (Test-Path "$dst\plugins\audio_filter\libkaraoke_plugin.dll")) { Write-Host "warning: audio_filter plugins missing" }
           "{0:N1} MB bundled" -f ((Get-ChildItem $dst -Recurse | Measure-Object Length -Sum).Sum / 1MB)
       - name: Build app image
         shell: bash

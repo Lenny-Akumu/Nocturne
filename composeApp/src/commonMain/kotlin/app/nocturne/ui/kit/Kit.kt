@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -75,6 +77,7 @@ import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -110,6 +113,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -1371,24 +1375,44 @@ fun ModalBottomSheet(
         )
         return
     }
-    // Liquid Glass sheet: blurs what's behind it (it lives in its own window, so it can sample the source).
+    // Liquid Glass sheet. The glass sits on the content column, not on the M3 sheet modifier: that one is
+    // laid out before the drag offset, so the blur/shadow ended up detached from (and taller than) the content.
     val shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
     val real = LocalGlass.current != null
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = if (real) modifier.liquidGlass(shape, 12.dp, overlay = true) else modifier,
+        modifier = modifier,
         sheetState = sheetState,
+        sheetMaxWidth = 640.dp,
         shape = shape,
-        containerColor = if (real) Color.Transparent else if (dark) Color(0xF01C1C1E) else Color(0xF5F2F2F7),
+        containerColor = Color.Transparent,
         contentColor = cs.onSurface,
         tonalElevation = 0.dp,
-        scrimColor = Color.Black.copy(alpha = 0.25f),
-        dragHandle = {
-            Box(Modifier.padding(top = 6.dp, bottom = 12.dp).size(36.dp, 5.dp).clip(CircleShape).background(cs.onSurfaceVariant.copy(alpha = 0.5f)))
-        },
+        scrimColor = Color.Black.copy(alpha = if (dark) 0.4f else 0.25f),
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
     ) {
-        CompositionLocalProvider(LocalInGlassSource provides true) { content() }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .maxHeightFraction(0.9f)
+                .then(
+                    if (real) Modifier.liquidGlass(shape, 0.dp, overlay = true)
+                    else Modifier.clip(shape).background(if (dark) Color(0xF01C1C1E) else Color(0xF5F2F2F7)).glassSheen(shape, dark),
+                )
+                .windowInsetsPadding(BottomSheetDefaults.windowInsets),
+        ) {
+            Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp, bottom = 12.dp).size(36.dp, 5.dp).clip(CircleShape).background(cs.onSurfaceVariant.copy(alpha = 0.5f)))
+            CompositionLocalProvider(LocalInGlassSource provides true, LocalContentColor provides cs.onSurface) { content() }
+        }
     }
+}
+
+// Caps the height to [fraction] of the incoming max height (sheets never cover the whole window).
+private fun Modifier.maxHeightFraction(fraction: Float): Modifier = layout { measurable, constraints ->
+    val max = if (constraints.hasBoundedHeight) (constraints.maxHeight * fraction).toInt() else constraints.maxHeight
+    val p = measurable.measure(constraints.copy(minHeight = constraints.minHeight.coerceAtMost(max), maxHeight = max))
+    layout(p.width, p.height) { p.place(0, 0) }
 }
 
 private class IosRow(val inset: Dp)

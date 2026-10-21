@@ -57,7 +57,9 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
         )
         .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-    private val fx = FxAudioProcessor()
+    private val fxProcessor = FxAudioProcessor()
+
+    override val fx = AudioFx.entries.filter { it != AudioFx.NORMALIZE || android.os.Build.VERSION.SDK_INT >= 28 }.toSet()
 
     val exo: ExoPlayer = ExoPlayer.Builder(context)
         .setRenderersFactory(object : DefaultRenderersFactory(context) {
@@ -65,7 +67,7 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
                 DefaultAudioSink.Builder(context)
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .setAudioProcessorChain(DefaultAudioSink.DefaultAudioProcessorChain(fx))
+                    .setAudioProcessorChain(DefaultAudioSink.DefaultAudioProcessorChain(fxProcessor))
                     .build()
         })
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
@@ -225,8 +227,8 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
     private var fxSpatial = false
 
     override fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {
-        fx.eightD = eightD
-        fx.vocalRemover = vocalRemover
+        fxProcessor.eightD = eightD
+        fxProcessor.vocalRemover = vocalRemover
         fxNormalize = normalize
         fxSpatial = spatial
         applyEffects()
