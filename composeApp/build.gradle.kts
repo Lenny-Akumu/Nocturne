@@ -62,7 +62,7 @@ kotlin {
             implementation(libs.ktor.json)
             implementation(libs.coil.compose)
             implementation(libs.materialkolor)
-            implementation("dev.chrisbanes.haze:haze:1.7.3")
+            implementation("dev.chrisbanes.haze:haze:1.6.10")
         }
 
         androidMain {
