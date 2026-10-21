@@ -72,6 +72,8 @@ private fun smokeTest(output: File) {
 }
 
 fun main(args: Array<String>) {
+    // Must precede any skiko init: vsync-paced GPU frames (Direct3D on Windows keeps transparent windows hardware-composited).
+    if (System.getProperty("skiko.vsync.enabled") == null) System.setProperty("skiko.vsync.enabled", "true")
     AppDirs.root = dataDir().apply { mkdirs() }
     args.firstOrNull { it.startsWith("--smoke-test=") }?.let { smokeTest(File(it.substringAfter('='))) }
     Thread.setDefaultUncaughtExceptionHandler { _, e ->
@@ -160,6 +162,7 @@ private fun launchApp() {
             },
         ) {
             window.minimumSize = java.awt.Dimension(420, 600)
+            LaunchedEffect(Unit) { AppIcon.images.takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
             MainWindow.window = window
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
             LaunchedEffect(Unit) { DiscordRpc.start() }

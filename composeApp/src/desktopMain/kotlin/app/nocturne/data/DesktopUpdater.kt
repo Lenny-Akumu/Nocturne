@@ -26,9 +26,8 @@ private object Tray {
         if (!java.awt.SystemTray.isSupported()) return
         val tray = java.awt.SystemTray.getSystemTray()
         val tIcon = icon ?: run {
-            val image = runCatching {
-                javax.imageio.ImageIO.read(Thread.currentThread().contextClassLoader.getResourceAsStream("nocturne.png"))
-            }.getOrNull() ?: java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            val image = app.nocturne.AppIcon.forSize(tray.trayIconSize.width)
+                ?: java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB)
             java.awt.TrayIcon(image, "Nocturne").apply {
                 isImageAutoSize = true
                 tray.add(this)

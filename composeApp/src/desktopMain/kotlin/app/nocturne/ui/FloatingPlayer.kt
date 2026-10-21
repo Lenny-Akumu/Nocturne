@@ -1,19 +1,16 @@
 package app.nocturne.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.using
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -24,17 +21,18 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,11 +55,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -78,12 +81,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isTertiaryPressed
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.foundation.window.WindowDraggableArea
@@ -99,6 +107,8 @@ import app.nocturne.ui.theme.NocturneTheme
 import app.nocturne.ui.theme.rememberArtworkSeed
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.roundToInt
 
 private val BASE = DpSize(820.dp, 132.dp)
 private val BTN = 40.dp
@@ -114,7 +124,11 @@ fun FloatingPlayerWindow() {
     val ax = if (settings.floatingX < 0) bounds.x + bounds.width / 2 + when (anchor) { 0 -> -180; 2 -> 180; else -> 0 } else settings.floatingX
     val ay = if (settings.floatingX < 0) bounds.y + 6 else settings.floatingY
     val state = rememberDialogState(position = WindowPosition((ax - 200).dp, ay.dp), size = DpSize(400.dp, 80.dp))
-    var pillPx by remember { mutableStateOf(IntSize.Zero) }
+    // Read only from snapshotFlow: per-frame size changes must not recompose the window.
+    val pillPx = remember { mutableStateOf(IntSize.Zero) }
+    val busy = remember { mutableStateOf(false) }
+    // The pill may only animate open once the window has its fixed max size (no resizes mid-animation).
+    var full by remember { mutableStateOf(false) }
     DialogWindow(
         onCloseRequest = { graph.settings.update { it.copy(floatingPlayer = false) } },
         state = state,
@@ -125,21 +139,24 @@ fun FloatingPlayerWindow() {
         focusable = false,
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
-        LaunchedEffect(pillPx, ax, ay, anchor, editing, scale) {
-            if (pillPx == IntSize.Zero) return@LaunchedEffect
+        LaunchedEffect(ax, ay, anchor, editing, scale) {
             val k = window.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
             val margin = 4
-            val full = (BASE.width.value * scale).toInt() to (BASE.height.value * scale).toInt()
-            val fit = ((pillPx.width / k).toInt() + margin * 2) to ((pillPx.height / k).toInt() + margin * 2)
-            fun place(size: Pair<Int, Int>) {
-                val (w, h) = size
+            fun place(w: Int, h: Int) {
                 val x = when (anchor) { 0 -> ax - margin; 2 -> ax - w + margin; else -> ax - w / 2 }
                 if (window.x != x || window.y != ay || window.width != w || window.height != h) window.setBounds(x, ay, w, h)
             }
-            when {
-                editing -> place(full)
-                fit.first > window.width || fit.second > window.height -> place(full)
-                else -> { delay(450); place(fit) }
+            snapshotFlow<IntSize?> { if (editing || busy.value) null else pillPx.value }.collectLatest { px ->
+                if (px == null) {
+                    place((BASE.width.value * scale).toInt(), (BASE.height.value * scale).toInt())
+                    full = true
+                    return@collectLatest
+                }
+                if (px == IntSize.Zero) return@collectLatest
+                // Collapse already finished (busy=false); short grace period against hover flicker.
+                if (full) delay(160)
+                full = false
+                place((px.width / k).toInt() + margin * 2, (px.height / k).toInt() + margin * 2)
             }
         }
         val base = LocalDensity.current
@@ -154,10 +171,10 @@ fun FloatingPlayerWindow() {
                     val pillModifier = Modifier
                         .wrapContentSize(align, unbounded = true)
                         .padding(4.dp)
-                        .onSizeChanged { pillPx = it }
+                        .onSizeChanged { pillPx.value = it }
                     if (editing) {
                         WindowDraggableArea(Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp)).background(Color(0x55000000))) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = align) { Box(pillModifier) { Pill(interactive = false, window = null) } }
+                            Box(Modifier.fillMaxSize(), contentAlignment = align) { Box(pillModifier) { Pill(interactive = false, window = null, canOpen = false) {} } }
                         }
                         FilledTonalButton(
                             onClick = {
@@ -169,7 +186,7 @@ fun FloatingPlayerWindow() {
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
                         ) { Text(t("Done")) }
                     } else {
-                        Box(pillModifier) { Pill(interactive = true, window = window) }
+                        Box(pillModifier) { Pill(interactive = true, window = window, canOpen = full) { busy.value = it } }
                     }
                 }
             }
@@ -178,7 +195,7 @@ fun FloatingPlayerWindow() {
 }
 
 @Composable
-private fun Pill(interactive: Boolean, window: java.awt.Window?) {
+private fun Pill(interactive: Boolean, window: java.awt.Window?, canOpen: Boolean, onBusy: (Boolean) -> Unit) {
     val graph = AppGraph.instance
     val state by graph.player.state.collectAsState()
     val settings by graph.settings.state.collectAsState()
@@ -186,9 +203,23 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
     val track = state.current
     val hover = remember { MutableInteractionSource() }
     val hovered by hover.collectIsHoveredAsState()
-    val open = interactive && hovered
+    // Debounced hover: ignores exit/enter blips caused by the window being resized under the cursor.
+    var hoverOn by remember { mutableStateOf(false) }
+    LaunchedEffect(hovered, interactive) {
+        if (hovered && interactive) hoverOn = true else { delay(90); hoverOn = false }
+    }
+    val open = hoverOn && canOpen
+    // Single driver for the whole expand/collapse; read only in layout/draw, never in composition.
+    val progress = animateFloatAsState(
+        targetValue = if (open) 1f else 0f,
+        animationSpec = if (open) spring(dampingRatio = 1f, stiffness = 420f) else spring(dampingRatio = 1f, stiffness = 700f),
+        label = "pill",
+    )
+    val hoverState = rememberUpdatedState(hoverOn)
+    val busy by remember { derivedStateOf { hoverState.value || progress.value > 0f } }
+    LaunchedEffect(busy) { onBusy(busy) }
     val glass = settings.floatingStyle == 1
-    val accent = if (glass) Color.White else rememberArtworkSeed(track?.artworkUrl) ?: MaterialTheme.colorScheme.primary
+    val accent by animateColorAsState(if (glass) Color.White else rememberArtworkSeed(track?.artworkUrl) ?: MaterialTheme.colorScheme.primary, tween(450), label = "accent")
     val shape = RoundedCornerShape(30.dp)
     val b = settings.floatingButtons
     val anchor = settings.floatingAnchor
@@ -214,7 +245,6 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
     }
     val volW = if ("volume" in b) 120.dp else 0.dp
     fun widthOf(list: List<@Composable () -> Unit>, hasVolume: Boolean): Dp = BTN * (list.size - if (hasVolume) 1 else 0) + if (hasVolume) volW else 0.dp
-    val leftHasVol = anchor == 2 && "volume" in b
     val rightHasVol = (anchor == 0 || anchor == 1) && "volume" in b && rightExtras.isNotEmpty()
     val sideW = if (anchor == 1) maxOf(widthOf(leftExtras, false), widthOf(rightExtras, rightHasVol)) else 0.dp
 
@@ -245,39 +275,42 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
                 }
             },
     ) {
-        if (track != null && !glass) {
-            AsyncImage(track.artworkUrl, null, Modifier.matchParentSize().blur(36.dp).alpha(0.75f), contentScale = ContentScale.Crop)
-        }
-        if (!glass) Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
-        Column(Modifier.width(IntrinsicSize.Max)) {
-            Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Side(open, Alignment.End, if (anchor == 1) sideW else null, leftExtras)
-                Artwork(track?.artworkUrl, Modifier.size(40.dp), CircleShape, Icons.Rounded.MusicNote)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.width(170.dp).clickable(enabled = interactive) { MainWindow.show() }) {
-                    Text(track?.title ?: "Nocturne", color = Color.White, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.basicMarquee())
-                    Text(track?.artistNames.orEmpty(), color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        PillLayout(progress) {
+            if (!glass) {
+                Crossfade(track?.artworkUrl, Modifier.layoutId("bg"), tween(500), label = "backdrop") { url ->
+                    if (url != null) AsyncImage(url, null, Modifier.fillMaxSize().blur(36.dp).alpha(0.75f), contentScale = ContentScale.Crop)
                 }
+                Box(Modifier.layoutId("bg").background(Color.Black.copy(alpha = 0.45f)))
+            }
+            Side("left", Alignment.End, if (anchor == 1) sideW else null, leftExtras)
+            Row(Modifier.layoutId("core"), verticalAlignment = Alignment.CenterVertically) {
+                Crossfade(track?.artworkUrl, Modifier.size(40.dp), tween(350), label = "art") { url ->
+                    Artwork(url, Modifier.size(40.dp), CircleShape, Icons.Rounded.MusicNote)
+                }
+                Spacer(Modifier.width(10.dp))
+                AnimatedContent(
+                    targetState = track,
+                    modifier = Modifier.width(170.dp).clickable(enabled = interactive) { MainWindow.show() },
+                    transitionSpec = {
+                        (fadeIn(tween(320, delayMillis = 60)) + slideInVertically(tween(320)) { it / 4 }) togetherWith fadeOut(tween(160)) using null
+                    },
+                    contentKey = { it?.key },
+                    label = "title",
+                ) { t -> TrackText(t) }
                 if ("prev" in b) PillButton(Icons.Rounded.SkipPrevious, Color.White, interactive) { graph.player.previous() }
                 PillButton(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, accent, interactive) { graph.player.toggle() }
                 if ("next" in b) PillButton(Icons.Rounded.SkipNext, Color.White, interactive) { graph.player.next() }
-                Side(open, Alignment.Start, if (anchor == 1) sideW else null, rightExtras)
             }
+            Side("right", Alignment.Start, if (anchor == 1) sideW else null, rightExtras)
             if ("seek" in b) {
-                AnimatedVisibility(
-                    open,
-                    enter = expandVertically(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(240, delayMillis = 80)),
-                    exit = shrinkVertically(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(120)),
-                ) {
-                    Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(state.positionMs.formatDuration(), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
-                        Spacer(Modifier.width(8.dp))
-                        PillBar(state.progress, accent, Modifier.weight(1f)) { f ->
-                            if (state.durationMs > 0) graph.player.seekTo((f * state.durationMs).toLong())
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(state.durationMs.formatDuration(), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
+                Row(Modifier.layoutId("seek").fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(state.positionMs.formatDuration(), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.width(8.dp))
+                    PillBar(state.progress, accent, Modifier.weight(1f)) { f ->
+                        if (state.durationMs > 0) graph.player.seekTo((f * state.durationMs).toLong())
                     }
+                    Spacer(Modifier.width(8.dp))
+                    Text(state.durationMs.formatDuration(), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -285,19 +318,59 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?) {
 }
 
 @Composable
-private fun Side(open: Boolean, from: Alignment.Horizontal, width: Dp?, items: List<@Composable () -> Unit>) {
-    if (items.isEmpty() && width == null) return
-    AnimatedVisibility(
-        open,
-        enter = expandHorizontally(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow), expandFrom = from) + fadeIn(tween(260, delayMillis = 60)),
-        exit = shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium), shrinkTowards = from) + fadeOut(tween(140)),
-    ) {
-        Row(
-            (if (width != null) Modifier.width(width) else Modifier),
-            horizontalArrangement = if (from == Alignment.End) androidx.compose.foundation.layout.Arrangement.End else androidx.compose.foundation.layout.Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-        ) { items.forEach { it() } }
+private fun TrackText(track: Track?) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(track?.title ?: "Nocturne", color = Color.White, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.basicMarquee())
+        Text(track?.artistNames.orEmpty(), color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
+}
+
+/**
+ * Children are always measured at full size (cached across frames); [progress] only changes the
+ * reported size and placement, so expand/collapse is a cheap relayout + layer alpha, the core
+ * (artwork..next) never moves and the extras are revealed by the pill's clip.
+ */
+@Composable
+private fun PillLayout(progress: State<Float>, content: @Composable () -> Unit) {
+    Layout(content) { ms, _ ->
+        val loose = Constraints()
+        val padH = 8.dp.roundToPx()
+        val padV = 6.dp.roundToPx()
+        val core = ms.first { it.layoutId == "core" }.measure(loose)
+        val left = ms.firstOrNull { it.layoutId == "left" }?.measure(loose)
+        val right = ms.firstOrNull { it.layoutId == "right" }?.measure(loose)
+        val lw = left?.width ?: 0
+        val rw = right?.width ?: 0
+        val topH = maxOf(core.height, left?.height ?: 0, right?.height ?: 0) + padV * 2
+        val fullW = padH * 2 + lw + core.width + rw
+        val seek = ms.firstOrNull { it.layoutId == "seek" }?.measure(Constraints(minWidth = fullW, maxWidth = fullW))
+        val seekH = seek?.height ?: 0
+        val bg = ms.filter { it.layoutId == "bg" }.map { it.measure(Constraints.fixed(fullW, topH + seekH)) }
+        val p = progress.value.coerceIn(0f, 1f)
+        val cl = (lw * p).roundToInt()
+        val cr = if (rw == lw) cl else (rw * p).roundToInt()
+        layout(padH * 2 + cl + core.width + cr, topH + (seekH * p).roundToInt()) {
+            val ox = cl - lw
+            bg.forEach { it.place(ox, 0) }
+            core.place(padH + cl, (topH - core.height) / 2)
+            if (p > 0f) {
+                val a = p * p * (3 - 2 * p)
+                left?.placeWithLayer(ox + padH, (topH - left.height) / 2) { alpha = a }
+                right?.placeWithLayer(padH + cl + core.width, (topH - right.height) / 2) { alpha = a }
+                seek?.placeWithLayer(ox, topH) { alpha = a }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Side(id: String, from: Alignment.Horizontal, width: Dp?, items: List<@Composable () -> Unit>) {
+    if (items.isEmpty() && width == null) return
+    Row(
+        Modifier.layoutId(id).then(if (width != null) Modifier.width(width) else Modifier),
+        horizontalArrangement = if (from == Alignment.End) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+    ) { items.forEach { it() } }
 }
 
 @Composable
