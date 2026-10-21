@@ -3,6 +3,9 @@ package app.nocturne.ui
 import app.nocturne.data.IconBackground
 import app.nocturne.data.IconPalette
 import platform.UIKit.UIApplication
+import platform.UIKit.alternateIconName
+import platform.UIKit.setAlternateIconName
+import platform.UIKit.supportsAlternateIcons
 
 actual fun systemIconColors(): IconColors? = null
 
@@ -16,5 +19,5 @@ actual fun applyAppIcon(background: IconBackground, palette: IconPalette) {
     val pal = if (palette == IconPalette.SYSTEM) IconPalette.STANDARD else palette
     val name = if (bg == IconBackground.SQUARE && pal == IconPalette.STANDARD) null else "AppIcon-${cap(bg.name)}${cap(pal.name)}"
     if (app.alternateIconName == name) return
-    app.setAlternateIconName(name) { _ -> }
+    app.setAlternateIconName(name) { _: platform.Foundation.NSError? -> }
 }
