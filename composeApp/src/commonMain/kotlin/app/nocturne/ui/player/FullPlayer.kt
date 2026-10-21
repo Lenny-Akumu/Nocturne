@@ -1,10 +1,11 @@
 package app.nocturne.ui.player
 
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
+import kotlinx.coroutines.delay
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -403,23 +404,6 @@ private fun Controls(compact: Boolean = false) {
         }
     }
 
-    if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP || !compact) {
-        var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
-            IconButton(onClick = { vol = 0f; graph.player.setVolume(0f) }, modifier = Modifier.size(36.dp)) {
-                Icon(if (vol <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeDown, "Mute", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
-            }
-            Slider(
-                value = vol,
-                onValueChange = { vol = it; graph.player.setVolume(it) },
-                modifier = Modifier.weight(1f).height(28.dp),
-                colors = SliderDefaults.colors(thumbColor = cs.onSurface, activeTrackColor = cs.onSurface.copy(alpha = 0.8f), inactiveTrackColor = cs.onSurface.copy(alpha = 0.15f)),
-            )
-            IconButton(onClick = { vol = 1f; graph.player.setVolume(1f) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.AutoMirrored.Rounded.VolumeUp, "Max volume", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
-            }
-        }
-    }
 }
 
 @Composable
@@ -430,7 +414,64 @@ private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Uni
     val cs = MaterialTheme.colorScheme
     var audioSheet by remember { mutableStateOf(false) }
     if (audioSheet) AudioSheet { audioSheet = false }
-    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+    var volumeOpen by remember { mutableStateOf(false) }
+    var touched by remember { mutableStateOf(0) }
+    LaunchedEffect(volumeOpen, touched) {
+        if (volumeOpen) { delay(3500); volumeOpen = false }
+    }
+    AnimatedContent(volumeOpen, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "actions") { open ->
+        if (open) VolumeRow(onTouch = { touched++ }, onClose = { volumeOpen = false })
+        else ActionsRow(pane, onPane, onSleep, hideArtworkToggle, onAudio = { audioSheet = true }, onVolume = { volumeOpen = true })
+    }
+}
+
+@Composable
+private fun VolumeRow(onTouch: () -> Unit, onClose: () -> Unit) {
+    val graph = AppGraph.instance
+    val settings by graph.settings.state.collectAsState()
+    val cs = MaterialTheme.colorScheme
+    var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
+    Row(Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp, start = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { vol = if (vol > 0.01f) 0f else 0.6f; graph.player.setVolume(vol); onTouch() }, modifier = Modifier.size(36.dp)) {
+            Icon(if (vol <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, "Mute", Modifier.size(20.dp), tint = cs.primary)
+        }
+        Slider(
+            value = vol,
+            onValueChange = { vol = it; graph.player.setVolume(it); onTouch() },
+            modifier = Modifier.weight(1f).height(24.dp),
+            colors = SliderDefaults.colors(thumbColor = cs.primary, activeTrackColor = cs.primary, inactiveTrackColor = cs.onSurface.copy(alpha = 0.15f)),
+        )
+        Text("${(vol * 100).toInt()}", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.width(32.dp).padding(start = 6.dp))
+        IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Rounded.Close, "Close", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ActionsRow(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Unit, hideArtworkToggle: Boolean, onAudio: () -> Unit, onVolume: () -> Unit) {
+    val graph = AppGraph.instance
+    val settings by graph.settings.state.collectAsState()
+    val state by graph.player.state.collectAsState()
+    val cs = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            onClick = onVolume,
+            modifier = Modifier.pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val e = awaitPointerEvent()
+                        if (e.type != PointerEventType.Scroll) continue
+                        val dy = e.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+                        val cur = graph.settings.value.volume
+                        graph.player.setVolume((cur - dy * 0.05f).coerceIn(0f, 1f))
+                        e.changes.forEach { it.consume() }
+                    }
+                }
+            },
+        ) {
+            Icon(if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, "Volume", tint = cs.onSurfaceVariant)
+        }
         val current = state.current
         if (current != null && current.source != app.nocturne.model.Source.SOUNDCLOUD && current.source != app.nocturne.model.Source.LOCAL) {
             IconToggleButton(checked = settings.showVideo, onCheckedChange = { v -> graph.settings.update { it.copy(showVideo = v) } }) {
@@ -441,7 +482,7 @@ private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Uni
                 )
             }
         }
-        IconButton(onClick = { audioSheet = true }) {
+        IconButton(onClick = onAudio) {
             Icon(Icons.Rounded.GraphicEq, "Equalizer and speed", tint = if (settings.eqEnabled || settings.playbackSpeed != 1f) cs.primary else cs.onSurfaceVariant)
         }
         if (settings.showLyrics) {
