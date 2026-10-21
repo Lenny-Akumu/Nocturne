@@ -81,11 +81,12 @@ class IosAudioEngine : AudioEngine {
 
     private var source: ResolvedStream? = null
     private var cached = false
+    private var currentUrl: String? = null
 
     override fun load(stream: ResolvedStream, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
         source = stream
         cached = false
-        val local = cacheFile(stream.url)
+        val local = cacheFile(stream, track)
         if (local != null && app.nocturne.data.fileExists(local)) {
             cached = true
             return open(local, track, startPositionMs, playWhenReady)
@@ -93,31 +94,50 @@ class IosAudioEngine : AudioEngine {
         open(stream.url, track, startPositionMs, playWhenReady)
     }
 
-    private fun cacheFile(url: String): String? {
-        if (!url.startsWith("http") || "googlevideo.com" !in url) return null
-        val id = Regex("[?&]id=([^&]+)").find(url)?.groupValues?.get(1) ?: return null
-        val itag = Regex("[?&]itag=(\\d+)").find(url)?.groupValues?.get(1) ?: "0"
+    // Local copy used when AVPlayer can't stream a progressive googlevideo / SoundCloud file; null for HLS and unsupported formats.
+    private fun cacheFile(stream: ResolvedStream, track: Track): String? {
+        val url = stream.url
+        if (stream.isHls || !url.startsWith("http") || ".m3u8" in url || "/manifest/" in url) return null
+        val mime = stream.mimeType.orEmpty()
+        val ext = when {
+            "mpeg" in mime || "mp3" in mime -> "mp3"
+            "mp4" in mime || "m4a" in mime || "aac" in mime -> "m4a"
+            else -> return null
+        }
+        val key = when {
+            "googlevideo.com" in url -> {
+                val id = Regex("[?&]id=([^&]+)").find(url)?.groupValues?.get(1) ?: return null
+                val itag = Regex("[?&]itag=(\\d+)").find(url)?.groupValues?.get(1) ?: "0"
+                "$id-$itag"
+            }
+            "sndcdn.com" in url || "soundcloud" in url -> "sc-" + app.nocturne.sha1Hex(track.id)
+            else -> return null
+        }
         val dir = platform.Foundation.NSTemporaryDirectory() + "nocturne-audio"
         platform.Foundation.NSFileManager.defaultManager.createDirectoryAtPath(dir, true, null, null)
-        return "$dir/$id-$itag.m4a"
+        return "$dir/${key.replace(Regex("[^A-Za-z0-9_.-]"), "_")}.$ext"
     }
 
-    private fun fallback(): Boolean {
+    private fun fallback(reason: String?): Boolean {
         val stream = source ?: return false
         val t = track ?: return false
-        val path = cacheFile(stream.url) ?: return false
         if (cached) return false
+        val path = cacheFile(stream, t) ?: return false
         cached = true
         val resume = player.currentTime().ms()
         val play = wantPlay || pendingSeekMs != null || lastPlaying
         setBuffering(true)
         scope.launch {
-            val ok = runCatching { app.nocturne.data.downloadToFile(stream.url, path) {} }
+            val ok = runCatching { withContext(Dispatchers.Default) { app.nocturne.data.downloadToFile(stream.url, path) {} } }
             if (source !== stream) return@launch
             ok.onSuccess { open(path, t, resume, play) }
                 .onFailure { e ->
+                    app.nocturne.data.deleteFile("$path.part")
+                    wantPlay = false
+                    setPlaying(false)
                     setBuffering(false)
-                    listener?.onError(IllegalStateException(e.message ?: "Couldn't load the track"))
+                    val msg = listOfNotNull(reason, e.message?.let { "download failed: $it" }).joinToString("; ")
+                    listener?.onError(IllegalStateException(msg.ifEmpty { "Couldn't load the track" }))
                 }
         }
         return true
@@ -126,6 +146,7 @@ class IosAudioEngine : AudioEngine {
     private fun open(url: String, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
         detach()
         failed = false
+        currentUrl = url
         this.track = track
         loadArtwork(track.artworkUrl)
         val asset = avAsset(url)
@@ -182,11 +203,14 @@ class IosAudioEngine : AudioEngine {
     private fun fail(item: AVPlayerItem) {
         if (failed || item != player.currentItem) return
         failed = true
-        if (fallback()) return
+        val reason = item.error?.localizedDescription
+        // A broken cached copy is dropped so the next attempt streams again.
+        currentUrl?.takeIf { it.startsWith("/") && "/nocturne-audio/" in it }?.let { app.nocturne.data.deleteFile(it) }
+        if (fallback(reason)) return
         wantPlay = false
         setPlaying(false)
         setBuffering(false)
-        listener?.onError(IllegalStateException(item.error?.localizedDescription ?: "AVPlayer could not play this stream"))
+        listener?.onError(IllegalStateException(reason ?: "AVPlayer could not play this stream"))
     }
 
     private fun startPlayback() {

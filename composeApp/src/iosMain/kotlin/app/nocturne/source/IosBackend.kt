@@ -16,20 +16,27 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.decodeURLQueryComponent
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
+import kotlin.random.Random
 
 actual fun createNewPipeBackend(): NewPipeBackend = IosBackend()
 
@@ -40,9 +47,11 @@ class IosBackend : NewPipeBackend {
     private val innerTube = InnerTube(http, { locale })
     private var clientId: String? = null
     private val clientIdLock = Mutex()
+    private val playerJs = YtPlayerJs(http)
 
     override fun init(language: String, country: String) {
         locale = language to country
+        if (country.isNotBlank()) uaCountry = country
     }
 
     override suspend fun search(source: Source, query: String, filter: SearchFilter): List<MediaEntry> =
@@ -53,7 +62,7 @@ class IosBackend : NewPipeBackend {
 
     override suspend fun track(source: Source, url: String): Track {
         if (source == Source.SOUNDCLOUD) return scTrack(resolve(url)) ?: throw SourceUnavailableException("Track not found")
-        val d = player(videoId(url), requirePlayable = false).path("videoDetails")
+        val d = metadata(videoId(url))
         val id = d.path("videoId").str ?: videoId(url)
         val author = d.path("author").str?.removeSuffix(" - Topic")
         return Track(
@@ -96,14 +105,10 @@ class IosBackend : NewPipeBackend {
 
     override suspend fun videoStream(source: Source, url: String, maxHeight: Int): String? {
         if (source == Source.SOUNDCLOUD) return null
-        val data = player(videoId(url)).path("streamingData")
-        val candidates = data.path("adaptiveFormats").arr.orEmpty().filter { f ->
-            val mime = f.path("mimeType").str.orEmpty()
-            f.path("url").str != null && mime.startsWith("video/mp4") && "avc1" in mime
-        }
-        val height = { f: JsonElement -> f.path("height").num?.toInt() ?: 0 }
+        val (candidates, hls) = ytFormats(videoId(url)) { it.startsWith("video/mp4") && "avc1" in it }
+        val height = { f: Fmt -> f.json.path("height").num?.toInt() ?: 0 }
         val chosen = candidates.filter { height(it) in 1..maxHeight }.maxByOrNull(height) ?: candidates.minByOrNull(height)
-        return chosen.path("url").str ?: data.path("hlsManifestUrl").str
+        return chosen?.url ?: hls
     }
 
     override suspend fun soundcloudClientId(): String = clientIdLock.withLock {
@@ -163,99 +168,178 @@ class IosBackend : NewPipeBackend {
         root.findAll("continuationCommand").firstOrNull().path("token").str
             ?: root.findAll("nextContinuationData").firstOrNull().path("continuation").str
 
+    // Innertube clients, as NewPipe's InnertubeClientRequestInfo / YoutubeStreamHelper.
     private class Client(
         val name: String,
-        val id: String,
         val version: String,
-        val ua: String,
-        val extra: Map<String, String>,
+        val ua: (String) -> String,
+        val visitorUrl: String,
+        val screen: String? = "WATCH",
+        val platform: String? = "MOBILE",
+        val make: String? = null,
+        val model: String? = null,
+        val osName: String? = null,
+        val osVersion: String? = null,
+        val sdk: Int? = null,
+        val headerId: String? = null,
+        val reel: Boolean = false,
     )
 
-    private var visitor: String? = null
+    private class Fmt(val json: JsonElement, val url: String)
 
-    private suspend fun visitorData(): String? {
-        visitor?.let { return it }
-        val c = CLIENTS.first()
-        return runCatching {
-            val raw = http.post("https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false") {
-                contentType(ContentType.Application.Json)
-                header("User-Agent", c.ua)
-                setBody(buildJsonObject { putJsonObject("context") { putJsonObject("client") { put("clientName", c.name); put("clientVersion", c.version) } } }.toString())
-            }.bodyAsText()
-            json.parseToJsonElement(raw).path("responseContext", "visitorData").str
-        }.getOrNull()?.also { visitor = it }
-    }
+    private val visitors = mutableMapOf<String, String>()
 
-    private suspend fun player(videoId: String, requirePlayable: Boolean = true): JsonElement {
+    private fun JsonObjectBuilder.context(c: Client, visitorData: String?) {
         val (hl, gl) = locale
-        val vd = visitorData()
-        var last: JsonElement? = null
-        for (c in CLIENTS) {
-            val body = buildJsonObject {
-                putJsonObject("context") {
-                    putJsonObject("client") {
-                        put("clientName", c.name)
-                        put("clientVersion", c.version)
-                        c.extra.forEach { (k, v) -> if (k == "androidSdkVersion") put(k, v.toInt()) else put(k, v) }
-                        put("userAgent", c.ua)
-                        put("hl", hl)
-                        put("gl", gl)
-                        vd?.let { put("visitorData", it) }
-                    }
-                }
-                put("videoId", videoId)
-                put("contentCheckOk", true)
-                put("racyCheckOk", true)
+        putJsonObject("context") {
+            putJsonObject("client") {
+                put("clientName", c.name)
+                put("clientVersion", c.version)
+                c.screen?.let { put("clientScreen", it) }
+                c.platform?.let { put("platform", it) }
+                visitorData?.let { put("visitorData", it) }
+                c.make?.let { put("deviceMake", it) }
+                c.model?.let { put("deviceModel", it) }
+                c.osName?.let { put("osName", it) }
+                c.osVersion?.let { put("osVersion", it) }
+                c.sdk?.let { put("androidSdkVersion", it) }
+                put("hl", hl)
+                put("gl", gl)
+                put("utcOffsetMinutes", 0)
             }
-            val root = runCatching {
-                val raw = http.post("https://youtubei.googleapis.com/youtubei/v1/player?prettyPrint=false") {
-                    contentType(ContentType.Application.Json)
-                    header("User-Agent", c.ua)
-                    header("X-Youtube-Client-Name", c.id)
-                    header("X-Youtube-Client-Version", c.version)
-                    vd?.let { header("X-Goog-Visitor-Id", it) }
-                    setBody(body.toString())
-                }.bodyAsText()
-                json.parseToJsonElement(raw)
-            }.getOrNull() ?: continue
-            last = root
-            val ok = root.path("playabilityStatus", "status").str == "OK"
-            val playable = root.path("streamingData", "adaptiveFormats").arr.orEmpty().any { it.path("url").str != null } ||
-                root.path("streamingData", "hlsManifestUrl").str != null
-            if (!requirePlayable || (ok && playable)) return root
+            putJsonObject("request") {
+                putJsonArray("internalExperimentFlags") {}
+                put("useSsl", true)
+            }
+            putJsonObject("user") { put("lockedSafetyMode", false) }
         }
-        val root = last ?: throw SourceUnavailableException("Video unavailable")
-        if (requirePlayable) throw SourceUnavailableException(root.path("playabilityStatus", "reason").str ?: "Video unavailable")
-        return root
     }
+
+    private fun JsonObjectBuilder.videoChecks(videoId: String, cpn: String) {
+        put("videoId", videoId)
+        put("cpn", cpn)
+        put("contentCheckOk", true)
+        put("racyCheckOk", true)
+    }
+
+    private suspend fun innertube(c: Client, url: String, body: JsonObject): JsonElement {
+        val r = http.post(url) {
+            contentType(ContentType.Application.Json)
+            header("User-Agent", c.ua(locale.second))
+            header("X-Goog-Api-Format-Version", "2")
+            c.headerId?.let { header("X-Youtube-Client-Name", it); header("X-Youtube-Client-Version", c.version) }
+            setBody(body.toString())
+        }
+        if (!r.status.isSuccess()) throw SourceUnavailableException("YouTube: HTTP ${r.status.value}")
+        return json.parseToJsonElement(r.bodyAsText())
+    }
+
+    private suspend fun visitorData(c: Client): String? {
+        visitors[c.name]?.let { return it }
+        return runCatching {
+            innertube(c, c.visitorUrl, buildJsonObject { context(c, null) }).path("responseContext", "visitorData").str
+        }.getOrNull()?.takeIf { it.isNotEmpty() }?.also { visitors[c.name] = it }
+    }
+
+    private suspend fun playerResponse(c: Client, videoId: String, cpn: String): JsonElement {
+        val vd = visitorData(c)
+        val query = "prettyPrint=false&t=${nonce(12)}&id=$videoId"
+        if (c.reel) {
+            val body = buildJsonObject {
+                context(c, vd)
+                putJsonObject("playerRequest") { videoChecks(videoId, cpn) }
+                put("disablePlayerResponse", false)
+            }
+            return innertube(c, "${GAPIS}reel/reel_item_watch?$query&\$fields=playerResponse", body).path("playerResponse")
+                ?: throw SourceUnavailableException("Video unavailable")
+        }
+        return innertube(c, "${GAPIS}player?$query", buildJsonObject { context(c, vd); videoChecks(videoId, cpn) })
+    }
+
+    private suspend fun metadata(videoId: String): JsonElement? {
+        for (c in STREAM_CLIENTS) {
+            val r = try { playerResponse(c, videoId, nonce(16)) } catch (e: CancellationException) { throw e } catch (e: Exception) { continue }
+            if (r.path("videoDetails", "title").str != null) return r.path("videoDetails")
+        }
+        return null
+    }
+
+    // Formats whose mime type passes [want], with deobfuscated URLs (+cpn), from the first client that has any; plus an HLS fallback.
+    private suspend fun ytFormats(videoId: String, want: (String) -> Boolean): Pair<List<Fmt>, String?> {
+        var hls: String? = null
+        var problem: String? = null
+        for (c in STREAM_CLIENTS) {
+            val cpn = nonce(16)
+            val root = try {
+                playerResponse(c, videoId, cpn)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                problem = problem ?: e.message
+                continue
+            }
+            val status = root.path("playabilityStatus", "status").str
+            if (root.path("videoDetails", "videoId").str != videoId || (status != null && !status.equals("OK", ignoreCase = true))) {
+                problem = root.path("playabilityStatus", "reason").str ?: problem
+                continue
+            }
+            val data = root.path("streamingData")
+            if (hls == null) hls = data.path("hlsManifestUrl").str
+            val list = data.path("adaptiveFormats").arr.orEmpty().filter { want(it.path("mimeType").str.orEmpty()) }.mapNotNull { f ->
+                try {
+                    Fmt(f, streamUrl(videoId, f, cpn))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (e !is NoUrl) problem = problem ?: e.message
+                    null
+                }
+            }
+            if (list.isNotEmpty()) return list to hls
+            hls?.let { return emptyList<Fmt>() to it }
+        }
+        throw SourceUnavailableException(problem ?: "Video unavailable")
+    }
+
+    private class NoUrl : Exception("No stream url")
+
+    // YoutubeStreamExtractor.buildAndAddItagInfoToList: signature, n parameter, cpn.
+    private suspend fun streamUrl(videoId: String, f: JsonElement, cpn: String): String {
+        val url = f.path("url").str ?: run {
+            val cipher = (f.path("signatureCipher").str ?: f.path("cipher").str)?.takeIf { it.isNotEmpty() } ?: throw NoUrl()
+            val m = cipher.split('&').associate { it.substringBefore('=') to it.substringAfter('=', "").decodeURLQueryComponent(plusIsSpace = true) }
+            val base = m["url"] ?: throw NoUrl()
+            "$base&${m["sp"] ?: "signature"}=${playerJs.signature(videoId, m["s"].orEmpty())}"
+        }
+        return playerJs.throttled(videoId, url) + "&cpn=" + cpn
+    }
+
+    private fun nonce(length: Int): String = buildString { repeat(length) { append(NONCE_ALPHABET[Random.nextInt(NONCE_ALPHABET.length)]) } }
 
     private suspend fun ytStream(url: String, quality: AudioQuality): ResolvedStream {
-        val data = player(videoId(url)).path("streamingData")
-        data.path("hlsManifestUrl").str?.let { return ResolvedStream(it, "application/x-mpegURL", isHls = true) }
-        val audio = data.path("adaptiveFormats").arr.orEmpty()
-            .filter { it.path("url").str != null && it.path("mimeType").str?.startsWith("audio/") == true }
-        val original = audio.filter { it.path("audioTrack", "audioIsDefault").bool != false }.ifEmpty { audio }
-        val chosen = pick(original.filter { it.path("mimeType").str.orEmpty().startsWith("audio/mp4") }, quality)
-            ?: pick(original, quality)
-            ?: throw SourceUnavailableException("No audio stream available")
-        val mime = chosen.path("mimeType").str.orEmpty()
+        // AVPlayer can't play webm/opus, so only AAC (itag 140/139) or HLS.
+        val (audio, hls) = ytFormats(videoId(url)) { it.startsWith("audio/mp4") }
+        val original = audio.filter { it.json.path("audioTrack", "audioIsDefault").bool != false }.ifEmpty { audio }
+        val chosen = pick(original, quality)
+            ?: return ResolvedStream(hls ?: throw SourceUnavailableException("No audio stream available"), "application/x-mpegURL", isHls = true)
+        val mime = chosen.json.path("mimeType").str.orEmpty()
         return ResolvedStream(
-            url = chosen.path("url").str!!,
+            url = chosen.url,
             mimeType = mime.substringBefore(';').trim(),
-            bitrate = kbps(chosen),
+            bitrate = kbps(chosen.json),
             codec = Regex("codecs=\"([^\"]+)\"").find(mime)?.groupValues?.get(1),
         )
     }
 
     private fun kbps(f: JsonElement): Int = ((f.path("averageBitrate").num ?: f.path("bitrate").num ?: 0L) / 1000).toInt()
 
-    private fun pick(formats: List<JsonElement>, quality: AudioQuality): JsonElement? {
+    private fun pick(formats: List<Fmt>, quality: AudioQuality): Fmt? {
         if (formats.isEmpty()) return null
-        val sorted = formats.sortedBy { kbps(it) }
+        val sorted = formats.sortedBy { kbps(it.json) }
         return when (quality) {
             AudioQuality.LOW -> sorted.first()
             AudioQuality.HIGH -> sorted.last()
-            AudioQuality.NORMAL -> sorted.minBy { abs(kbps(it) - 128) }
+            AudioQuality.NORMAL -> sorted.minBy { abs(kbps(it.json) - 128) }
         }
     }
 
@@ -327,15 +411,18 @@ class IosBackend : NewPipeBackend {
         }
     }
 
-    // SoundCloud
+    // SoundCloud (NewPipe's SoundcloudParsingHelper / SoundcloudStreamExtractor)
 
     private suspend fun fetchClientId(): String {
-        val page = http.get("https://soundcloud.com") { header("User-Agent", InnerTube.USER_AGENT) }.bodyAsText()
-        val scripts = Regex("<script[^>]+src=\"(https://a-v2\\.sndcdn\\.com/assets/[^\"]+\\.js)\"")
+        val page = http.get("https://soundcloud.com") { header("User-Agent", SC_UA) }.bodyAsText()
+        val scripts = Regex("<script[^>]*\\ssrc=\"([^\"]*sndcdn\\.com/assets/[^\"]*\\.js)\"")
             .findAll(page).map { it.groupValues[1] }.toList()
+        // The one containing the client id is likely the last one.
         for (src in scripts.asReversed()) {
-            val js = runCatching { http.get(src) { header("Range", "bytes=0-50000") }.bodyAsText() }.getOrNull() ?: continue
-            Regex("client_id:\"([a-zA-Z0-9]{32})\"").find(js)?.let { return it.groupValues[1] }
+            val js = runCatching {
+                http.get(src) { header("User-Agent", SC_UA); header("Range", "bytes=0-50000") }.bodyAsBytes().decodeToString()
+            }.getOrNull() ?: continue
+            Regex(",client_id:\"(.*?)\"").find(js)?.let { return it.groupValues[1] }
         }
         throw SourceUnavailableException("Could not get SoundCloud client id")
     }
@@ -343,7 +430,7 @@ class IosBackend : NewPipeBackend {
     private suspend fun sc(path: String, retry: Boolean = true): JsonElement {
         val id = soundcloudClientId()
         val sep = if ('?' in path) '&' else '?'
-        val response = http.get("$SC_API/$path${sep}client_id=$id")
+        val response = http.get("$SC_API/$path${sep}client_id=$id") { header("User-Agent", SC_UA) }
         if (retry && (response.status.value == 401 || response.status.value == 403)) {
             clientIdLock.withLock { if (clientId == id) clientId = null }
             return sc(path, retry = false)
@@ -372,40 +459,52 @@ class IosBackend : NewPipeBackend {
 
     private suspend fun scStream(url: String): ResolvedStream {
         val t = resolve(url)
-        if (t.path("policy").str == "BLOCK") throw SourceUnavailableException("This track is not available in your country")
-        val all = t.path("media", "transcodings").arr.orEmpty().filter { it.path("url").str != null }
-        val transcodings = all.filter { it.path("snipped").bool != true }.ifEmpty { all }
-        fun protocol(e: JsonElement) = e.path("format", "protocol").str
-        fun mime(e: JsonElement) = e.path("format", "mime_type").str.orEmpty()
-        val chosen = transcodings.firstOrNull { protocol(it) == "progressive" && mime(it).startsWith("audio/mpeg") }
-            ?: transcodings.firstOrNull { protocol(it) == "progressive" }
-            ?: transcodings.firstOrNull { protocol(it) == "hls" && mime(it).startsWith("audio/mpeg") }
-            ?: transcodings.firstOrNull { protocol(it) == "hls" && mime(it).startsWith("audio/mp4") }
-            ?: transcodings.firstOrNull { protocol(it) == "hls" }
-            ?: throw SourceUnavailableException("No audio stream available")
-        val endpoint = chosen.path("url").str!!
+        when (val policy = t.path("policy").str.orEmpty()) {
+            "ALLOW", "MONETIZE" -> Unit
+            "SNIP" -> throw SourceUnavailableException("This track is only available to SoundCloud Go+ subscribers")
+            "BLOCK" -> throw SourceUnavailableException("This track is not available in your country")
+            else -> throw SourceUnavailableException("Content not available: policy $policy")
+        }
+        if (t.path("streamable").bool != true) throw SourceUnavailableException("This track isn't streamable")
+        fun protocol(e: JsonElement) = e.path("format", "protocol").str.orEmpty()
+        fun preset(e: JsonElement) = e.path("preset").str.orEmpty()
+        // Skip DRM ("encrypted") and opus (AVPlayer can't play it); NewPipe only knows mp3, opus and aac_160k presets.
+        val usable = t.path("media", "transcodings").arr.orEmpty().filter {
+            !it.path("url").str.isNullOrEmpty() && "encrypted" !in protocol(it) && ("mp3" in preset(it) || "aac_160k" in preset(it))
+        }
+        val ordered = usable.filter { protocol(it) == "progressive" && "mp3" in preset(it) } +
+            usable.filter { protocol(it) == "hls" && "aac_160k" in preset(it) } +
+            usable.filter { protocol(it) == "hls" && "mp3" in preset(it) }
+        if (ordered.isEmpty()) throw SourceUnavailableException("No playable audio stream (only encrypted or opus streams)")
+        var failure: String? = null
+        for (tr in ordered) {
+            val stream = try { scTranscodingUrl(tr.path("url").str!!, t.path("track_authorization").str) } catch (e: CancellationException) { throw e } catch (e: Exception) { failure = e.message; null }
+                ?: continue
+            val hls = protocol(tr) == "hls"
+            val mp3 = "mp3" in preset(tr)
+            return ResolvedStream(
+                url = stream,
+                mimeType = if (hls) "application/x-mpegURL" else if (mp3) "audio/mpeg" else "audio/mp4",
+                isHls = hls,
+                bitrate = if (mp3) 128 else 160,
+                codec = if (mp3) "mp3" else "aac",
+            )
+        }
+        throw SourceUnavailableException("No audio stream: ${failure ?: "unknown error"}")
+    }
+
+    private suspend fun scTranscodingUrl(endpoint: String, auth: String?, retry: Boolean = true): String? {
+        val id = soundcloudClientId()
         val sep = if ('?' in endpoint) '&' else '?'
-        val auth = t.path("track_authorization").str?.let { "&track_authorization=$it" }.orEmpty()
-        val body = http.get("$endpoint${sep}client_id=${soundcloudClientId()}$auth").bodyAsText()
-        val stream = json.parseToJsonElement(body).path("url").str ?: throw SourceUnavailableException("No audio stream available")
-        val m = mime(chosen)
-        val hls = protocol(chosen) == "hls"
-        return ResolvedStream(
-            url = stream,
-            mimeType = if (hls) "application/x-mpegURL" else m.substringBefore(';').trim(),
-            isHls = hls,
-            bitrate = when {
-                m.startsWith("audio/mpeg") -> 128
-                "opus" in m -> 64
-                else -> 0
-            },
-            codec = when {
-                m.startsWith("audio/mpeg") -> "mp3"
-                "opus" in m -> "opus"
-                m.startsWith("audio/mp4") -> "aac"
-                else -> null
-            },
-        )
+        val r = http.get("$endpoint${sep}client_id=$id" + (auth?.takeIf { it.isNotEmpty() }?.let { "&track_authorization=$it" } ?: "")) {
+            header("User-Agent", SC_UA)
+        }
+        if (retry && (r.status.value == 401 || r.status.value == 403)) {
+            clientIdLock.withLock { if (clientId == id) clientId = null }
+            return scTranscodingUrl(endpoint, auth, retry = false)
+        }
+        if (!r.status.isSuccess()) error("HTTP ${r.status.value}")
+        return json.parseToJsonElement(r.bodyAsText()).path("url").str
     }
 
     private suspend fun scPlaylist(url: String, ref: CollectionRef?): CollectionPage {
@@ -483,23 +582,39 @@ class IosBackend : NewPipeBackend {
     }
 
     companion object {
-        private val CLIENTS = listOf(
-            Client(
-                "ANDROID_VR", "28", "1.62.27",
-                "com.google.android.apps.youtube.vr.oculus/1.62.27 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
-                mapOf("deviceMake" to "Oculus", "deviceModel" to "Quest 3", "osName" to "Android", "osVersion" to "12L", "androidSdkVersion" to "32"),
-            ),
-            Client(
-                "IOS", "5", "20.10.4",
-                "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)",
-                mapOf("deviceMake" to "Apple", "deviceModel" to "iPhone16,2", "osName" to "iPhone", "osVersion" to "18.3.2.22D82"),
-            ),
+        private const val GAPIS = "https://youtubei.googleapis.com/youtubei/v1/"
+        private const val WWW = "https://www.youtube.com/youtubei/v1/"
+        private const val NONCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        private var uaCountry = "GB"
+
+        // Values from NewPipe's ClientsConstants. ANDROID (reel endpoint) first, then VISIONOS / IOS, ANDROID_VR last.
+        private val ANDROID = Client(
+            "ANDROID", "21.03.36", { "com.google.android.youtube/21.03.36 (Linux; U; Android 15; $it) gzip" }, "${GAPIS}visitor_id?prettyPrint=false",
+            osName = "Android", osVersion = "16", sdk = 36, reel = true,
         )
+        private val VISIONOS = Client(
+            "VISIONOS", "1.02", { "com.google.visionos.youtube/1.02(RealityDevice14,1; U; CPU visionOS 25_6_0 like Mac OS X; $it)" },
+            "${WWW}visitor_id?prettyPrint=false", make = "Apple", model = "RealityDevice14,1", osName = "visionOS", osVersion = "25.6.0.23O471",
+        )
+        private val IOS = Client(
+            "IOS", "21.03.2", { "com.google.ios.youtube/21.03.2(iPhone16,2; U; CPU iOS 18_7_2 like Mac OS X; $it)" },
+            "${WWW}visitor_id?prettyPrint=false", make = "Apple", model = "iPhone16,2", osName = "iOS", osVersion = "18.7.2.22H124",
+        )
+        private val ANDROID_VR = Client(
+            "ANDROID_VR", "1.62.27", { "com.google.android.apps.youtube.vr.oculus/1.62.27 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip" },
+            "${GAPIS}visitor_id?prettyPrint=false", screen = null, platform = null, make = "Oculus", model = "Quest 3", osName = "Android",
+            osVersion = "12L", sdk = 32, headerId = "28",
+        )
+        private val STREAM_CLIENTS = listOf(ANDROID, VISIONOS, IOS, ANDROID_VR)
+
+        // User-Agent for googlevideo requests, picked from the client in the url (`c=` query or `/c/` path segment).
         fun uaFor(url: String): String? {
-            val c = Regex("[?&]c=([A-Z_]+)").find(url)?.groupValues?.get(1) ?: return null
-            return CLIENTS.firstOrNull { it.name == c }?.ua
+            val c = Regex("(?:[?&]c=|/c/)([A-Z_]+)").find(url)?.groupValues?.get(1) ?: return null
+            return STREAM_CLIENTS.firstOrNull { it.name == c }?.ua?.invoke(uaCountry)
         }
+
         private const val SC_API = "https://api-v2.soundcloud.com"
+        private const val SC_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
         private val CLOCK = Regex("^\\d+(:\\d{2})+$")
         private val TYPE_WORDS = setOf("song", "video", "single", "ep", "album", "playlist", "artist", "episode", "podcast")
     }
