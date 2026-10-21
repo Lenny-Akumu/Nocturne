@@ -31,7 +31,7 @@ internal fun avAsset(url: String): AVURLAsset? {
         url.startsWith("/") -> NSURL.fileURLWithPath(url)
         else -> NSURL.URLWithString(url) ?: url.takeIf { it.startsWith("file://") }?.let { NSURL.fileURLWithPath(it.removePrefix("file://")) }
     } ?: return null
-    val options: Map<Any?, Any?>? = if (url.startsWith("http")) mapOf<Any?, Any?>("AVURLAssetHTTPHeaderFieldsKey" to mapOf("User-Agent" to InnerTube.USER_AGENT)) else null
+    val options: Map<Any?, Any?>? = if (url.startsWith("http")) mapOf<Any?, Any?>("AVURLAssetHTTPHeaderFieldsKey" to mapOf("User-Agent" to (app.nocturne.source.IosBackend.uaFor(url) ?: InnerTube.USER_AGENT))) else null
     return AVURLAsset.URLAssetWithURL(nsUrl, options)
 }
 

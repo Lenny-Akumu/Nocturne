@@ -163,38 +163,69 @@ class IosBackend : NewPipeBackend {
         root.findAll("continuationCommand").firstOrNull().path("token").str
             ?: root.findAll("nextContinuationData").firstOrNull().path("continuation").str
 
+    private class Client(
+        val name: String,
+        val id: String,
+        val version: String,
+        val ua: String,
+        val extra: Map<String, String>,
+    )
+
+    private var visitor: String? = null
+
+    private suspend fun visitorData(): String? {
+        visitor?.let { return it }
+        val c = CLIENTS.first()
+        return runCatching {
+            val raw = http.post("https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false") {
+                contentType(ContentType.Application.Json)
+                header("User-Agent", c.ua)
+                setBody(buildJsonObject { putJsonObject("context") { putJsonObject("client") { put("clientName", c.name); put("clientVersion", c.version) } } }.toString())
+            }.bodyAsText()
+            json.parseToJsonElement(raw).path("responseContext", "visitorData").str
+        }.getOrNull()?.also { visitor = it }
+    }
+
     private suspend fun player(videoId: String, requirePlayable: Boolean = true): JsonElement {
         val (hl, gl) = locale
-        val body = buildJsonObject {
-            putJsonObject("context") {
-                putJsonObject("client") {
-                    put("clientName", "IOS")
-                    put("clientVersion", IOS_VERSION)
-                    put("deviceMake", "Apple")
-                    put("deviceModel", "iPhone16,2")
-                    put("osName", "iPhone")
-                    put("osVersion", "18.1.0.22B83")
-                    put("userAgent", IOS_UA)
-                    put("hl", hl)
-                    put("gl", gl)
+        val vd = visitorData()
+        var last: JsonElement? = null
+        for (c in CLIENTS) {
+            val body = buildJsonObject {
+                putJsonObject("context") {
+                    putJsonObject("client") {
+                        put("clientName", c.name)
+                        put("clientVersion", c.version)
+                        c.extra.forEach { (k, v) -> if (k == "androidSdkVersion") put(k, v.toInt()) else put(k, v) }
+                        put("userAgent", c.ua)
+                        put("hl", hl)
+                        put("gl", gl)
+                        vd?.let { put("visitorData", it) }
+                    }
                 }
+                put("videoId", videoId)
+                put("contentCheckOk", true)
+                put("racyCheckOk", true)
             }
-            put("videoId", videoId)
-            put("contentCheckOk", true)
-            put("racyCheckOk", true)
+            val root = runCatching {
+                val raw = http.post("https://youtubei.googleapis.com/youtubei/v1/player?prettyPrint=false") {
+                    contentType(ContentType.Application.Json)
+                    header("User-Agent", c.ua)
+                    header("X-Youtube-Client-Name", c.id)
+                    header("X-Youtube-Client-Version", c.version)
+                    vd?.let { header("X-Goog-Visitor-Id", it) }
+                    setBody(body.toString())
+                }.bodyAsText()
+                json.parseToJsonElement(raw)
+            }.getOrNull() ?: continue
+            last = root
+            val ok = root.path("playabilityStatus", "status").str == "OK"
+            val playable = root.path("streamingData", "adaptiveFormats").arr.orEmpty().any { it.path("url").str != null } ||
+                root.path("streamingData", "hlsManifestUrl").str != null
+            if (!requirePlayable || (ok && playable)) return root
         }
-        val raw = http.post("https://youtubei.googleapis.com/youtubei/v1/player?prettyPrint=false") {
-            contentType(ContentType.Application.Json)
-            header("User-Agent", IOS_UA)
-            header("X-Youtube-Client-Name", "5")
-            header("X-Youtube-Client-Version", IOS_VERSION)
-            setBody(body.toString())
-        }.bodyAsText()
-        val root = json.parseToJsonElement(raw)
-        val status = root.path("playabilityStatus", "status").str
-        if (requirePlayable && status != "OK") {
-            throw SourceUnavailableException(root.path("playabilityStatus", "reason").str ?: "Video unavailable")
-        }
+        val root = last ?: throw SourceUnavailableException("Video unavailable")
+        if (requirePlayable) throw SourceUnavailableException(root.path("playabilityStatus", "reason").str ?: "Video unavailable")
         return root
     }
 
@@ -451,11 +482,25 @@ class IosBackend : NewPipeBackend {
         else -> n.toString()
     }
 
-    private companion object {
-        const val IOS_VERSION = "19.45.4"
-        const val IOS_UA = "com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)"
-        const val SC_API = "https://api-v2.soundcloud.com"
-        val CLOCK = Regex("^\\d+(:\\d{2})+$")
-        val TYPE_WORDS = setOf("song", "video", "single", "ep", "album", "playlist", "artist", "episode", "podcast")
+    companion object {
+        private val CLIENTS = listOf(
+            Client(
+                "ANDROID_VR", "28", "1.62.27",
+                "com.google.android.apps.youtube.vr.oculus/1.62.27 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
+                mapOf("deviceMake" to "Oculus", "deviceModel" to "Quest 3", "osName" to "Android", "osVersion" to "12L", "androidSdkVersion" to "32"),
+            ),
+            Client(
+                "IOS", "5", "20.10.4",
+                "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)",
+                mapOf("deviceMake" to "Apple", "deviceModel" to "iPhone16,2", "osName" to "iPhone", "osVersion" to "18.3.2.22D82"),
+            ),
+        )
+        fun uaFor(url: String): String? {
+            val c = Regex("[?&]c=([A-Z_]+)").find(url)?.groupValues?.get(1) ?: return null
+            return CLIENTS.firstOrNull { it.name == c }?.ua
+        }
+        private const val SC_API = "https://api-v2.soundcloud.com"
+        private val CLOCK = Regex("^\\d+(:\\d{2})+$")
+        private val TYPE_WORDS = setOf("song", "video", "single", "ep", "album", "playlist", "artist", "episode", "podcast")
     }
 }
