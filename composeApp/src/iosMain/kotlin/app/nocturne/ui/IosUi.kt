@@ -99,7 +99,7 @@ actual fun WebLoginDialog(
 
 actual fun clearWebLogins() {
     val store = WKWebsiteDataStore.defaultDataStore()
-    store.removeDataOfTypes(WKWebsiteDataStore.allWebsiteDataTypes(), NSDate.distantPast()) {}
+    store.removeDataOfTypes(WKWebsiteDataStore.allWebsiteDataTypes(), NSDate.dateWithTimeIntervalSince1970(0.0)) {}
 }
 
 @Composable
