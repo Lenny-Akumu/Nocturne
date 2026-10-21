@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.material.icons.rounded.NotificationsActive
 import app.nocturne.model.isOnline
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.PictureInPicture
@@ -321,6 +322,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         }
                         SliderPref("Seek step", "${s.seekStepSeconds}s", s.seekStepSeconds.toFloat(), 5f..30f, 4) { v -> set { it.copy(seekStepSeconds = v.toInt()) } }
                         Header("Queue")
+                        Toggle("New release alerts", "Notify when artists you follow release something", Icons.Rounded.NotificationsActive, s.releaseAlerts) { v -> set { it.copy(releaseAlerts = v) } }
                         Toggle("Autoplay", "Keep playing similar songs when the queue ends", Icons.Rounded.Radio, s.autoplayRadio) { v -> set { it.copy(autoplayRadio = v) } }
                         Toggle("Remember queue", "Restore the last queue on launch", Icons.Rounded.Restore, s.persistQueue) { v -> set { it.copy(persistQueue = v) } }
                         Toggle("Resume playback on launch", null, Icons.Rounded.PlayCircle, s.resumeOnStart) { v -> set { it.copy(resumeOnStart = v) } }
@@ -371,6 +373,9 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                                 set { it.copy(localFolders = v.split(";").map { f -> f.trim() }.filter { f -> f.isNotEmpty() }) }
                             }
                         }
+                        Choice("Download quality", Icons.Rounded.HighQuality, s.downloadQuality, AudioQuality.entries, { it.label }) { v -> set { it.copy(downloadQuality = v) } }
+                        val dlItems by graph.downloads.items.collectAsState()
+                        Action("Downloads", t("%s songs · %s MB", dlItems.size, (dlItems.values.sumOf { it.bytes } / (1024 * 1024)).toString()), Icons.Rounded.Storage) {}
                         Action("Clear listening history", null, Icons.Rounded.History) { graph.library.clearHistory() }
                         Action("Clear search history", null, Icons.Rounded.Search) { graph.library.clearSearchHistory() }
                         Action("Reset all settings", null, Icons.Rounded.Restore) { graph.settings.reset() }

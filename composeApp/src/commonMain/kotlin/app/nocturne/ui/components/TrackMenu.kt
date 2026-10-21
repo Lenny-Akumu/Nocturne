@@ -1,5 +1,7 @@
 package app.nocturne.ui.components
 
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Download
 import app.nocturne.i18n.t
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -119,6 +121,11 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                         graph.navigator.push(Screen.Collection(CollectionRef(track.albumId, track.source, CollectionType.ALBUM, track.album, track.artistNames, track.artworkUrl)))
                         close()
                     }
+                }
+                if (track.source != app.nocturne.model.Source.LOCAL) {
+                    val downloads by graph.downloads.items.collectAsState()
+                    if (downloads.containsKey(track.key)) MenuItem(Icons.Rounded.DeleteOutline, "Remove download") { graph.downloads.remove(track); close() }
+                    else MenuItem(Icons.Rounded.Download, "Download") { graph.downloads.enqueue(listOf(track)); close() }
                 }
                 MenuItem(Icons.Rounded.ContentCopy, "Copy link") { clipboard.setText(AnnotatedString(track.shareUrl())); close() }
                 ctx.playlistId?.let { pid ->

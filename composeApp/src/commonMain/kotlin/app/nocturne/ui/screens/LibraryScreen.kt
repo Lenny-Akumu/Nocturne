@@ -64,7 +64,7 @@ import app.nocturne.ui.components.MessageBox
 import app.nocturne.ui.components.TrackMenuContext
 import app.nocturne.ui.components.TrackRow
 
-enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History"), LOCAL("On device"), STATS("Stats") }
+enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History"), LOCAL("On device"), DOWNLOADS("Downloaded"), STATS("Stats") }
 
 val LikedRef = CollectionRef("liked", Source.YOUTUBE_MUSIC, CollectionType.LOCAL, "Liked songs")
 
@@ -92,6 +92,11 @@ fun LibraryScreen(contentPadding: PaddingValues) {
                 action = { if (library.history.isNotEmpty()) IconButton(onClick = { graph.library.clearHistory() }) { Icon(Icons.Rounded.Delete, "Clear history") } })
             LibraryTab.STATS -> StatsView(bottom)
             LibraryTab.LOCAL -> LocalMusic(bottom)
+            LibraryTab.DOWNLOADS -> {
+                val dl by graph.downloads.items.collectAsState()
+                TrackList(dl.values.map { it.track }.reversed(), t("Downloaded"), bottom, Icons.Rounded.LibraryMusic, "No downloads yet",
+                    "Use “Download” in a song's menu or on an album or playlist to listen offline.")
+            }
             LibraryTab.PLAYLISTS -> {
                 val refs = listOf(LikedRef.copy(subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl)) +
                     library.playlists.map { it.ref } + library.saved.filter { it.type == CollectionType.PLAYLIST }

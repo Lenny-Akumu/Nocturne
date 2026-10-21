@@ -77,3 +77,20 @@ actual fun notifyUpdateProgress(version: String, progress: Float?) {
         .build()
     runCatching { nm.notify(NOTIFICATION_ID, n) }
 }
+
+actual fun notifyRelease(title: String, text: String) {
+    val ctx = AndroidContext.app
+    val nm = ctx.getSystemService(android.app.NotificationManager::class.java) ?: return
+    if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel("releases") == null) {
+        nm.createNotificationChannel(android.app.NotificationChannel("releases", "New releases", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+    }
+    val n = androidx.core.app.NotificationCompat.Builder(ctx, "releases")
+        .setSmallIcon(android.R.drawable.ic_media_play)
+        .setContentTitle(title)
+        .setContentText(text)
+        .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(text))
+        .setContentIntent(openApp())
+        .setAutoCancel(true)
+        .build()
+    runCatching { nm.notify(4300 + (title.hashCode() and 0xff), n) }
+}

@@ -44,3 +44,7 @@ actual fun notifyUpdateAvailable(version: String, notes: String) {
 }
 
 actual fun notifyUpdateProgress(version: String, progress: Float?) = Unit
+
+actual fun notifyRelease(title: String, text: String) {
+    runCatching { Tray.show(title, text) }
+}

@@ -1,5 +1,6 @@
 package app.nocturne.ui.components
 
+import androidx.compose.material.icons.rounded.DownloadDone
 import app.nocturne.i18n.t
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -120,6 +121,15 @@ fun TrackRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (settings.showSourceBadges) {
                     SourceBadge(track.source, size = 13.dp)
+                    Spacer(Modifier.width(5.dp))
+                }
+                val dl by graph.downloads.items.collectAsState()
+                val dlProgress by graph.downloads.progress.collectAsState()
+                if (track.key in dl) {
+                    Icon(Icons.Rounded.DownloadDone, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(4.dp))
+                } else dlProgress[track.key]?.let { p ->
+                    CircularProgressIndicator(progress = { p }, modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(5.dp))
                 }
                 if (track.explicit) {

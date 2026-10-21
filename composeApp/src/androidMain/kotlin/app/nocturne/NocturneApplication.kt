@@ -10,5 +10,6 @@ class NocturneApplication : Application() {
         AndroidContext.app = this
         val cacheMb = runCatching { app.nocturne.data.SettingsStore().value.cacheSizeMb }.getOrDefault(512)
         AppGraph.init(AndroidAudioEngine(this, cacheMb))
+        Widgets.start(this)
     }
 }

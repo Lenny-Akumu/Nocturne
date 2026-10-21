@@ -75,7 +75,7 @@ class PlayerController(
                 delay(80)
                 val s = settings.value
                 val cf = s.crossfadeSec * 1000L
-                val target = if (cf <= 0 || !_state.value.isPlaying) s.volume else {
+                val target = if (muted) 0f else if (cf <= 0 || !_state.value.isPlaying) s.volume else {
                     val d = engine.durationMs
                     val p = engine.positionMs
                     val fadeOut = if (d > cf * 2) ((d - p).toFloat() / cf).coerceIn(0f, 1f) else 1f
@@ -320,7 +320,13 @@ class PlayerController(
     private val inFlight = mutableMapOf<String, kotlinx.coroutines.Deferred<ResolvedStream>>()
     private var prefetchJob: Job? = null
 
-    private suspend fun resolve(track: Track, fresh: Boolean = false): ResolvedStream {
+    var localOverride: (Track) -> String? = { null }
+    var muted = false
+
+    suspend fun streamFor(track: Track): ResolvedStream = resolve(track, allowLocal = false)
+
+    private suspend fun resolve(track: Track, fresh: Boolean = false, allowLocal: Boolean = true): ResolvedStream {
+        if (allowLocal) localOverride(track)?.let { return ResolvedStream(it) }
         val key = track.key + ":" + settings.value.audioQuality
         if (!fresh) streamCache[key]?.takeIf { nowMillis() - it.at < STREAM_TTL }?.let { return it.stream }
         val pending = inFlight[key]?.takeIf { !fresh && it.isActive }

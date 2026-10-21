@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.material.icons.rounded.Download
 import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -142,6 +143,11 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                     }
                     FilledTonalIconButton(onClick = { graph.player.play(tracks, tracks.indices.random(), header.title, shuffle = true) }, enabled = tracks.isNotEmpty()) {
                         Icon(Icons.Rounded.Shuffle, "Shuffle")
+                    }
+                    if (header.source != app.nocturne.model.Source.LOCAL) {
+                        FilledTonalIconButton(onClick = { graph.downloads.enqueue(tracks) }, enabled = tracks.isNotEmpty()) {
+                            Icon(androidx.compose.material.icons.Icons.Rounded.Download, "Download")
+                        }
                     }
                     FilledTonalIconButton(onClick = { graph.player.addToQueue(tracks) }, enabled = tracks.isNotEmpty()) {
                         Icon(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue")

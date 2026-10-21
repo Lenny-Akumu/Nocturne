@@ -76,6 +76,11 @@ class AppGraph(val engine: AudioEngine) {
     )
 
     val player = PlayerController(engine, allProviders, settings, library, scope)
+    val cast = app.nocturne.cast.CastSession(this, scope)
+    val party = app.nocturne.party.Party(this, scope)
+    val downloads = app.nocturne.data.Downloads(scope) { t -> provider(t.source).stream(t, settings.value.downloadQuality) }.also { d ->
+        player.localOverride = { t -> d.uriFor(t) }
+    }
     val navigator = Navigator()
     val updater = Updater(http, settings)
 
@@ -96,6 +101,14 @@ class AppGraph(val engine: AudioEngine) {
         scope.launch {
             kotlinx.coroutines.delay(6000)
             runCatching { syncLikes(force = true) }
+        }
+        scope.launch {
+            kotlinx.coroutines.delay(45_000)
+            val watcher = app.nocturne.data.ReleaseWatcher(this@AppGraph)
+            while (true) {
+                if (settings.value.releaseAlerts) runCatching { watcher.check() }
+                kotlinx.coroutines.delay(6 * 60 * 60_000L)
+            }
         }
         scope.launch {
             kotlinx.coroutines.flow.combine(player.state, settings.state) { p, s ->

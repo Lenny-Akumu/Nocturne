@@ -38,6 +38,9 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.CastConnected
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
@@ -174,6 +177,14 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(t("PLAYING FROM"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.queueTitle ?: track.album ?: track.source.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                var carMode by remember { mutableStateOf(false) }
+                var connect by remember { mutableStateOf(false) }
+                val castDevice by graph.cast.device.collectAsState()
+                if (carMode) CarModeDialog { carMode = false }
+                if (connect) ConnectSheet(onDismiss = { connect = false }, onCarMode = { carMode = true })
+                IconButton(onClick = { connect = true }) {
+                    Icon(if (castDevice != null) Icons.Rounded.CastConnected else Icons.Rounded.Devices, "Devices", tint = if (castDevice != null) MaterialTheme.colorScheme.primary else LocalContentColor.current)
                 }
                 IconButton(onClick = { menu(track, TrackMenuContext()) }) { Icon(Icons.Rounded.MoreVert, "More") }
             }

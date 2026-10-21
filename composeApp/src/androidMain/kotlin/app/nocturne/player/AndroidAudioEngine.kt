@@ -93,6 +93,15 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
         override fun isCommandAvailable(command: Int): Boolean = availableCommands.contains(command)
         override fun hasNextMediaItem() = true
         override fun hasPreviousMediaItem() = true
+        override fun setMediaItems(mediaItems: MutableList<MediaItem>, startIndex: Int, startPositionMs: Long) {
+            if (!AutoBrowse.play(mediaItems, startIndex)) super.setMediaItems(mediaItems, startIndex, startPositionMs)
+        }
+        override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
+            if (!AutoBrowse.play(mediaItems, 0)) super.setMediaItems(mediaItems, resetPosition)
+        }
+        override fun setMediaItem(mediaItem: MediaItem) {
+            if (!AutoBrowse.play(listOf(mediaItem), 0)) super.setMediaItem(mediaItem)
+        }
         override fun seekToNext() = controller.next()
         override fun seekToNextMediaItem() = controller.next()
         override fun seekToPrevious() = controller.previous()

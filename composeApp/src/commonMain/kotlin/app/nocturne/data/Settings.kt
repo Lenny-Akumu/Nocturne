@@ -60,6 +60,8 @@ data class Settings(
     val eqGains: List<Float> = List(6) { 0f },
     val showVideo: Boolean = false,
     val crossfadeSec: Int = 0,
+    val releaseAlerts: Boolean = true,
+    val downloadQuality: AudioQuality = AudioQuality.HIGH,
     val localFolders: List<String> = emptyList(),
     val normalizeVolume: Boolean = false,
     val spatialAudio: Boolean = false,
