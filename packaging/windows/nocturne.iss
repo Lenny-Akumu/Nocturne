@@ -9,6 +9,8 @@
 #endif
 
 [Setup]
+; refreshes the shell icon cache so pinned shortcuts pick up a new icon
+ChangesAssociations=yes
 AppId={{6F1D2A4E-8C3B-4F7A-9E21-5B0C7D3E9A14}
 AppName=Nocturne
 AppVersion={#AppVersion}

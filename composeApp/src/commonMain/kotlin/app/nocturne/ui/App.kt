@@ -292,14 +292,20 @@ private fun ScreenHost(padding: PaddingValues) {
 @Composable
 private fun TopBar(padding: PaddingValues) {
     val nav = AppGraph.instance.navigator
+    androidx.compose.foundation.layout.BoxWithConstraints {
+    // wide layout already shows the logo on the rail
+    val showLogo = maxWidth < 720.dp
     Row(
         Modifier.fillMaxWidth().padding(top = padding.calculateTopPadding()).padding(start = 18.dp, end = 6.dp, top = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        NocturneLogo(Modifier.size(30.dp))
-        Spacer(Modifier.width(10.dp))
+        if (showLogo) {
+            NocturneLogo(Modifier.size(30.dp))
+            Spacer(Modifier.width(10.dp))
+        }
         Text(t("Nocturne"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         IconButton(onClick = { nav.push(Screen.Settings) }) { Icon(Icons.Rounded.Settings, "Settings") }
+    }
     }
 }
 
