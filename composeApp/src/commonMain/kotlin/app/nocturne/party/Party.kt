@@ -1,9 +1,13 @@
 package app.nocturne.party
 
 import app.nocturne.AppGraph
+import app.nocturne.i18n.t
+import app.nocturne.model.ArtistRef
+import app.nocturne.model.Source
 import app.nocturne.model.Track
 import app.nocturne.nowMillis
 import io.ktor.client.plugins.timeout
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
@@ -14,10 +18,14 @@ import io.ktor.http.isSuccess
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -25,10 +33,38 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.abs
+import kotlin.random.Random
 
 /** Host playback snapshot. [seq] grows on every real change so guests can drop stale / out-of-order states. */
 @Serializable
 data class PartyState(val track: Track? = null, val positionMs: Long = 0, val playing: Boolean = false, val sentAt: Long = 0, val seq: Long = 0)
+
+/** Compact online payload: just what a guest needs to load and sync the track (no account data). */
+@Serializable
+private data class Wire(
+    val s: Source? = null, val i: String? = null, val t: String = "", val a: List<String> = emptyList(),
+    val w: String? = null, val u: String? = null, val d: Long = 0,
+    val p: Long = 0, val g: Boolean = false, val q: Long = 0, val at: Long = 0,
+) {
+    fun toState() = PartyState(
+        if (s != null && i != null) Track(i, s, t, a.map { ArtistRef(it) }, durationMs = d, artworkUrl = w, url = u) else null,
+        p, g, at, q,
+    )
+
+    companion object {
+        fun of(st: PartyState) = st.track.let { tr ->
+            Wire(tr?.source, tr?.id, tr?.title.orEmpty(), tr?.artists?.map { it.name }.orEmpty(), tr?.artworkUrl, tr?.url, tr?.durationMs ?: 0, st.positionMs, st.playing, st.seq, st.sentAt)
+        }
+    }
+}
+
+/** Online relays, tried in this fixed order by host and guest alike. ntfy.sh is only the last fallback. */
+private enum class Relay(val url: String) {
+    EMQX("wss://broker.emqx.io:8084/mqtt"),
+    HIVEMQ("wss://broker.hivemq.com:8884/mqtt"),
+    MOSQUITTO("wss://test.mosquitto.org:8081"),
+    NTFY("https://ntfy.sh/"),
+}
 
 interface PartyServer {
     val port: Int
@@ -77,6 +113,14 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     /** True when a join link asks the UI to open the Listen-together sheet. */
     val sheet = MutableStateFlow(false)
     private var publishJob: Job? = null
+    private var relayJob: Job? = null
+    private var hostOut: MutableStateFlow<PartyState?>? = null
+    private val wsHttp by lazy { graph.http.config { install(WebSockets) } }
+
+    // Relay health for the current session; [relayGen] fences off late callbacks from a previous one.
+    private var relayGen = 0
+    private val relayOk = mutableSetOf<Relay>()
+    private val relayErr = linkedMapOf<Relay, String>()
 
     // Host side
     private var seq = 0L
@@ -107,7 +151,60 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     /** Session code to advertise in Discord, or null. */
     val discordInvite: String? get() = _code.value?.takeIf { _showInDiscord.value }
 
-    private fun topic(code: String) = "https://ntfy.sh/nocturne-party-${code.lowercase()}"
+    private fun ntfyTopic(code: String) = "https://ntfy.sh/nocturne-party-${code.lowercase()}"
+    private fun mqttTopic(code: String) = "nocturne/party/${code.lowercase()}"
+    private val brokers get() = Relay.entries.filter { it != Relay.NTFY }
+
+    private fun resetRelays(): Int {
+        relayOk.clear()
+        relayErr.clear()
+        return ++relayGen
+    }
+
+    private fun relayUp(gen: Int, r: Relay) {
+        if (gen != relayGen) return
+        relayErr.remove(r)
+        relayOk += r
+        updateStatus()
+    }
+
+    private fun relayDown(gen: Int, r: Relay, e: Throwable) {
+        if (gen != relayGen) return
+        relayOk -= r
+        relayErr[r] = (e.message ?: e::class.simpleName ?: "error").lineSequence().first().take(70)
+        updateStatus()
+    }
+
+    // Errors show only once every relay has failed.
+    private fun updateStatus() {
+        val guest = _joined.value != null
+        _status.value = when {
+            relayOk.isNotEmpty() -> if (guest && latest == null) "Waiting for the host…" else null
+            relayErr.size < Relay.entries.size -> _status.value
+            else -> {
+                val why = relayErr.entries.joinToString("; ") { "${it.key.name.lowercase()}: ${it.value}" }
+                if (guest) t("Connection problem (%s) — retrying…", why)
+                else t("Online relay unavailable (%s) — friends on your Wi-Fi can still join", why)
+            }
+        }
+    }
+
+    private fun backoff(fails: Int) = (2000L shl fails.coerceAtMost(5)).coerceAtMost(60_000) + Random.nextLong(1000)
+
+    private fun encodeWire(s: PartyState) = json.encodeToString(Wire.serializer(), Wire.of(s))
+
+    // Accepts both the compact payload and a full PartyState (older hosts on ntfy).
+    private fun onlineMessage(gen: Int, text: String, retained: Boolean = false) {
+        if (gen != relayGen || text.isBlank()) return
+        val obj = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return
+        val s = runCatching {
+            if ("at" in obj) json.decodeFromJsonElement(Wire.serializer(), obj).toState() else json.decodeFromJsonElement(PartyState.serializer(), obj)
+        }.getOrNull() ?: return
+        // Ignore a retained state left by a host that vanished long ago (live hosts refresh every 15s).
+        if (retained && s.sentAt > 0 && nowMillis() - s.sentAt > 10 * 60_000) return
+        offer(s)
+        updateStatus()
+    }
 
     private fun snapshot(): PartyState {
         val p = graph.player.state.value
@@ -125,6 +222,13 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val code = (1..8).map { alphabet.random() }.joinToString("")
         _code.value = code
+        val gen = resetRelays()
+        val out = MutableStateFlow<PartyState?>(lanState)
+        hostOut = out
+        relayJob = scope.launch {
+            brokers.forEach { b -> launch { hostMqtt(gen, b, mqttTopic(code), out) } }
+            launch { hostNtfy(gen, code, out) }
+        }
         publishJob = scope.launch {
             var last: PartyState? = null
             var lastSent = 0L
@@ -137,22 +241,58 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
                 if (changed && prev != null) seq++
                 now = now.copy(seq = seq)
                 lanState = now
-                if (changed || now.sentAt - lastSent > 60_000) {
-                    // Track as sent even on failure so a dead relay isn't hammered every tick.
+                if (changed || now.sentAt - lastSent > HEARTBEAT) {
                     last = now
                     lastSent = now.sentAt
-                    runCatching {
-                        graph.http.post(topic(code)) {
-                            setBody(json.encodeToString(PartyState.serializer(), now))
-                            timeout { requestTimeoutMillis = 8000 }
-                        }
-                        _status.value = null
-                    }.onFailure {
-                        _status.value = "Online relay unavailable — friends on your Wi-Fi can still join"
-                        lastSent = now.sentAt - 20_000 // retry in ~5s
-                    }
+                    out.value = now
                 }
                 delay(500)
+            }
+        }
+    }
+
+    // Retained publish so a joining guest gets the latest state at once; cleared when the session ends.
+    private suspend fun hostMqtt(gen: Int, r: Relay, topic: String, out: StateFlow<PartyState?>) {
+        var fails = 0
+        while (out.value != null) {
+            try {
+                wsHttp.mqtt(r.url) {
+                    relayUp(gen, r)
+                    fails = 0
+                    out.takeWhile { it != null }.collect { publish(topic, encodeWire(it!!).encodeToByteArray(), retain = true) }
+                    publish(topic, ByteArray(0), retain = true)
+                }
+            } catch (e: Throwable) {
+                currentCoroutineContext().ensureActive() // a dead socket may surface as CancellationException
+                relayDown(gen, r, e)
+            }
+            if (out.value == null) break
+            delay(backoff(fails++))
+        }
+    }
+
+    // ntfy.sh has a small anonymous quota: post changes only, plus a 60s heartbeat while no MQTT broker is reachable.
+    // Full PartyState JSON so guests on older app versions can still follow.
+    private suspend fun hostNtfy(gen: Int, code: String, out: StateFlow<PartyState?>) {
+        var lastSeq = -1L
+        var lastPost = 0L
+        out.takeWhile { it != null }.collect { st ->
+            val s = st ?: return@collect
+            val mqttUp = relayOk.any { it != Relay.NTFY }
+            if (s.seq == lastSeq && (mqttUp || s.sentAt - lastPost < 60_000)) return@collect
+            lastSeq = s.seq
+            lastPost = s.sentAt
+            try {
+                val resp = graph.http.post(ntfyTopic(code)) {
+                    setBody(json.encodeToString(PartyState.serializer(), s))
+                    timeout { requestTimeoutMillis = 8000 }
+                }
+                if (!resp.status.isSuccess()) error("HTTP ${resp.status.value}")
+                relayUp(gen, Relay.NTFY)
+            } catch (e: Throwable) {
+                currentCoroutineContext().ensureActive() // a dead socket may surface as CancellationException
+                lastPost = s.sentAt - 45_000 // retry on a heartbeat ~15s later when it's the only relay
+                relayDown(gen, Relay.NTFY, e)
             }
         }
     }
@@ -160,6 +300,15 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     fun stopHosting() {
         publishJob?.cancel()
         publishJob = null
+        // Null tells the broker links to clear the retained state and disconnect; cut them off if that stalls.
+        hostOut?.value = null
+        hostOut = null
+        relayJob?.let { j -> scope.launch { delay(5000); j.cancel() } }
+        relayJob = null
+        if (_code.value != null) {
+            resetRelays()
+            if (_joined.value == null) _status.value = null
+        }
         _code.value = null
         server?.stop()
         server = null
@@ -190,50 +339,75 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         }
     }
 
-    // Streams the ntfy topic (one long request instead of polling, which ntfy.sh rate-limits); starts from the latest retained state.
+    // Subscribes on every broker at once (duplicates are dropped by seq) with ntfy.sh as the last fallback.
     private fun joinOnline(code: String) {
         _joined.value = code
         _status.value = null
+        val gen = resetRelays()
         joinJob = scope.launch {
             launch { syncLoop() }
-            var since = "latest"
-            while (isActive) {
-                var opened = false
-                runCatching {
-                    graph.http.prepareGet("${topic(code)}/json?since=$since") {
-                        timeout { requestTimeoutMillis = 600_000L; socketTimeoutMillis = 90_000L }
-                    }.execute { resp ->
-                        if (!resp.status.isSuccess()) {
-                            if (since == "latest") since = "10m" // older ntfy servers lack since=latest
-                            error("HTTP ${resp.status.value}")
-                        }
-                        opened = true
-                        if (latest == null) _status.value = "Waiting for the host…" else _status.value = null
-                        val ch = resp.bodyAsChannel()
-                        while (true) {
-                            val line = ch.readUTF8Line() ?: break
-                            if (line.isBlank()) continue
-                            val obj = runCatching { json.parseToJsonElement(line) as? JsonObject }.getOrNull() ?: continue
-                            fun str(k: String) = (obj[k] as? JsonPrimitive)?.content
-                            if (str("event") != "message") continue
-                            str("id")?.let { since = it }
-                            val msg = str("message") ?: continue
-                            runCatching { json.decodeFromString(PartyState.serializer(), msg) }.getOrNull()?.let {
-                                offer(it)
-                                _status.value = null
-                            }
-                        }
-                    }
-                }.onFailure { if (it is kotlinx.coroutines.CancellationException && !isActive) throw it }
-                if (!opened) _status.value = "Connection problem — retrying…"
-                delay(if (opened) 500 else 3000)
+            brokers.forEach { b -> launch { guestMqtt(gen, b, mqttTopic(code)) } }
+            launch { guestNtfy(gen, code) }
+        }
+    }
+
+    private suspend fun guestMqtt(gen: Int, r: Relay, topic: String) {
+        var fails = 0
+        while (true) {
+            try {
+                wsHttp.mqtt(r.url, onMessage = { _, b, retained -> onlineMessage(gen, b.decodeToString(), retained) }) {
+                    subscribe(topic)
+                    relayUp(gen, r)
+                    fails = 0
+                    awaitCancellation()
+                }
+            } catch (e: Throwable) {
+                currentCoroutineContext().ensureActive() // a dead socket may surface as CancellationException
+                relayDown(gen, r, e)
             }
+            delay(backoff(fails++))
+        }
+    }
+
+    // One long streaming request (ntfy.sh rate-limits polling); starts from the latest cached message.
+    private suspend fun guestNtfy(gen: Int, code: String) {
+        var since = "latest"
+        var fails = 0
+        while (true) {
+            var opened = false
+            try {
+                graph.http.prepareGet("${ntfyTopic(code)}/json?since=$since") {
+                    timeout { requestTimeoutMillis = 600_000L; socketTimeoutMillis = 90_000L }
+                }.execute { resp ->
+                    if (!resp.status.isSuccess()) {
+                        if (since == "latest" && resp.status.value == 400) since = "10m" // older ntfy servers lack since=latest
+                        error("HTTP ${resp.status.value}")
+                    }
+                    opened = true
+                    fails = 0
+                    relayUp(gen, Relay.NTFY)
+                    val ch = resp.bodyAsChannel()
+                    while (true) {
+                        val line = ch.readUTF8Line() ?: break
+                        if (line.isBlank()) continue
+                        val obj = runCatching { json.parseToJsonElement(line) as? JsonObject }.getOrNull() ?: continue
+                        fun str(k: String) = (obj[k] as? JsonPrimitive)?.content
+                        if (str("event") != "message") continue
+                        str("id")?.let { since = it }
+                        onlineMessage(gen, str("message") ?: continue)
+                    }
+                }
+            } catch (e: Throwable) {
+                currentCoroutineContext().ensureActive() // a dead socket may surface as CancellationException
+                relayDown(gen, Relay.NTFY, e)
+            }
+            delay(if (opened) 500 else backoff(fails++))
         }
     }
 
     private fun offer(s: PartyState) {
         val cur = latest?.state
-        // Drop stale or out-of-order states (ntfy replays, slow LAN responses).
+        // Drop stale or out-of-order states (relay replays / duplicates, slow LAN responses).
         if (cur != null && (s.seq < cur.seq || (s.seq == cur.seq && s.sentAt <= cur.sentAt))) return
         val r = Remote(s, nowMillis())
         latest = r
@@ -292,6 +466,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         joinJob?.cancel()
         joinJob = null
         latest = null
+        if (_joined.value != null && _code.value == null) resetRelays()
         _joined.value = null
         if (_code.value == null) _status.value = null
     }
@@ -299,5 +474,6 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private companion object {
         const val START_LEAD = 700L
         const val SEEK_LEAD = 250L
+        const val HEARTBEAT = 15_000L
     }
 }
