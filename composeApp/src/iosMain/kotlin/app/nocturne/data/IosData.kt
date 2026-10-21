@@ -57,7 +57,7 @@ actual suspend fun downloadToFile(url: String, path: String, onProgress: (Float)
     try {
         while (total < 0 || done < total) {
             val r = client.get(url) {
-                header(HttpHeaders.UserAgent, InnerTube.USER_AGENT)
+                header(HttpHeaders.UserAgent, app.nocturne.source.IosBackend.uaFor(url) ?: InnerTube.USER_AGENT)
                 header(HttpHeaders.Range, "bytes=$done-${done + CHUNK - 1}")
             }
             if (!r.status.isSuccess()) error("HTTP ${r.status.value}")

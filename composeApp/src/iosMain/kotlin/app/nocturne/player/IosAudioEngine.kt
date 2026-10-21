@@ -79,7 +79,51 @@ class IosAudioEngine : AudioEngine {
         this.listener = listener
     }
 
+    private var source: ResolvedStream? = null
+    private var cached = false
+
     override fun load(stream: ResolvedStream, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
+        source = stream
+        cached = false
+        val local = cacheFile(stream.url)
+        if (local != null && app.nocturne.data.fileExists(local)) {
+            cached = true
+            return open(local, track, startPositionMs, playWhenReady)
+        }
+        open(stream.url, track, startPositionMs, playWhenReady)
+    }
+
+    private fun cacheFile(url: String): String? {
+        if (!url.startsWith("http") || "googlevideo.com" !in url) return null
+        val id = Regex("[?&]id=([^&]+)").find(url)?.groupValues?.get(1) ?: return null
+        val itag = Regex("[?&]itag=(\\d+)").find(url)?.groupValues?.get(1) ?: "0"
+        val dir = platform.Foundation.NSTemporaryDirectory() + "nocturne-audio"
+        platform.Foundation.NSFileManager.defaultManager.createDirectoryAtPath(dir, true, null, null)
+        return "$dir/$id-$itag.m4a"
+    }
+
+    private fun fallback(): Boolean {
+        val stream = source ?: return false
+        val t = track ?: return false
+        val path = cacheFile(stream.url) ?: return false
+        if (cached) return false
+        cached = true
+        val resume = player.currentTime().ms()
+        val play = wantPlay || pendingSeekMs != null || lastPlaying
+        setBuffering(true)
+        scope.launch {
+            val ok = runCatching { app.nocturne.data.downloadToFile(stream.url, path) {} }
+            if (source !== stream) return@launch
+            ok.onSuccess { open(path, t, resume, play) }
+                .onFailure { e ->
+                    setBuffering(false)
+                    listener?.onError(IllegalStateException(e.message ?: "Couldn't load the track"))
+                }
+        }
+        return true
+    }
+
+    private fun open(url: String, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
         detach()
         failed = false
         this.track = track
@@ -138,6 +182,7 @@ class IosAudioEngine : AudioEngine {
     private fun fail(item: AVPlayerItem) {
         if (failed || item != player.currentItem) return
         failed = true
+        if (fallback()) return
         wantPlay = false
         setPlaying(false)
         setBuffering(false)
