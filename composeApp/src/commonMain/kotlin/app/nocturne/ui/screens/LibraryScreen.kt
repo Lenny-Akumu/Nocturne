@@ -1,5 +1,8 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.rounded.Refresh
 import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,7 +64,7 @@ import app.nocturne.ui.components.MessageBox
 import app.nocturne.ui.components.TrackMenuContext
 import app.nocturne.ui.components.TrackRow
 
-enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History") }
+enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History"), LOCAL("On device"), STATS("Stats") }
 
 val LikedRef = CollectionRef("liked", Source.YOUTUBE_MUSIC, CollectionType.LOCAL, "Liked songs")
 
@@ -87,6 +90,8 @@ fun LibraryScreen(contentPadding: PaddingValues) {
             LibraryTab.SONGS -> TrackList(library.liked, "Liked songs", bottom, Icons.Rounded.FavoriteBorder, "No liked songs yet", "Tap the heart in the player to save songs here.")
             LibraryTab.HISTORY -> TrackList(library.history.map { it.track }, "History", bottom, Icons.Rounded.History, "Nothing played yet", null,
                 action = { if (library.history.isNotEmpty()) IconButton(onClick = { graph.library.clearHistory() }) { Icon(Icons.Rounded.Delete, "Clear history") } })
+            LibraryTab.STATS -> StatsView(bottom)
+            LibraryTab.LOCAL -> LocalMusic(bottom)
             LibraryTab.PLAYLISTS -> {
                 val refs = listOf(LikedRef.copy(subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl)) +
                     library.playlists.map { it.ref } + library.saved.filter { it.type == CollectionType.PLAYLIST }
@@ -198,5 +203,24 @@ private fun OnlineLibrary(padding: PaddingValues) {
                 SectionView(Section("${lib.source.label} • ${t("Artists")}", lib.artists.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
             }
         }
+    }
+}
+
+@Composable
+private fun LocalMusic(padding: PaddingValues) {
+    val graph = AppGraph.instance
+    val tracks by graph.local.tracks.collectAsState()
+    var allowed by remember { mutableStateOf(app.nocturne.source.hasLocalAudioAccess()) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    androidx.compose.runtime.LaunchedEffect(allowed) { if (allowed && tracks == null) graph.local.rescan() }
+    when {
+        !allowed -> Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            MessageBox(Icons.Rounded.LibraryMusic, "Music on this device", "Allow access to play the songs stored on your phone.")
+            FilledTonalButton(onClick = { app.nocturne.source.requestLocalAudioAccess { ok -> allowed = ok } }) { Text(t("Allow access")) }
+        }
+        tracks == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
+        else -> TrackList(tracks.orEmpty(), t("On device"), padding, Icons.Rounded.LibraryMusic, "No music found",
+            if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) "Put music into your Music folder or add a folder in Settings → Storage." else "Songs you download or copy to your phone will show up here.",
+            action = { IconButton(onClick = { scope.launch { graph.local.rescan() } }) { Icon(Icons.Rounded.Refresh, "Rescan") } })
     }
 }

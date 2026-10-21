@@ -400,7 +400,7 @@ private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Uni
     if (audioSheet) AudioSheet { audioSheet = false }
     Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
         val current = state.current
-        if (current != null && current.source != app.nocturne.model.Source.SOUNDCLOUD) {
+        if (current != null && current.source != app.nocturne.model.Source.SOUNDCLOUD && current.source != app.nocturne.model.Source.LOCAL) {
             IconToggleButton(checked = settings.showVideo, onCheckedChange = { v -> graph.settings.update { it.copy(showVideo = v) } }) {
                 Icon(
                     if (settings.showVideo) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff,

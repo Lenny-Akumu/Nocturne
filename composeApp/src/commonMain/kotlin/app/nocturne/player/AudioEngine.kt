@@ -26,6 +26,7 @@ interface AudioEngine {
     fun setSkipSilence(enabled: Boolean) {}
     fun setPlaybackSpeed(speed: Float) {}
     fun setEqualizer(enabled: Boolean, gains: List<Float>) {}
+    fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {}
     fun onQueueChanged(hasPrevious: Boolean, hasNext: Boolean) {}
     fun release()
 }

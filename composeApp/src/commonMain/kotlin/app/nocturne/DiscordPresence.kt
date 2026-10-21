@@ -23,6 +23,7 @@ object DiscordPresence {
             Source.YOUTUBE_MUSIC -> "youtubemusic"
             Source.SPOTIFY -> "spotify"
             Source.SOUNDCLOUD -> "soundcloud"
+            Source.LOCAL -> "youtubemusic"
         }
         return "https://raw.githubusercontent.com/lenny-akumu/nocturne/main/docs/rpc/$name.png"
     }

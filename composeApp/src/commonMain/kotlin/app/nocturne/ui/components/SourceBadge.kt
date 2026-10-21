@@ -20,6 +20,7 @@ val Source.brandColor: Color
         Source.YOUTUBE_MUSIC -> Color(0xFFFF0033)
         Source.SPOTIFY -> Color(0xFF1ED760)
         Source.SOUNDCLOUD -> Color(0xFFFF5500)
+        Source.LOCAL -> Color(0xFF7C5CFF)
     }
 
 private fun svg(d: String): Path = PathParser().parsePathString(d).toPath().apply { fillType = PathFillType.EvenOdd }
@@ -41,6 +42,12 @@ fun SourceBadge(source: Source, modifier: Modifier = Modifier, size: Dp = 16.dp)
             Source.SPOTIFY -> {
                 drawCircle(Color.Black, d * 0.47f)
                 scale(d / 24f, d / 24f, pivot = Offset.Zero) { drawPath(spotifyPath, source.brandColor) }
+            }
+            Source.LOCAL -> {
+                drawCircle(source.brandColor, d / 2)
+                drawCircle(Color.White, d * 0.14f, androidx.compose.ui.geometry.Offset(d * 0.42f, d * 0.64f))
+                drawRect(Color.White, androidx.compose.ui.geometry.Offset(d * 0.52f, d * 0.24f), androidx.compose.ui.geometry.Size(d * 0.07f, d * 0.42f))
+                drawRect(Color.White, androidx.compose.ui.geometry.Offset(d * 0.52f, d * 0.24f), androidx.compose.ui.geometry.Size(d * 0.2f, d * 0.08f))
             }
             Source.SOUNDCLOUD -> {
                 drawCircle(source.brandColor, d / 2)

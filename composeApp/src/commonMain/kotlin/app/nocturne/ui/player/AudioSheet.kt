@@ -1,5 +1,7 @@
 package app.nocturne.ui.player
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import app.nocturne.i18n.t
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -81,6 +83,28 @@ fun AudioSheet(onDismiss: () -> Unit) {
                 onValueChangeFinished = { graph.settings.update { it.copy(playbackSpeed = speed) } },
                 valueRange = 0.5f..2f,
                 steps = 29,
+            )
+
+            Spacer(Modifier.height(20.dp))
+            Text(t("Effects"), style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(4.dp))
+            FxSwitch("Normalize volume", "Even out loud and quiet tracks", settings.normalizeVolume) { v -> graph.settings.update { it.copy(normalizeVolume = v) } }
+            FxSwitch("Spatial sound", "Wider, more open stereo", settings.spatialAudio) { v -> graph.settings.update { it.copy(spatialAudio = v) } }
+            if (app.nocturne.platformKind == app.nocturne.PlatformKind.ANDROID) {
+                FxSwitch("8D audio", "Sound slowly circles around your head — best with headphones", settings.eightD) { v -> graph.settings.update { it.copy(eightD = v) } }
+            }
+            FxSwitch("Vocal remover", "Karaoke: cuts the centered vocals", settings.vocalRemover) { v -> graph.settings.update { it.copy(vocalRemover = v) } }
+            var fade by remember(settings.crossfadeSec) { mutableFloatStateOf(settings.crossfadeSec.toFloat()) }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                Text(t("Crossfade"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Text(if (fade < 1f) t("Off") else t("%s s", fade.roundToInt()), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            }
+            Slider(
+                value = fade,
+                onValueChange = { fade = it.roundToInt().toFloat() },
+                onValueChangeFinished = { graph.settings.update { it.copy(crossfadeSec = fade.roundToInt()) } },
+                valueRange = 0f..12f,
+                steps = 11,
             )
 
             Spacer(Modifier.height(20.dp))
@@ -173,5 +197,19 @@ private fun EqGraph(gains: List<Float>, modifier: Modifier, onChange: (List<Floa
         drawPath(fill, Brush.verticalGradient(listOf(color.copy(alpha = 0.35f), color.copy(alpha = 0.02f))))
         drawPath(line, color, style = Stroke(width = 5f, cap = StrokeCap.Round))
         points.forEachIndexed { i, p -> drawCircle(color, if (i == dragIndex) 14f else 11f, p) }
+    }
+}
+
+@Composable
+private fun FxSwitch(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { onChange(!checked) }.padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(t(title), style = MaterialTheme.typography.bodyLarge)
+            Text(t(summary), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }

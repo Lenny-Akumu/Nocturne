@@ -119,6 +119,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
                     ) { list, i -> playTrack(list, i, "Recommended for you") }
                 }
             }
+            item { SmartMixes { list, title -> playTrack(list, 0, title) } }
             val mostPlayed = graph.library.mostPlayed(16)
             if (mostPlayed.size >= 4) {
                 item {
@@ -202,7 +203,7 @@ private fun greeting(): String {
 @Composable
 fun SourceRow(modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        app.nocturne.model.Source.entries.forEach { SourceBadge(it, size = 14.dp) }
+        app.nocturne.model.Source.entries.filter { it != app.nocturne.model.Source.LOCAL }.forEach { SourceBadge(it, size = 14.dp) }
     }
 }
 

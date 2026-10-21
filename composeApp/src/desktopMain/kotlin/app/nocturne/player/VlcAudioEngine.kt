@@ -104,7 +104,10 @@ class VlcAudioEngine : AudioEngine {
             add(":http-user-agent=${InnerTube.USER_AGENT}")
             if (startPositionMs > 0) add(":start-time=${startPositionMs / 1000.0}")
             add(":meta-title=${track.title}")
+            val filters = listOfNotNull("normvol".takeIf { fxNormalize }, "spatializer".takeIf { fxSpatial }, "karaoke".takeIf { fxKaraoke })
+            if (filters.isNotEmpty()) add(":audio-filter=${filters.joinToString(":")}")
         }.toTypedArray()
+        lastLoad = Triple(stream, track, playWhenReady)
         async { if (playWhenReady) media().play(stream.url, *options) else media().startPaused(stream.url, *options) }
     }
 
@@ -141,6 +144,20 @@ class VlcAudioEngine : AudioEngine {
                 audio().setEqualizer(eq)
             }
         }
+    }
+
+    private var fxNormalize = false
+    private var fxSpatial = false
+    private var fxKaraoke = false
+    private var lastLoad: Triple<ResolvedStream, Track, Boolean>? = null
+
+    override fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {
+        val changed = normalize != fxNormalize || spatial != fxSpatial || vocalRemover != fxKaraoke
+        fxNormalize = normalize
+        fxSpatial = spatial
+        fxKaraoke = vocalRemover
+        val last = lastLoad ?: return
+        if (changed && length > 0) load(last.first, last.second, time, playing)
     }
 
     override fun setVolume(volume: Float) {

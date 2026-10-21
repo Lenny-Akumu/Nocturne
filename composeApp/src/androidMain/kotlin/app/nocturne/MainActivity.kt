@@ -21,11 +21,17 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private var controller: ListenableFuture<MediaController>? = null
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    private var audioCallback: ((Boolean) -> Unit)? = null
+    private val audioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        audioCallback?.invoke(ok)
+        audioCallback = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        app.nocturne.source.LocalAudioPermission.launcher = { perm, cb -> audioCallback = cb; audioPermission.launch(perm) }
         setContent { App() }
         handleIntent(intent)
     }

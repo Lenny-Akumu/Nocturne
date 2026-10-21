@@ -41,8 +41,24 @@ private val NocturneShapes = Shapes(
     extraLarge = RoundedCornerShape(30.dp),
 )
 
-private fun nocturneTypography(): Typography {
-    val base = Typography()
+private fun nocturneTypography(font: String): Typography {
+    val family = when (font) {
+        "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
+        "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
+        "cursive" -> androidx.compose.ui.text.font.FontFamily.Cursive
+        else -> null
+    }
+    val plain = Typography()
+    val base = if (family == null) plain else plain.copy(
+        displayLarge = plain.displayLarge.copy(fontFamily = family), displayMedium = plain.displayMedium.copy(fontFamily = family),
+        displaySmall = plain.displaySmall.copy(fontFamily = family), headlineLarge = plain.headlineLarge.copy(fontFamily = family),
+        headlineMedium = plain.headlineMedium.copy(fontFamily = family), headlineSmall = plain.headlineSmall.copy(fontFamily = family),
+        titleLarge = plain.titleLarge.copy(fontFamily = family), titleMedium = plain.titleMedium.copy(fontFamily = family),
+        titleSmall = plain.titleSmall.copy(fontFamily = family), bodyLarge = plain.bodyLarge.copy(fontFamily = family),
+        bodyMedium = plain.bodyMedium.copy(fontFamily = family), bodySmall = plain.bodySmall.copy(fontFamily = family),
+        labelLarge = plain.labelLarge.copy(fontFamily = family), labelMedium = plain.labelMedium.copy(fontFamily = family),
+        labelSmall = plain.labelSmall.copy(fontFamily = family),
+    )
     return base.copy(
         displaySmall = base.displaySmall.copy(fontWeight = FontWeight.Bold),
         headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
@@ -78,7 +94,7 @@ fun NocturneTheme(
         isDark = dark,
         isAmoled = settings.pureBlack,
         style = when {
-            seedOverride == null -> PaletteStyle.TonalSpot
+            seedOverride == null -> PaletteStyle.entries.firstOrNull { it.name == settings.colorStyle } ?: PaletteStyle.TonalSpot
             seedOverride.isGrayish() -> PaletteStyle.Monochrome
             else -> PaletteStyle.Vibrant
         },
@@ -94,7 +110,7 @@ fun NocturneTheme(
         )
     }
     CompositionLocalProvider(LocalDarkTheme provides dark, LocalBackdrop provides backdrop) {
-        MaterialTheme(colorScheme = scheme, typography = nocturneTypography(), shapes = NocturneShapes) {
+        MaterialTheme(colorScheme = scheme, typography = nocturneTypography(settings.fontStyle), shapes = NocturneShapes) {
             CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
         }
     }

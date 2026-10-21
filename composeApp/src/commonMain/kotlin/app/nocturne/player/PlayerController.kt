@@ -70,6 +70,25 @@ class PlayerController(
         applyAudioSettings()
         restore()
         scope.launch {
+            var applied = -1f
+            while (isActive) {
+                delay(80)
+                val s = settings.value
+                val cf = s.crossfadeSec * 1000L
+                val target = if (cf <= 0 || !_state.value.isPlaying) s.volume else {
+                    val d = engine.durationMs
+                    val p = engine.positionMs
+                    val fadeOut = if (d > cf * 2) ((d - p).toFloat() / cf).coerceIn(0f, 1f) else 1f
+                    val fadeIn = (p.toFloat() / (cf / 2f)).coerceIn(0f, 1f)
+                    s.volume * minOf(fadeOut, fadeIn)
+                }
+                if (kotlin.math.abs(target - applied) > 0.01f) {
+                    engine.setVolume(target)
+                    applied = target
+                }
+            }
+        }
+        scope.launch {
             var tick = 0
             while (isActive) {
                 delay(500)
@@ -212,6 +231,7 @@ class PlayerController(
         engine.setSkipSilence(settings.value.skipSilence)
         engine.setPlaybackSpeed(settings.value.playbackSpeed)
         engine.setEqualizer(settings.value.eqEnabled, settings.value.eqGains)
+        settings.value.let { engine.setEffects(it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover) }
     }
 
     fun setSleepTimer(minutes: Int?) {

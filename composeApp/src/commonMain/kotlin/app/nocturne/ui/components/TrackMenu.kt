@@ -67,6 +67,7 @@ fun Track.shareUrl(): String = url ?: when (source) {
     Source.YOUTUBE_MUSIC -> "https://music.youtube.com/watch?v=$id"
     Source.SPOTIFY -> "https://open.spotify.com/track/$id"
     Source.SOUNDCLOUD -> id
+    Source.LOCAL -> id
 }
 
 @Suppress("DEPRECATION")

@@ -66,11 +66,13 @@ class AppGraph(val engine: AudioEngine) {
         accounts = accounts,
     )
     val lyrics = LyricsProvider(http, innerTube)
+    val local = app.nocturne.source.LocalProvider(settings)
 
     private val allProviders: Map<Source, MusicProvider> = mapOf(
         Source.YOUTUBE_MUSIC to youtube,
         Source.SPOTIFY to spotify,
         Source.SOUNDCLOUD to soundcloud,
+        Source.LOCAL to local,
     )
 
     val player = PlayerController(engine, allProviders, settings, library, scope)
@@ -108,7 +110,7 @@ class AppGraph(val engine: AudioEngine) {
             }
         }
         scope.launch {
-            settings.state.distinctUntilChangedBy { listOf(it.playbackSpeed, it.eqEnabled, it.eqGains, it.skipSilence) }.drop(1).collect {
+            settings.state.distinctUntilChangedBy { listOf(it.playbackSpeed, it.eqEnabled, it.eqGains, it.skipSilence, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover) }.drop(1).collect {
                 player.applyAudioSettings()
             }
         }

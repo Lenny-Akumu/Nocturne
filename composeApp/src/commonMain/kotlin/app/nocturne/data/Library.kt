@@ -27,6 +27,9 @@ data class LocalPlaylist(
 data class HistoryEntry(val track: Track, val playedAt: Long)
 
 @Serializable
+data class PlayEvent(val k: String, val t: Long, val a: String = "", val d: Long = 0)
+
+@Serializable
 data class LibraryData(
     val liked: List<Track> = emptyList(),
     val saved: List<CollectionRef> = emptyList(),
@@ -37,6 +40,7 @@ data class LibraryData(
     val playCounts: Map<String, Int> = emptyMap(),
     val notInterested: List<Track> = emptyList(),
     val dislikedArtists: Map<String, Int> = emptyMap(),
+    val plays: List<PlayEvent> = emptyList(),
 )
 
 class Library(private val settings: SettingsStore) {
@@ -136,12 +140,19 @@ class Library(private val settings: SettingsStore) {
     fun recordPlay(track: Track) {
         if (settings.value.pauseHistory) return
         mutate { d ->
-            val history = (listOf(HistoryEntry(track, nowMillis())) + d.history.filterNot { it.track.key == track.key }).take(500)
-            d.copy(history = history, playCounts = d.playCounts + (track.key to (d.playCounts[track.key] ?: 0) + 1))
+            val now = nowMillis()
+            val history = (listOf(HistoryEntry(track, now)) + d.history.filterNot { it.track.key == track.key }).take(2000)
+            d.copy(
+                history = history,
+                playCounts = d.playCounts + (track.key to (d.playCounts[track.key] ?: 0) + 1),
+                plays = (listOf(PlayEvent(track.key, now, track.artistNames, track.durationMs)) + d.plays).take(10_000),
+            )
         }
     }
 
-    fun clearHistory() = mutate { it.copy(history = emptyList(), playCounts = emptyMap()) }
+    fun clearHistory() = mutate { it.copy(history = emptyList(), playCounts = emptyMap(), plays = emptyList()) }
+
+    fun trackFor(key: String): Track? = _state.value.history.firstOrNull { it.track.key == key }?.track
 
     fun addSearch(query: String) {
         if (settings.value.pauseSearchHistory || query.isBlank()) return

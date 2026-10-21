@@ -1,5 +1,7 @@
 package app.nocturne.ui.player
 
+import androidx.compose.ui.zIndex
+import androidx.compose.material.icons.rounded.Fullscreen
 import app.nocturne.i18n.t
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -81,8 +83,13 @@ fun LyricsView() {
                 val target = info.viewportStartOffset + info.viewportSize.height / 3
                 listState.animateScrollBy((item.offset - target).toFloat())
             }
+            var karaoke by remember { mutableStateOf(false) }
+            if (karaoke) KaraokeDialog(lines) { karaoke = false }
             BoxWithConstraints(Modifier.fillMaxSize()) {
             val edge = maxHeight / 2
+            IconButton(onClick = { karaoke = true }, modifier = Modifier.align(Alignment.TopEnd).zIndex(1f)) {
+                Icon(Icons.Rounded.Fullscreen, "Karaoke", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = edge / 2, bottom = edge)) {
                 itemsIndexed(lines) { i, line ->
                     val active = i == current

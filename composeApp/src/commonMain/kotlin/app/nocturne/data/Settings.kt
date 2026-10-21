@@ -35,6 +35,8 @@ data class Settings(
     val windowBackdrop: WindowBackdrop = WindowBackdrop.MICA,
     val compactLists: Boolean = false,
     val uiScale: Float = 1f,
+    val colorStyle: String = "TonalSpot",
+    val fontStyle: String = "default",
 
     val enabledSources: Set<Source> = setOf(Source.YOUTUBE_MUSIC, Source.SOUNDCLOUD, Source.SPOTIFY),
     val defaultSearchSource: Source = Source.YOUTUBE_MUSIC,
@@ -57,6 +59,12 @@ data class Settings(
     val eqPreset: String = "Default",
     val eqGains: List<Float> = List(6) { 0f },
     val showVideo: Boolean = false,
+    val crossfadeSec: Int = 0,
+    val localFolders: List<String> = emptyList(),
+    val normalizeVolume: Boolean = false,
+    val spatialAudio: Boolean = false,
+    val eightD: Boolean = false,
+    val vocalRemover: Boolean = false,
     val videoFullWidth: Boolean = false,
 
     val showLyrics: Boolean = true,

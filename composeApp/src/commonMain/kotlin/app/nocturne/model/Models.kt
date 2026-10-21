@@ -7,7 +7,10 @@ enum class Source(val label: String) {
     YOUTUBE_MUSIC("YouTube Music"),
     SPOTIFY("Spotify"),
     SOUNDCLOUD("SoundCloud"),
+    LOCAL("On device"),
 }
+
+val Source.isOnline: Boolean get() = this != Source.LOCAL
 
 @Serializable
 data class ArtistRef(val name: String, val id: String? = null)

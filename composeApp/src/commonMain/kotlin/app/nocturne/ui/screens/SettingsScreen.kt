@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.model.isOnline
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.PictureInPicture
 import androidx.compose.material.icons.rounded.Animation
@@ -277,6 +278,12 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             Icons.Rounded.Wallpaper, s.dynamicColor,
                         ) { v -> set { it.copy(dynamicColor = v) } }
                         if (!s.dynamicColor) AccentPicker(s.accentColor) { v -> set { it.copy(accentColor = v) } }
+                        Choice("Color style", Icons.Rounded.Palette, s.colorStyle, listOf("TonalSpot", "Vibrant", "Expressive", "Fidelity", "Content", "Rainbow", "FruitSalad", "Neutral", "Monochrome"), {
+                            when (it) { "TonalSpot" -> "Balanced"; "FruitSalad" -> "Fruit salad"; else -> it }
+                        }) { v -> set { it.copy(colorStyle = v) } }
+                        Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive"), {
+                            when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; else -> "Default" }
+                        }) { v -> set { it.copy(fontStyle = v) } }
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }
@@ -293,7 +300,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     }
                     SettingsCategory.CONTENT -> {
                         Header("Sources")
-                        Source.entries.forEach { src ->
+                        Source.entries.filter { it.isOnline }.forEach { src ->
                             Toggle(src.label, sourceSummary(src, s), null, src in s.enabledSources, leading = { SourceBadge(src, size = 28.dp) }) { v ->
                                 set { it.copy(enabledSources = if (v) it.enabledSources + src else (it.enabledSources - src).ifEmpty { setOf(Source.YOUTUBE_MUSIC) }) }
                             }
@@ -359,6 +366,11 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                                 cacheInfo = t("Freed %s MB", (freed / (1024 * 1024)).toString())
                             }
                         }
+                        if (desktop) {
+                            TextPref("Music folders", "Your Music folder", Icons.Rounded.Storage, s.localFolders.joinToString("; ")) { v ->
+                                set { it.copy(localFolders = v.split(";").map { f -> f.trim() }.filter { f -> f.isNotEmpty() }) }
+                            }
+                        }
                         Action("Clear listening history", null, Icons.Rounded.History) { graph.library.clearHistory() }
                         Action("Clear search history", null, Icons.Rounded.Search) { graph.library.clearSearchHistory() }
                         Action("Reset all settings", null, Icons.Rounded.Restore) { graph.settings.reset() }
@@ -377,7 +389,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             Text(t("Nocturne"), style = MaterialTheme.typography.headlineSmall)
                             Text(t("Version %s", app.nocturne.BuildInfo.VERSION), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Source.entries.forEach { SourceBadge(it, size = 22.dp) } }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Source.entries.filter { it.isOnline }.forEach { SourceBadge(it, size = 22.dp) } }
                         }
                         val scope = androidx.compose.runtime.rememberCoroutineScope()
                         var checkResult by remember { mutableStateOf<String?>(null) }
@@ -402,6 +414,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
 private fun sourceSummary(src: Source, s: Settings) = when (src) {
     Source.YOUTUBE_MUSIC -> "Home feed, search, radio and streaming"
     Source.SOUNDCLOUD -> "Tracks, sets and artists"
+    Source.LOCAL -> "Music stored on this device"
     Source.SPOTIFY -> if (s.spotifyClientId.isBlank()) "Needs API credentials (Settings → Spotify)" else "Catalog via Web API, audio via YouTube Music"
 }
 
