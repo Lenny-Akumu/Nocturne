@@ -1,5 +1,8 @@
 package app.nocturne.ui.player
 
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.automirrored.rounded.VolumeDown
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
@@ -397,6 +400,24 @@ private fun Controls(compact: Boolean = false) {
                 "Repeat",
                 tint = if (state.repeat != app.nocturne.player.RepeatMode.OFF) cs.primary else cs.onSurfaceVariant,
             )
+        }
+    }
+
+    if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP || !compact) {
+        var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
+            IconButton(onClick = { vol = 0f; graph.player.setVolume(0f) }, modifier = Modifier.size(36.dp)) {
+                Icon(if (vol <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeDown, "Mute", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+            }
+            Slider(
+                value = vol,
+                onValueChange = { vol = it; graph.player.setVolume(it) },
+                modifier = Modifier.weight(1f).height(28.dp),
+                colors = SliderDefaults.colors(thumbColor = cs.onSurface, activeTrackColor = cs.onSurface.copy(alpha = 0.8f), inactiveTrackColor = cs.onSurface.copy(alpha = 0.15f)),
+            )
+            IconButton(onClick = { vol = 1f; graph.player.setVolume(1f) }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.AutoMirrored.Rounded.VolumeUp, "Max volume", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+            }
         }
     }
 }
