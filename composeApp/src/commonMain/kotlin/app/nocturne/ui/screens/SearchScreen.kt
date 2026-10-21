@@ -19,6 +19,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import app.nocturne.data.DesignStyle
+import app.nocturne.ui.kit.LocalDesignStyle
+import app.nocturne.ui.liquidGlass
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -158,25 +162,48 @@ fun SearchScreen(contentPadding: PaddingValues) {
         s.loading = false
     }
 
+    val design = LocalDesignStyle.current
+    val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
         TextField(
             value = s.query,
             onValueChange = { s.query = it },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                .then(if (design == DesignStyle.GLASS) Modifier.liquidGlass(CircleShape, 6.dp) else Modifier),
             placeholder = { Text(t("Songs, albums, artists or a link")) },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             trailingIcon = {
                 if (s.query.isNotEmpty()) IconButton(onClick = { s.query = ""; s.submitted = null; s.results = null }) { Icon(Icons.Rounded.Clear, "Clear") }
             },
             singleLine = true,
-            shape = CircleShape,
+            shape = if (design == DesignStyle.WINDOWS) RoundedCornerShape(4.dp) else CircleShape,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { submit() }),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-            ),
+            colors = when (design) {
+                // Frosted capsule; the glass modifier supplies the fill.
+                DesignStyle.GLASS -> TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                )
+                // Fluent TextBox: layer fill, accent underline when focused.
+                DesignStyle.WINDOWS -> TextFieldDefaults.colors(
+                    focusedContainerColor = cs.surfaceContainerLow,
+                    unfocusedContainerColor = cs.surfaceContainerHigh,
+                    disabledContainerColor = cs.surfaceContainerHigh,
+                    focusedIndicatorColor = cs.primary,
+                    unfocusedIndicatorColor = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                    disabledIndicatorColor = Color.Transparent,
+                )
+                DesignStyle.MATERIAL -> TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                )
+            },
         )
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {

@@ -284,5 +284,6 @@ internal object It {
         "e.g. en, uk, de" to "es. en, uk, de",
         "Language" to "Lingua",
         "Interface language" to "Lingua dell'interfaccia",
+        "Design style" to "Stile di design",
     )
 }

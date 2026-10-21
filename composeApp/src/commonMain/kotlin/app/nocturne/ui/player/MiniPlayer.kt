@@ -76,7 +76,8 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
     val backdrop = LocalBackdrop.current
     val seed = if (settings.playerArtworkTint) rememberArtworkSeed(track.artworkUrl) else null
     val dark = settings.playerBackground != PlayerBackground.SOLID || isDark(settings)
-    val shape = RoundedCornerShape(if (wide) 18.dp else 16.dp)
+    val glass = app.nocturne.ui.LocalGlass.current != null
+    val shape = RoundedCornerShape(if (glass) 26.dp else if (wide) 18.dp else 16.dp)
     val menu = app.nocturne.ui.components.LocalTrackMenu.current
     val scope = rememberCoroutineScope()
     val dx = remember { Animatable(0f) }
@@ -84,7 +85,6 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
     val density = LocalDensity.current
     val swipe = with(density) { 90.dp.toPx() }
 
-    val glass = app.nocturne.ui.LocalGlass.current != null
     NocturneTheme(settings, seedOverride = seed, forceDark = if (glass) null else dark, backdrop = backdrop) {
     val cs = MaterialTheme.colorScheme
     val container = if (backdrop) cs.surfaceContainerHigh.copy(alpha = 0.82f) else cs.surfaceContainerHigh

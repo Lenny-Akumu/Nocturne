@@ -284,5 +284,6 @@ internal object Tr {
         "e.g. en, uk, de" to "ör. en, uk, de",
         "Language" to "Dil",
         "Interface language" to "Arayüz dili",
+        "Design style" to "Tasarım stili",
     )
 }

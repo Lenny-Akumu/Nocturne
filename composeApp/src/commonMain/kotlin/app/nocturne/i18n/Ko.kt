@@ -284,5 +284,6 @@ internal object Ko {
         "e.g. en, uk, de" to "예: en, uk, de",
         "Language" to "언어",
         "Interface language" to "인터페이스 언어",
+        "Design style" to "디자인 스타일",
     )
 }

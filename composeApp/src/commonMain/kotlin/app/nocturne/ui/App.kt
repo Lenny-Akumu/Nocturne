@@ -1,6 +1,5 @@
 package app.nocturne.ui
 
-import dev.chrisbanes.haze.hazeSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
@@ -73,7 +72,11 @@ import app.nocturne.ui.screens.LibraryScreen
 import app.nocturne.ui.screens.SearchScreen
 import app.nocturne.ui.screens.SettingsPage
 import app.nocturne.ui.screens.SettingsScreen
+import app.nocturne.ui.kit.LocalDesignStyle
 import app.nocturne.ui.theme.LocalBackdrop
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.draw.drawBehind
 import app.nocturne.ui.theme.NocturneTheme
 
 @Composable
@@ -119,9 +122,13 @@ fun App(backdrop: Boolean = false) {
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density * k, base.fontScale),
             ) {
-                Box(Modifier.fillMaxSize()) {
-                    TrackMenuHost { AppScaffold() }
-                    UpdateBanner(Modifier.align(Alignment.TopCenter))
+                // Root haze state so any overlay can blur the content (Liquid Glass only).
+                val haze = remember { dev.chrisbanes.haze.HazeState() }
+                CompositionLocalProvider(LocalGlass provides haze.takeIf { settings.designStyle == app.nocturne.data.DesignStyle.GLASS }) {
+                    Box(Modifier.fillMaxSize()) {
+                        TrackMenuHost { AppScaffold() }
+                        UpdateBanner(Modifier.align(Alignment.TopCenter))
+                    }
                 }
             }
         }
@@ -142,7 +149,7 @@ private fun AppScaffold() {
         val wide = maxWidth >= 720.dp
         val hasPlayer = player.current != null
         if (wide) {
-            Row(Modifier.fillMaxSize()) {
+            GlassSource(Modifier.fillMaxSize()) { Row(Modifier.fillMaxSize()) {
                 NavigationRail(
                     containerColor = if (backdrop) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier.fillMaxHeight().statusBarsPadding(),
@@ -159,19 +166,19 @@ private fun AppScaffold() {
                     val pad = PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 8.dp, bottom = if (hasPlayer) 100.dp else 16.dp)
                     ScreenHost(pad)
                 }
-            }
+            } }
             MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = true, modifier = Modifier.align(Alignment.BottomCenter).padding(start = 80.dp).navigationBarsPadding())
         } else {
-            val settings by graph.settings.state.collectAsState()
-            val glass = settings.liquidGlass
-            val hazeState = remember { dev.chrisbanes.haze.HazeState() }
+            val glass = LocalGlass.current != null
             val bottomPad = if (hasPlayer) 160.dp else 90.dp
-            Column(Modifier.fillMaxSize().then(if (glass) Modifier.hazeSource(hazeState) else Modifier)) {
-                Box(Modifier.weight(1f)) {
-                    ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(), bottom = bottomPad))
+            GlassSource(Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f)) {
+                        ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(), bottom = bottomPad))
+                    }
                 }
             }
-            if (glass) CompositionLocalProvider(LocalGlass provides hazeState) {
+            if (glass) {
                 Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(bottom = 6.dp)) {
                     MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
                     GlassTabBar(nav)
@@ -204,7 +211,8 @@ private fun AppScaffold() {
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
         ) {
-            FullPlayer(onCollapse = { nav.playerExpanded = false })
+            // Own glass layer above the screens, so sheets opened from the player blur the player.
+            GlassSource(Modifier.fillMaxSize(), zIndex = 1f) { FullPlayer(onCollapse = { nav.playerExpanded = false }) }
         }
     }
 }
@@ -212,6 +220,35 @@ private fun AppScaffold() {
 @Composable
 private fun RailItem(tab: Tab, nav: Navigator) {
     val selected = nav.currentTab == tab.screen
+    if (LocalDesignStyle.current == app.nocturne.data.DesignStyle.WINDOWS) {
+        // Fluent NavigationView item: subtle fill on hover/selection, 3dp accent pill on the left.
+        val cs = MaterialTheme.colorScheme
+        val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        val hovered by src.collectIsHoveredAsState()
+        val dark = app.nocturne.ui.theme.LocalDarkTheme.current
+        val fill = when {
+            selected || hovered -> if (dark) Color.White.copy(alpha = if (selected) 0.061f else 0.042f) else Color.Black.copy(alpha = if (selected) 0.037f else 0.024f)
+            else -> Color.Transparent
+        }
+        val pill by androidx.compose.animation.core.animateDpAsState(if (selected) 16.dp else 0.dp, label = "pill")
+        val accent = cs.primary
+        Box(
+            Modifier.padding(vertical = 4.dp).size(56.dp, 40.dp).clip(RoundedCornerShape(4.dp)).background(fill)
+                .drawBehind {
+                    if (pill > 0.dp) {
+                        val w = 3.dp.toPx()
+                        val h = pill.toPx()
+                        drawRoundRect(accent, androidx.compose.ui.geometry.Offset(0f, (size.height - h) / 2), androidx.compose.ui.geometry.Size(w, h), androidx.compose.ui.geometry.CornerRadius(w / 2))
+                    }
+                }
+                .hoverable(src)
+                .clickable(interactionSource = src, indication = null) { nav.selectTab(tab.screen) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(if (selected) tab.selectedIcon else tab.icon, tab.label, Modifier.size(20.dp), tint = cs.onSurface)
+        }
+        return
+    }
     NavigationRailItem(
         selected = selected,
         onClick = { nav.selectTab(tab.screen) },

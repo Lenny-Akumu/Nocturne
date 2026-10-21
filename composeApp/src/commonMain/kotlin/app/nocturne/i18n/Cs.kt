@@ -284,5 +284,6 @@ internal object Cs {
         "e.g. en, uk, de" to "např. en, uk, de",
         "Language" to "Jazyk",
         "Interface language" to "Jazyk rozhraní",
+        "Design style" to "Styl vzhledu",
     )
 }

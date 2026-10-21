@@ -19,9 +19,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.nocturne.data.DesignStyle
 import app.nocturne.data.Settings
 import app.nocturne.data.ThemeMode
-import app.nocturne.ui.kit.LocalIosStyle
+import app.nocturne.ui.kit.LocalDesignStyle
 import com.materialkolor.PaletteStyle
 import com.materialkolor.rememberDynamicColorScheme
 
@@ -46,7 +47,15 @@ private val NocturneShapes = Shapes(
     extraLarge = RoundedCornerShape(30.dp),
 )
 
-private fun fontFamilyOf(font: String) = when (font) {
+private val FluentShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(4.dp),
+    medium = RoundedCornerShape(8.dp),
+    large = RoundedCornerShape(8.dp),
+    extraLarge = RoundedCornerShape(8.dp),
+)
+
+private fun fontFamilyOf(font: String) = platformFontFamily(font) ?: when (font) {
     "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
     "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
     "cursive" -> androidx.compose.ui.text.font.FontFamily.Cursive
@@ -102,6 +111,61 @@ private fun iosTypography(font: String): Typography {
     )
 }
 
+// Fluent 2 type ramp: Caption 12, Body 14, BodyStrong 14, Subtitle 20, Title 28, TitleLarge 40, Display 68.
+private fun fluentTypography(font: String): Typography {
+    val family = fontFamilyOf(font) ?: androidx.compose.ui.text.font.FontFamily.Default
+    val p = Typography()
+    fun TextStyle.fluent(size: Int, line: Int, weight: FontWeight) =
+        copy(fontFamily = family, fontSize = size.sp, lineHeight = line.sp, fontWeight = weight, letterSpacing = 0.sp)
+    return Typography(
+        displayLarge = p.displayLarge.fluent(68, 92, FontWeight.SemiBold),
+        displayMedium = p.displayMedium.fluent(40, 52, FontWeight.SemiBold),
+        displaySmall = p.displaySmall.fluent(40, 52, FontWeight.SemiBold),
+        headlineLarge = p.headlineLarge.fluent(28, 36, FontWeight.SemiBold),
+        headlineMedium = p.headlineMedium.fluent(28, 36, FontWeight.SemiBold),
+        headlineSmall = p.headlineSmall.fluent(20, 28, FontWeight.SemiBold),
+        titleLarge = p.titleLarge.fluent(20, 28, FontWeight.SemiBold),
+        titleMedium = p.titleMedium.fluent(14, 20, FontWeight.SemiBold),
+        titleSmall = p.titleSmall.fluent(14, 20, FontWeight.SemiBold),
+        bodyLarge = p.bodyLarge.fluent(14, 20, FontWeight.Normal),
+        bodyMedium = p.bodyMedium.fluent(14, 20, FontWeight.Normal),
+        bodySmall = p.bodySmall.fluent(12, 16, FontWeight.Normal),
+        labelLarge = p.labelLarge.fluent(14, 20, FontWeight.Normal),
+        labelMedium = p.labelMedium.fluent(12, 16, FontWeight.Normal),
+        labelSmall = p.labelSmall.fluent(12, 16, FontWeight.Normal),
+    )
+}
+
+// WinUI 3 neutrals (Mica fallbacks, layer fills, strokes) over the generated scheme.
+private fun fluentColorScheme(base: ColorScheme, dark: Boolean, accent: Color, black: Boolean): ColorScheme {
+    val bg = if (dark) (if (black) Color.Black else Color(0xFF202020)) else Color(0xFFF3F3F3)
+    val layer = if (dark) (if (black) Color(0xFF141414) else Color(0xFF2B2B2B)) else Color(0xFFFBFBFB)
+    val layer2 = if (dark) (if (black) Color(0xFF1C1C1C) else Color(0xFF2D2D2D)) else Color(0xFFF9F9F9)
+    val layer3 = if (dark) (if (black) Color(0xFF242424) else Color(0xFF383838)) else Color(0xFFEDEDED)
+    val text = if (dark) Color.White else Color(0xFF1B1B1B)
+    val text2 = if (dark) Color(0xFFC8C8C8) else Color(0xFF5F5F5F)
+    val stroke = if (dark) Color(0xFF3A3A3A) else Color(0xFFE0E0E0)
+    val stroke2 = if (dark) Color(0xFF1D1D1D) else Color(0xFFE9E9E9)
+    // Dark mode uses the lighter accent shade with dark text, like WinUI's AccentFillColorDefault.
+    val fill = if (dark) lerp(accent, Color.White, 0.38f) else lerp(accent, Color.Black, 0.12f)
+    val onFill = if (dark) Color.Black else Color.White
+    val tint = lerp(layer, accent, if (dark) 0.24f else 0.14f)
+    val error = if (dark) Color(0xFFFF99A4) else Color(0xFFC42B1C)
+    return base.copy(
+        primary = fill, onPrimary = onFill, primaryContainer = tint, onPrimaryContainer = text, inversePrimary = accent,
+        secondary = fill, onSecondary = onFill, secondaryContainer = tint, onSecondaryContainer = text,
+        tertiary = fill, onTertiary = onFill, tertiaryContainer = tint, onTertiaryContainer = text,
+        background = bg, onBackground = text, surface = bg, onSurface = text,
+        surfaceVariant = layer3, onSurfaceVariant = text2, surfaceTint = Color.Transparent,
+        inverseSurface = if (dark) Color(0xFFF3F3F3) else Color(0xFF2B2B2B), inverseOnSurface = if (dark) Color(0xFF1B1B1B) else Color.White,
+        error = error, onError = if (dark) Color.Black else Color.White, errorContainer = lerp(layer, error, 0.18f), onErrorContainer = error,
+        outline = stroke, outlineVariant = stroke2, scrim = Color.Black,
+        surfaceBright = layer2, surfaceDim = bg,
+        surfaceContainerLowest = bg, surfaceContainerLow = layer, surfaceContainer = layer,
+        surfaceContainerHigh = layer2, surfaceContainerHighest = layer3,
+    )
+}
+
 // Apple system colors over the generated scheme.
 private fun iosColorScheme(base: ColorScheme, dark: Boolean, accent: Color): ColorScheme {
     val bg = if (dark) Color.Black else Color(0xFFF2F2F7)
@@ -127,7 +191,9 @@ private fun iosColorScheme(base: ColorScheme, dark: Boolean, accent: Color): Col
     )
 }
 
-private val AppleMusicRed = Color(0xFFFA2D48)
+// Main violet of the app icon (sampled from docs/icon-1024.png).
+private val IconViolet = Color(0xFF8B5CF6)
+private val IconVioletDark = Color(0xFF9F7AFA)
 private val DefaultAccent = Settings().accentColor
 
 private val IosRipple = RippleConfiguration(rippleAlpha = RippleAlpha(draggedAlpha = 0.04f, focusedAlpha = 0.04f, hoveredAlpha = 0.03f, pressedAlpha = 0.07f))
@@ -172,16 +238,21 @@ fun NocturneTheme(
             surfaceContainer = Color(0xFF111114),
         )
     }
-    val ios = settings.liquidGlass
-    if (ios && seedOverride == null) {
-        // Keep a user-picked accent, default to Apple Music red.
-        val accent = if (settings.accentColor != DefaultAccent) Color(settings.accentColor) else AppleMusicRed
-        scheme = iosColorScheme(scheme, dark, accent)
+    val style = settings.designStyle
+    if (style != DesignStyle.MATERIAL && seedOverride == null) {
+        // Keep a user-picked accent, default to the icon violet.
+        val accent = if (settings.accentColor != DefaultAccent) Color(settings.accentColor) else if (dark) IconVioletDark else IconViolet
+        scheme = if (style == DesignStyle.GLASS) iosColorScheme(scheme, dark, accent) else fluentColorScheme(scheme, dark, accent, dark && settings.pureBlack)
     }
-    val typography = if (ios) iosTypography(settings.fontStyle) else nocturneTypography(settings.fontStyle)
-    CompositionLocalProvider(LocalDarkTheme provides dark, LocalBackdrop provides backdrop, LocalIosStyle provides ios) {
-        MaterialTheme(colorScheme = scheme, typography = typography, shapes = NocturneShapes) {
-            if (ios) {
+    val typography = when (style) {
+        DesignStyle.GLASS -> iosTypography(settings.fontStyle)
+        DesignStyle.WINDOWS -> fluentTypography(settings.fontStyle)
+        DesignStyle.MATERIAL -> nocturneTypography(settings.fontStyle)
+    }
+    val shapes = if (style == DesignStyle.WINDOWS) FluentShapes else NocturneShapes
+    CompositionLocalProvider(LocalDarkTheme provides dark, LocalBackdrop provides backdrop, LocalDesignStyle provides style) {
+        MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
+            if (style != DesignStyle.MATERIAL) {
                 CompositionLocalProvider(LocalContentColor provides scheme.onBackground, LocalRippleConfiguration provides IosRipple, content = content)
             } else {
                 CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
@@ -199,3 +270,6 @@ private fun Color.isGrayish(): Boolean {
 }
 
 expect fun minecraftFont(): androidx.compose.ui.text.font.FontFamily?
+
+// Platform-specific family for a font setting, or null to use the generic one.
+expect fun platformFontFamily(font: String): androidx.compose.ui.text.font.FontFamily?

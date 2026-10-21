@@ -92,7 +92,7 @@ import app.nocturne.ui.kit.Switch
 import androidx.compose.material3.Text
 import app.nocturne.ui.kit.TextButton
 import app.nocturne.ui.kit.IosGroupedColumn
-import app.nocturne.ui.kit.LocalIosStyle
+import app.nocturne.ui.kit.LocalDesignStyle
 import app.nocturne.ui.kit.iosGroupRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -112,6 +112,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.nocturne.AppGraph
 import app.nocturne.PlatformKind
+import app.nocturne.data.DesignStyle
 import app.nocturne.data.LyricsAlign
 import app.nocturne.data.PlayerBackground
 import app.nocturne.data.Settings
@@ -148,7 +149,8 @@ enum class SettingsCategory(val title: String, val summary: String, val icon: Im
 @Composable
 fun SettingsScreen(contentPadding: PaddingValues) {
     val nav = AppGraph.instance.navigator
-    val ios = LocalIosStyle.current
+    val ios = LocalDesignStyle.current == DesignStyle.GLASS
+    val fluent = LocalDesignStyle.current == DesignStyle.WINDOWS
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
             Text(t("Settings"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 12.dp))
@@ -162,8 +164,9 @@ fun SettingsScreen(contentPadding: PaddingValues) {
         ).filter { it.isNotEmpty() }
         items(groups) { group ->
             Column(
-                Modifier.padding(horizontal = if (ios) 16.dp else 14.dp, vertical = 6.dp).clip(RoundedCornerShape(if (ios) 22.dp else 26.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                Modifier.padding(horizontal = if (ios) 16.dp else 14.dp, vertical = 6.dp).clip(RoundedCornerShape(if (ios) 22.dp else if (fluent) 8.dp else 26.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .then(if (fluent) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)) else Modifier),
             ) {
                 group.forEachIndexed { i, c ->
                     ListItem(
@@ -195,7 +198,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
     val s by graph.settings.state.collectAsState()
     val set: ((Settings) -> Settings) -> Unit = { graph.settings.update(it) }
     val desktop = platformKind == PlatformKind.DESKTOP
-    val ios = LocalIosStyle.current
+    val ios = LocalDesignStyle.current == DesignStyle.GLASS
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
@@ -295,7 +298,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive", "minecraft"), {
                             when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; "minecraft" -> "Minecraft"; else -> "Default" }
                         }) { v -> set { it.copy(fontStyle = v) } }
-                        Toggle("Liquid Glass", "Translucent, blurred navigation bar and mini player", Icons.Rounded.BlurOn, s.liquidGlass) { v -> set { it.copy(liquidGlass = v) } }
+                        Choice("Design style", Icons.Rounded.BlurOn, s.designStyle, DesignStyle.entries, { it.label }) { v -> set { it.copy(designStyle = v) } }
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }
@@ -437,19 +440,25 @@ private fun sourceSummary(src: Source, s: Settings) = when (src) {
 
 @Composable
 private fun Header(text: String) {
-    if (LocalIosStyle.current) {
+    if (LocalDesignStyle.current == DesignStyle.GLASS) {
         Text(
             t(text).uppercase(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 24.dp, bottom = 7.dp),
         )
         return
     }
-    Text(t(text), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 6.dp))
+    // Fluent settings: BodyStrong section titles in the text color.
+    val fluent = LocalDesignStyle.current == DesignStyle.WINDOWS
+    Text(
+        t(text), style = if (fluent) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelLarge,
+        color = if (fluent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 6.dp),
+    )
 }
 
 @Composable
 private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked: Boolean, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
-    val ios = LocalIosStyle.current
+    val ios = LocalDesignStyle.current == DesignStyle.GLASS
     ListItem(
         headlineContent = { Text(t(title)) },
         supportingContent = summary?.let { { Text(t(it)) } },
@@ -462,7 +471,7 @@ private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked:
 
 @Composable
 private fun Action(title: String, summary: String?, icon: ImageVector, chevron: Boolean = false, onClick: () -> Unit) {
-    val ios = LocalIosStyle.current
+    val ios = LocalDesignStyle.current == DesignStyle.GLASS
     ListItem(
         headlineContent = { Text(t(title)) },
         supportingContent = summary?.let { { Text(t(it)) } },
@@ -477,7 +486,7 @@ private fun rowModifier(ios: Boolean, leading: Boolean): Modifier = if (ios) Mod
 
 @Composable
 private fun Chevron() {
-    val ios = LocalIosStyle.current
+    val ios = LocalDesignStyle.current == DesignStyle.GLASS
     Icon(
         Icons.AutoMirrored.Rounded.KeyboardArrowRight, null,
         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (ios) 0.7f else 1f),
@@ -571,7 +580,7 @@ private fun TextPref(title: String, hint: String?, icon: ImageVector, value: Str
 @Composable
 private fun SliderPref(title: String, valueLabel: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, onChange: (Float) -> Unit) {
     var local by remember(value) { mutableFloatStateOf(value) }
-    val ios = LocalIosStyle.current
+    val ios = LocalDesignStyle.current == DesignStyle.GLASS
     Column(rowModifier(ios, false).padding(horizontal = if (ios) 16.dp else 24.dp, vertical = 8.dp)) {
         Row {
             Text(t(title), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -583,7 +592,7 @@ private fun SliderPref(title: String, valueLabel: String, value: Float, range: C
 
 @Composable
 private fun AccentPicker(selected: Long, onSelect: (Long) -> Unit) {
-    val ios = LocalIosStyle.current
+    val ios = LocalDesignStyle.current == DesignStyle.GLASS
     FlowRow(rowModifier(ios, false).padding(horizontal = if (ios) 16.dp else 24.dp, vertical = if (ios) 14.dp else 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         AccentPresets.forEach { c ->
             Box(

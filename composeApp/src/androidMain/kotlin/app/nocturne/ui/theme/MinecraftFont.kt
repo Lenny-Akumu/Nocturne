@@ -13,3 +13,5 @@ private val family: FontFamily? by lazy {
 }
 
 actual fun minecraftFont(): FontFamily? = family
+
+actual fun platformFontFamily(font: String): FontFamily? = null

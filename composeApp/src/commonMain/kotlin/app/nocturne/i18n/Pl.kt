@@ -284,5 +284,6 @@ internal object Pl {
         "e.g. en, uk, de" to "np. en, pl, de",
         "Language" to "Język",
         "Interface language" to "Język interfejsu",
+        "Design style" to "Styl wyglądu",
     )
 }

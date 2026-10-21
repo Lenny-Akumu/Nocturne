@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"), DARK("Dark") }
@@ -18,6 +21,15 @@ enum class PlayerBackground(val label: String) { GRADIENT("Gradient"), BLUR("Blu
 
 @Serializable
 enum class WindowBackdrop(val label: String) { MICA("Mica"), MICA_ALT("Mica Alt"), ACRYLIC("Acrylic"), NONE("None") }
+
+@Serializable
+enum class DesignStyle(val label: String) { MATERIAL("Material You 3"), GLASS("Liquid Glass"), WINDOWS("Windows") }
+
+fun defaultDesignStyle(): DesignStyle = when (app.nocturne.platformKind) {
+    app.nocturne.PlatformKind.IOS -> DesignStyle.GLASS
+    app.nocturne.PlatformKind.DESKTOP -> DesignStyle.WINDOWS
+    else -> DesignStyle.MATERIAL
+}
 
 @Serializable
 enum class LyricsAlign(val label: String) { START("Left"), CENTER("Center") }
@@ -35,7 +47,7 @@ data class Settings(
     val windowBackdrop: WindowBackdrop = WindowBackdrop.MICA,
     val compactLists: Boolean = false,
     val uiScale: Float = 1f,
-    val liquidGlass: Boolean = app.nocturne.platformKind == app.nocturne.PlatformKind.IOS,
+    val designStyle: DesignStyle = defaultDesignStyle(),
     val colorStyle: String = "TonalSpot",
     val fontStyle: String = "default",
 
@@ -123,8 +135,15 @@ class SettingsStore {
     val state: StateFlow<Settings> = _state.asStateFlow()
     val value: Settings get() = _state.value
 
-    private fun load(): Settings =
-        FileStore.read(FILE)?.let { runCatching { json.decodeFromString<Settings>(it) }.getOrNull() } ?: Settings()
+    private fun load(): Settings {
+        val text = FileStore.read(FILE) ?: return Settings()
+        return runCatching {
+            val s = json.decodeFromString<Settings>(text)
+            val obj = json.parseToJsonElement(text).jsonObject
+            // Migrate the old liquidGlass toggle.
+            if ("designStyle" !in obj && obj["liquidGlass"]?.jsonPrimitive?.booleanOrNull == true) s.copy(designStyle = DesignStyle.GLASS) else s
+        }.getOrNull() ?: Settings()
+    }
 
     fun update(transform: (Settings) -> Settings) {
         _state.update(transform)

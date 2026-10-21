@@ -284,5 +284,6 @@ internal object Ja {
         "e.g. en, uk, de" to "例：en、uk、de",
         "Language" to "言語",
         "Interface language" to "表示言語",
+        "Design style" to "デザインスタイル",
     )
 }

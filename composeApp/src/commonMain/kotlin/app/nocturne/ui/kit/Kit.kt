@@ -2,6 +2,7 @@ package app.nocturne.ui.kit
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -16,7 +17,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,6 +88,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -93,9 +99,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -115,7 +123,10 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import app.nocturne.data.DesignStyle
 import app.nocturne.ui.LocalGlass
+import app.nocturne.ui.LocalInGlassSource
+import app.nocturne.ui.glassSheen
 import app.nocturne.ui.liquidGlass
 import app.nocturne.ui.theme.LocalDarkTheme
 import kotlin.math.PI
@@ -123,28 +134,43 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-// iOS / Liquid Glass look; false = plain Material 3.
-val LocalIosStyle = staticCompositionLocalOf { false }
+// Which look the kit renders: Material 3, iOS Liquid Glass or Windows Fluent.
+val LocalDesignStyle = staticCompositionLocalOf { DesignStyle.MATERIAL }
 
 // 0 = not in an alert, 1 = alert dismiss cell, 2 = alert confirm cell.
 private val LocalAlertCell = staticCompositionLocalOf { 0 }
 
 private val IosGreen = Color(0xFF34C759)
 
-@Composable
-fun Modifier.iosGlass(shape: Shape): Modifier {
-    if (LocalGlass.current != null) return liquidGlass(shape)
-    val dark = LocalDarkTheme.current
-    return this
-        .shadow(18.dp, shape, ambientColor = Color.Black.copy(alpha = 0.25f), spotColor = Color.Black.copy(alpha = 0.25f))
-        .clip(shape)
-        .background(if (dark) Color(0xF21C1C1E) else Color(0xF5FFFFFF))
-        .border(
-            1.dp,
-            Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.22f else 0.7f), Color.White.copy(alpha = 0.04f))),
-            shape,
-        )
+// WinUI control fills and strokes.
+private class Fluent(dark: Boolean) {
+    val fill = if (dark) Color.White.copy(alpha = 0.061f) else Color.White.copy(alpha = 0.7f)
+    val fillHover = if (dark) Color.White.copy(alpha = 0.084f) else Color(0xFFF9F9F9).copy(alpha = 0.5f)
+    val fillPressed = if (dark) Color.White.copy(alpha = 0.033f) else Color(0xFFF9F9F9).copy(alpha = 0.3f)
+    val subtleHover = if (dark) Color.White.copy(alpha = 0.061f) else Color.Black.copy(alpha = 0.037f)
+    val subtlePressed = if (dark) Color.White.copy(alpha = 0.042f) else Color.Black.copy(alpha = 0.024f)
+    val strokeTop = if (dark) Color.White.copy(alpha = 0.07f) else Color.Black.copy(alpha = 0.057f)
+    val strokeBottom = if (dark) Color.White.copy(alpha = 0.035f) else Color.Black.copy(alpha = 0.16f)
+    val strong = if (dark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.45f)
 }
+
+@Composable
+private fun fluent() = Fluent(LocalDarkTheme.current)
+
+// 1px elevation border: [bottom] colors the last 3dp, like WinUI's ControlElevationBorder.
+private fun Modifier.fluentBorder(shape: Shape, top: Color, bottom: Color): Modifier = drawWithCache {
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val brush = Brush.verticalGradient(listOf(top, bottom), startY = size.height - 3.dp.toPx(), endY = size.height)
+    val w = 1.dp.toPx() * 2 // half is clipped by the shape
+    onDrawWithContent {
+        drawContent()
+        drawOutline(outline, brush, style = Stroke(w))
+    }
+}
+
+// Glass fill for in-content controls; overlays use [liquidGlass].
+@Composable
+private fun glassFill(): Color = if (LocalDarkTheme.current) Color(0xFF2C2C2E).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.82f)
 
 @Composable
 fun Switch(
@@ -156,13 +182,18 @@ fun Switch(
     colors: SwitchColors = SwitchDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (!LocalIosStyle.current) {
-        androidx.compose.material3.Switch(
+    when (LocalDesignStyle.current) {
+        DesignStyle.MATERIAL -> androidx.compose.material3.Switch(
             checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, thumbContent = thumbContent,
             enabled = enabled, colors = colors, interactionSource = interactionSource,
         )
-        return
+        DesignStyle.WINDOWS -> FluentSwitch(checked, onCheckedChange, modifier, enabled, interactionSource)
+        DesignStyle.GLASS -> IosSwitch(checked, onCheckedChange, modifier, enabled, interactionSource)
     }
+}
+
+@Composable
+private fun IosSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier, enabled: Boolean, interactionSource: MutableInteractionSource?) {
     val dark = LocalDarkTheme.current
     val src = interactionSource ?: remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
@@ -192,6 +223,48 @@ fun Switch(
     }
 }
 
+// WinUI ToggleSwitch: 40x20 pill, outlined when off, accent with a white knob when on.
+@Composable
+private fun FluentSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier, enabled: Boolean, interactionSource: MutableInteractionSource?) {
+    val cs = MaterialTheme.colorScheme
+    val f = fluent()
+    val src = interactionSource ?: remember { MutableInteractionSource() }
+    val hovered by src.collectIsHoveredAsState()
+    val pressed by src.collectIsPressedAsState()
+    val pos by animateFloatAsState(if (checked) 1f else 0f, tween(160), label = "knob")
+    val knob by animateDpAsState(if (hovered || pressed) 14.dp else 12.dp, tween(120), label = "knobSize")
+    val stretch by animateDpAsState(if (pressed) 3.dp else 0.dp, tween(120), label = "knobStretch")
+    val accent = cs.primary
+    val onAccent = cs.onPrimary
+    val stroke = f.strong
+    val hoverFill = f.subtleHover
+    Box(
+        modifier
+            .then(
+                if (onCheckedChange != null) Modifier.minimumInteractiveComponentSize()
+                    .hoverable(src, enabled)
+                    .toggleable(checked, src, null, enabled, Role.Switch, onCheckedChange)
+                else Modifier,
+            )
+            .alpha(if (enabled) 1f else 0.4f)
+            .size(40.dp, 20.dp)
+            .drawBehind {
+                val r = size.height / 2
+                if (pos > 0f) drawRoundRect(accent.copy(alpha = accent.alpha * pos), cornerRadius = CornerRadius(r))
+                if (pos < 1f) {
+                    val a = 1f - pos
+                    if (hovered) drawRoundRect(hoverFill.copy(alpha = hoverFill.alpha * a), cornerRadius = CornerRadius(r))
+                    val w = 1.dp.toPx()
+                    drawRoundRect(stroke.copy(alpha = stroke.alpha * a), Offset(w / 2, w / 2), Size(size.width - w, size.height - w), CornerRadius(r - w / 2), style = Stroke(w))
+                }
+                val kh = knob.toPx()
+                val kw = kh + stretch.toPx()
+                val cx = r + (size.width - 2 * r) * pos
+                drawRoundRect(lerp(stroke, onAccent, pos), Offset(cx - kw / 2, r - kh / 2), Size(kw, kh), CornerRadius(kh / 2))
+            },
+    )
+}
+
 @Composable
 fun Slider(
     value: Float,
@@ -204,32 +277,45 @@ fun Slider(
     colors: SliderColors = SliderDefaults.colors(),
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.Slider(
             value = value, onValueChange = onValueChange, modifier = modifier, enabled = enabled, valueRange = valueRange,
             steps = steps, onValueChangeFinished = onValueChangeFinished, colors = colors, interactionSource = interactionSource,
         )
         return
     }
+    val fluent = style == DesignStyle.WINDOWS
+    val cs = MaterialTheme.colorScheme
+    val dark = LocalDarkTheme.current
+    val f = fluent()
     val active = if (enabled) colors.activeTrackColor else colors.disabledActiveTrackColor
-    val inactive = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+    val inactive = if (fluent) f.strong else cs.onSurface.copy(alpha = 0.2f)
     val span = valueRange.endInclusive - valueRange.start
     val fraction = if (span <= 0f) 0f else ((value - valueRange.start) / span).coerceIn(0f, 1f)
     var dragging by remember { mutableStateOf(false) }
-    val radius by animateDpAsState(if (dragging) 14.dp else 11.dp, label = "thumb")
+    val hovered by interactionSource.collectIsHoveredAsState()
+    // iOS 26: capsule thumb that swells into a translucent lens while dragged. Fluent: inner accent dot.
+    val thumbW by animateDpAsState(if (dragging) 46.dp else 38.dp, label = "thumbW")
+    val thumbH by animateDpAsState(if (dragging) 30.dp else 24.dp, label = "thumbH")
+    val lens by animateFloatAsState(if (dragging) 1f else 0f, label = "lens")
+    val dot by animateDpAsState(if (dragging) 5.dp else if (hovered) 7.dp else 6.dp, tween(120), label = "dot")
     val change by rememberUpdatedState(onValueChange)
     val finished by rememberUpdatedState(onValueChangeFinished)
-    val pad = 11.dp
+    val pad = if (fluent) 10.dp else 19.dp
+    val thumbFill = if (dark) Color(0xFF454545) else Color.White
+    val thumbStroke = f.strokeTop
     fun valueAt(x: Float, width: Float, padPx: Float): Float {
-        var f = ((x - padPx) / (width - 2 * padPx).coerceAtLeast(1f)).coerceIn(0f, 1f)
-        if (steps > 0) f = (f * (steps + 1)).roundToInt() / (steps + 1).toFloat()
-        return valueRange.start + f * span
+        var p = ((x - padPx) / (width - 2 * padPx).coerceAtLeast(1f)).coerceIn(0f, 1f)
+        if (steps > 0) p = (p * (steps + 1)).roundToInt() / (steps + 1).toFloat()
+        return valueRange.start + p * span
     }
     Box(
         modifier
             .fillMaxWidth()
-            .defaultMinSize(minHeight = 44.dp)
+            .defaultMinSize(minHeight = if (fluent) 40.dp else 44.dp)
             .alpha(if (enabled) 1f else 0.5f)
+            .hoverable(interactionSource, enabled)
             .pointerInput(enabled, valueRange, steps) {
                 if (!enabled) return@pointerInput
                 detectTapGestures { o ->
@@ -253,15 +339,32 @@ fun Slider(
             }
             .drawBehind {
                 val p = pad.toPx()
-                val h = 4.dp.toPx()
                 val y = size.height / 2
                 val w = size.width - 2 * p
                 val x = p + w * fraction
+                val h = if (fluent) 4.dp.toPx() else 6.dp.toPx()
                 drawRoundRect(inactive, Offset(p, y - h / 2), Size(w, h), CornerRadius(h / 2))
-                drawRoundRect(active, Offset(p, y - h / 2), Size(x - p, h), CornerRadius(h / 2))
-                val r = radius.toPx()
-                drawCircle(Color.Black.copy(alpha = 0.16f), r + 1.dp.toPx(), Offset(x, y + 1.dp.toPx()))
-                drawCircle(Color.White, r, Offset(x, y))
+                drawRoundRect(active, Offset(p - h / 2, y - h / 2), Size(x - p + h / 2, h), CornerRadius(h / 2))
+                if (fluent) {
+                    val r = 10.dp.toPx()
+                    drawCircle(Color.Black.copy(alpha = 0.12f), r + 0.5.dp.toPx(), Offset(x, y + 1.dp.toPx()))
+                    drawCircle(thumbFill, r, Offset(x, y))
+                    drawCircle(thumbStroke, r - 0.5.dp.toPx(), Offset(x, y), style = Stroke(1.dp.toPx()))
+                    drawCircle(active, dot.toPx(), Offset(x, y))
+                } else {
+                    val tw = thumbW.toPx()
+                    val th = thumbH.toPx()
+                    val tl = Offset(x - tw / 2, y - th / 2)
+                    val cr = CornerRadius(th / 2)
+                    drawRoundRect(Color.Black.copy(alpha = 0.14f * (1f - lens * 0.5f)), tl + Offset(0f, 1.5.dp.toPx()), Size(tw, th), cr)
+                    drawRoundRect(Color.White.copy(alpha = 1f - lens * 0.55f), tl, Size(tw, th), cr)
+                    if (lens > 0f) {
+                        drawRoundRect(
+                            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.7f * lens), Color.White.copy(alpha = 0.1f * lens)), tl.y, tl.y + th),
+                            tl, Size(tw, th), cr, style = Stroke(1.dp.toPx()),
+                        )
+                    }
+                }
             },
     )
 }
@@ -281,7 +384,8 @@ fun FilterChip(
     border: BorderStroke? = FilterChipDefaults.filterChipBorder(enabled, selected),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.FilterChip(
             selected = selected, onClick = onClick, label = label, modifier = modifier, enabled = enabled,
             leadingIcon = leadingIcon, trailingIcon = trailingIcon, shape = shape, colors = colors,
@@ -291,22 +395,41 @@ fun FilterChip(
     }
     val cs = MaterialTheme.colorScheme
     val dark = LocalDarkTheme.current
-    val bg by animateColorAsState(if (selected) cs.primary else cs.onSurface.copy(alpha = if (dark) 0.12f else 0.07f), label = "chip")
-    val fg = if (selected) Color.White else cs.onSurface
+    val src = interactionSource ?: remember { MutableInteractionSource() }
+    val fg = if (selected) cs.onPrimary else cs.onSurface
+    val surface = if (style == DesignStyle.WINDOWS) {
+        // Fluent pill toggle button.
+        val f = fluent()
+        val hovered by src.collectIsHoveredAsState()
+        val pressed by src.collectIsPressedAsState()
+        val bg = when {
+            selected -> cs.primary.copy(alpha = if (pressed) 0.8f else if (hovered) 0.9f else 1f)
+            pressed -> f.fillPressed
+            hovered -> f.fillHover
+            else -> f.fill
+        }
+        Modifier.clip(CircleShape).background(bg)
+            .fluentBorder(CircleShape, if (selected) Color.White.copy(alpha = 0.08f) else f.strokeTop, if (selected) Color.Black.copy(alpha = 0.3f) else f.strokeBottom)
+            .hoverable(src, enabled)
+    } else {
+        // Liquid Glass pill: frosted when idle, tinted glass when selected.
+        val bg by animateColorAsState(if (selected) cs.primary else glassFill(), label = "chip")
+        Modifier.shadow(if (selected) 4.dp else 3.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.16f))
+            .clip(CircleShape).background(bg).glassSheen(CircleShape, dark)
+    }
     Row(
         modifier
             .minimumInteractiveComponentSize()
             .alpha(if (enabled) 1f else 0.4f)
             .heightIn(min = 32.dp)
-            .clip(CircleShape)
-            .background(bg)
-            .selectable(selected, interactionSource, null, enabled, Role.Checkbox, onClick)
-            .padding(horizontal = 14.dp),
+            .then(surface)
+            .selectable(selected, src, null, enabled, Role.Checkbox, onClick)
+            .padding(horizontal = if (style == DesignStyle.WINDOWS) 12.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(
             LocalContentColor provides fg,
-            LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, color = fg),
+            LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(fontWeight = if (style == DesignStyle.WINDOWS) FontWeight.Normal else FontWeight.Medium, color = fg),
         ) {
             leadingIcon?.let { it(); Spacer(Modifier.width(6.dp)) }
             label()
@@ -324,25 +447,49 @@ fun RadioButton(
     colors: RadioButtonColors = RadioButtonDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.RadioButton(
             selected = selected, onClick = onClick, modifier = modifier, enabled = enabled,
             colors = colors, interactionSource = interactionSource,
         )
         return
     }
-    Box(
-        modifier
-            .then(
-                if (onClick != null) Modifier.minimumInteractiveComponentSize()
-                    .selectable(selected, interactionSource, null, enabled, Role.RadioButton, onClick)
-                else Modifier,
-            )
-            .size(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.4f))
+    val cs = MaterialTheme.colorScheme
+    val src = interactionSource ?: remember { MutableInteractionSource() }
+    val base = modifier.then(
+        if (onClick != null) Modifier.minimumInteractiveComponentSize()
+            .hoverable(src, enabled)
+            .selectable(selected, src, null, enabled, Role.RadioButton, onClick)
+        else Modifier,
+    )
+    if (style == DesignStyle.GLASS) {
+        Box(base.size(24.dp), contentAlignment = Alignment.Center) {
+            if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(22.dp), tint = cs.primary.copy(alpha = if (enabled) 1f else 0.4f))
+        }
+        return
     }
+    // WinUI radio: outlined ring, accent disc with a white dot when selected.
+    val f = fluent()
+    val hovered by src.collectIsHoveredAsState()
+    val pressed by src.collectIsPressedAsState()
+    val dot by animateDpAsState(if (pressed) 3.dp else if (hovered) 5.dp else 4.dp, tween(120), label = "dot")
+    val accent = cs.primary
+    val onAccent = cs.onPrimary
+    val stroke = f.strong
+    val hoverFill = f.subtleHover
+    Box(
+        base.alpha(if (enabled) 1f else 0.4f).size(20.dp).drawBehind {
+            val r = size.minDimension / 2
+            if (selected) {
+                drawCircle(accent, r)
+                drawCircle(onAccent, dot.toPx())
+            } else {
+                if (hovered) drawCircle(hoverFill, r)
+                drawCircle(stroke, r - 0.5.dp.toPx(), style = Stroke(1.dp.toPx()))
+            }
+        },
+    )
 }
 
 @Composable
@@ -357,18 +504,22 @@ private fun IosButton(
     interactionSource: MutableInteractionSource?,
     style: TextStyle,
     minHeight: Dp = 40.dp,
+    glass: Boolean = false,
     body: @Composable RowScope.() -> Unit,
 ) {
     val src = interactionSource ?: remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
     val a by animateFloatAsState(if (!enabled) 0.4f else if (pressed) 0.5f else 1f, label = "press")
+    val dark = LocalDarkTheme.current
     Row(
         modifier
             .minimumInteractiveComponentSize()
             .graphicsLayer { alpha = a }
             .defaultMinSize(minWidth = 58.dp, minHeight = minHeight)
+            .then(if (glass) Modifier.shadow(4.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.18f)) else Modifier)
             .clip(CircleShape)
             .background(container)
+            .then(if (glass) Modifier.glassSheen(CircleShape, dark) else Modifier)
             .then(if (border != null) Modifier.border(border, CircleShape) else Modifier)
             .clickable(interactionSource = src, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(contentPadding),
@@ -378,6 +529,58 @@ private fun IosButton(
         CompositionLocalProvider(LocalContentColor provides content, LocalTextStyle provides style.copy(color = content)) { body() }
     }
 }
+
+// WinUI Button: 4dp corners, accent or subtle fill, 1px elevation border.
+@Composable
+private fun FluentButton(
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    accent: Boolean,
+    colors: ButtonColors?,
+    border: BorderStroke?,
+    contentPadding: PaddingValues,
+    interactionSource: MutableInteractionSource?,
+    body: @Composable RowScope.() -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val f = fluent()
+    val src = interactionSource ?: remember { MutableInteractionSource() }
+    val hovered by src.collectIsHoveredAsState()
+    val pressed by src.collectIsPressedAsState()
+    val shape = RoundedCornerShape(4.dp)
+    val custom = colors?.containerColor?.takeIf { it.alpha > 0f }
+    val bg = when {
+        accent || custom != null -> (custom ?: cs.primary).let { c -> c.copy(alpha = c.alpha * if (pressed) 0.8f else if (hovered) 0.9f else 1f) }
+        pressed -> f.fillPressed
+        hovered -> f.fillHover
+        else -> f.fill
+    }
+    val fg = (colors?.contentColor ?: if (accent) cs.onPrimary else cs.onSurface)
+        .let { if (pressed && !accent && custom == null) it.copy(alpha = it.alpha * 0.8f) else it }
+    Row(
+        modifier
+            .alpha(if (enabled) 1f else 0.4f)
+            .defaultMinSize(minWidth = 56.dp, minHeight = 32.dp)
+            .clip(shape)
+            .background(bg)
+            .then(
+                if (border != null) Modifier.border(border, shape)
+                else if (accent || custom != null) Modifier.fluentBorder(shape, Color.White.copy(alpha = 0.08f), Color.Black.copy(alpha = 0.32f))
+                else Modifier.fluentBorder(shape, f.strokeTop, f.strokeBottom),
+            )
+            .hoverable(src, enabled)
+            .clickable(interactionSource = src, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(contentPadding),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CompositionLocalProvider(LocalContentColor provides fg, LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(color = fg)) { body() }
+    }
+}
+
+// Fluent buttons keep the caller's padding unless it's the Material default.
+private fun fluentPadding(p: PaddingValues) = if (p == ButtonDefaults.ContentPadding) PaddingValues(horizontal = 16.dp, vertical = 6.dp) else p
 
 @Composable
 fun Button(
@@ -392,18 +595,18 @@ fun Button(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
-        androidx.compose.material3.Button(
+    val cs = MaterialTheme.colorScheme
+    when (LocalDesignStyle.current) {
+        DesignStyle.MATERIAL -> androidx.compose.material3.Button(
             onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.buttonColors(),
             elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = interactionSource, content = content,
         )
-        return
+        DesignStyle.WINDOWS -> FluentButton(onClick, modifier, enabled, true, colors, border, fluentPadding(contentPadding), interactionSource, content)
+        DesignStyle.GLASS -> IosButton(
+            onClick, modifier, enabled, colors?.containerColor ?: cs.primary, colors?.contentColor ?: cs.onPrimary,
+            border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, glass = true, body = content,
+        )
     }
-    val cs = MaterialTheme.colorScheme
-    IosButton(
-        onClick, modifier, enabled, colors?.containerColor ?: cs.primary, colors?.contentColor ?: cs.onPrimary,
-        border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, body = content,
-    )
 }
 
 @Composable
@@ -419,19 +622,21 @@ fun FilledTonalButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
-        androidx.compose.material3.FilledTonalButton(
+    val cs = MaterialTheme.colorScheme
+    when (LocalDesignStyle.current) {
+        DesignStyle.MATERIAL -> androidx.compose.material3.FilledTonalButton(
             onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.filledTonalButtonColors(),
             elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = interactionSource, content = content,
         )
-        return
+        DesignStyle.WINDOWS -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
+        DesignStyle.GLASS -> {
+            val tint = lerp(glassFill(), cs.primary, if (LocalDarkTheme.current) 0.22f else 0.12f)
+            IosButton(
+                onClick, modifier, enabled, colors?.containerColor ?: tint, colors?.contentColor ?: cs.primary,
+                border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, glass = true, body = content,
+            )
+        }
     }
-    val cs = MaterialTheme.colorScheme
-    val tint = cs.primary.copy(alpha = if (LocalDarkTheme.current) 0.2f else 0.12f)
-    IosButton(
-        onClick, modifier, enabled, colors?.containerColor ?: tint, colors?.contentColor ?: cs.primary,
-        border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, body = content,
-    )
 }
 
 @Composable
@@ -447,20 +652,19 @@ fun OutlinedButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
-        androidx.compose.material3.OutlinedButton(
+    val cs = MaterialTheme.colorScheme
+    when (LocalDesignStyle.current) {
+        DesignStyle.MATERIAL -> androidx.compose.material3.OutlinedButton(
             onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.outlinedButtonColors(),
             elevation = elevation, border = border ?: ButtonDefaults.outlinedButtonBorder(enabled), contentPadding = contentPadding,
             interactionSource = interactionSource, content = content,
         )
-        return
+        DesignStyle.WINDOWS -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
+        DesignStyle.GLASS -> IosButton(
+            onClick, modifier, enabled, colors?.containerColor?.takeIf { it.alpha > 0f } ?: glassFill(), colors?.contentColor ?: cs.primary,
+            border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, glass = true, body = content,
+        )
     }
-    val cs = MaterialTheme.colorScheme
-    val fill = cs.onSurface.copy(alpha = if (LocalDarkTheme.current) 0.12f else 0.07f)
-    IosButton(
-        onClick, modifier, enabled, colors?.containerColor?.takeIf { it.alpha > 0f } ?: fill, colors?.contentColor ?: cs.primary,
-        border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, body = content,
-    )
 }
 
 @Composable
@@ -476,7 +680,8 @@ fun TextButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.TextButton(
             onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.textButtonColors(),
             elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = interactionSource, content = content,
@@ -485,6 +690,38 @@ fun TextButton(
     }
     val cell = LocalAlertCell.current
     val fg = colors?.contentColor ?: MaterialTheme.colorScheme.primary
+    if (style == DesignStyle.WINDOWS) {
+        // ContentDialog footer: accent primary button, standard secondary. Elsewhere a HyperlinkButton.
+        if (cell != 0) {
+            FluentButton(
+                onClick, modifier.widthIn(min = 96.dp), enabled, cell == 2, colors?.takeIf { it.containerColor.alpha > 0f }, border,
+                PaddingValues(horizontal = 16.dp, vertical = 6.dp), interactionSource, content,
+            )
+            return
+        }
+        val f = fluent()
+        val src = interactionSource ?: remember { MutableInteractionSource() }
+        val hovered by src.collectIsHoveredAsState()
+        val pressed by src.collectIsPressedAsState()
+        val shape4 = RoundedCornerShape(4.dp)
+        Row(
+            modifier
+                .alpha(if (enabled) 1f else 0.4f)
+                .defaultMinSize(minWidth = 40.dp, minHeight = 32.dp)
+                .clip(shape4)
+                .background(if (pressed) f.subtlePressed else if (hovered) f.subtleHover else Color.Transparent)
+                .then(if (border != null) Modifier.border(border, shape4) else Modifier)
+                .hoverable(src, enabled)
+                .clickable(interactionSource = src, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+                .padding(horizontal = 11.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val c = if (pressed) fg.copy(alpha = fg.alpha * 0.8f) else fg
+            CompositionLocalProvider(LocalContentColor provides c, LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(color = c)) { content() }
+        }
+        return
+    }
     val body = MaterialTheme.typography.bodyLarge
     if (cell != 0) {
         IosButton(
@@ -507,51 +744,112 @@ fun AlertDialog(
     text: @Composable (() -> Unit)? = null,
     properties: DialogProperties = DialogProperties(),
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = onDismissRequest, confirmButton = confirmButton, modifier = modifier, dismissButton = dismissButton,
             icon = icon, title = title, text = text, properties = properties,
         )
         return
     }
+    if (style == DesignStyle.WINDOWS) {
+        FluentDialog(onDismissRequest, confirmButton, modifier, dismissButton, icon, title, text, properties)
+        return
+    }
     val cs = MaterialTheme.colorScheme
     val dark = LocalDarkTheme.current
     val shape = RoundedCornerShape(28.dp)
     val hair = cs.onSurface.copy(alpha = if (dark) 0.16f else 0.14f)
+    val real = LocalGlass.current != null
+    Dialog(onDismissRequest = onDismissRequest, properties = properties) {
+        CompositionLocalProvider(LocalInGlassSource provides true) {
+            Column(
+                modifier
+                    .width(300.dp)
+                    .then(
+                        if (real) Modifier.liquidGlass(shape, 30.dp, overlay = true)
+                        else Modifier
+                            .shadow(30.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.35f))
+                            .clip(shape)
+                            .background(if (dark) Color(0xFF232325) else Color(0xFFF6F6F8))
+                            .glassSheen(shape, dark),
+                    ),
+            ) {
+                Column(
+                    Modifier.weight(1f, fill = false).fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    icon?.let {
+                        CompositionLocalProvider(LocalContentColor provides cs.primary) { Box(Modifier.padding(bottom = 10.dp)) { it() } }
+                    }
+                    title?.let {
+                        CompositionLocalProvider(
+                            LocalContentColor provides cs.onSurface,
+                            LocalTextStyle provides MaterialTheme.typography.titleMedium.copy(color = cs.onSurface, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center),
+                        ) { Box(Modifier.padding(bottom = 4.dp)) { it() } }
+                    }
+                    text?.let {
+                        CompositionLocalProvider(
+                            LocalContentColor provides cs.onSurface,
+                            LocalTextStyle provides MaterialTheme.typography.bodySmall.copy(color = cs.onSurface, fontSize = 13.sp, textAlign = TextAlign.Center),
+                        ) { Box(Modifier.weight(1f, fill = false).padding(top = 2.dp)) { it() } }
+                    }
+                }
+                AlertButtons(dismissButton, confirmButton, hair)
+            }
+        }
+    }
+}
+
+// WinUI ContentDialog: left-aligned 20sp title, buttons right-aligned in a footer band.
+@Composable
+private fun FluentDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier,
+    dismissButton: @Composable (() -> Unit)?,
+    icon: @Composable (() -> Unit)?,
+    title: @Composable (() -> Unit)?,
+    text: @Composable (() -> Unit)?,
+    properties: DialogProperties,
+) {
+    val cs = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(8.dp)
+    val line = cs.outlineVariant
     Dialog(onDismissRequest = onDismissRequest, properties = properties) {
         Column(
             modifier
-                .width(300.dp)
-                .shadow(30.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.35f))
+                .widthIn(min = 320.dp, max = 548.dp)
+                .shadow(32.dp, shape, ambientColor = Color.Black.copy(alpha = 0.3f), spotColor = Color.Black.copy(alpha = 0.3f))
                 .clip(shape)
-                .background(if (dark) Color(0xFF232325) else Color(0xFFF6F6F8))
-                .border(
-                    1.dp,
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.18f else 0.8f), Color.White.copy(alpha = 0.03f))),
-                    shape,
-                ),
+                .background(cs.surfaceContainerHigh)
+                .border(1.dp, cs.outline, shape),
         ) {
-            Column(
-                Modifier.weight(1f, fill = false).fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+            Column(Modifier.weight(1f, fill = false).padding(24.dp)) {
                 icon?.let {
-                    CompositionLocalProvider(LocalContentColor provides cs.primary) { Box(Modifier.padding(bottom = 10.dp)) { it() } }
+                    CompositionLocalProvider(LocalContentColor provides cs.primary) { Box(Modifier.padding(bottom = 12.dp)) { it() } }
                 }
                 title?.let {
                     CompositionLocalProvider(
                         LocalContentColor provides cs.onSurface,
-                        LocalTextStyle provides MaterialTheme.typography.titleMedium.copy(color = cs.onSurface, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center),
-                    ) { Box(Modifier.padding(bottom = 4.dp)) { it() } }
+                        LocalTextStyle provides MaterialTheme.typography.titleLarge.copy(color = cs.onSurface, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start),
+                    ) { Box(Modifier.padding(bottom = 12.dp)) { it() } }
                 }
                 text?.let {
                     CompositionLocalProvider(
                         LocalContentColor provides cs.onSurface,
-                        LocalTextStyle provides MaterialTheme.typography.bodySmall.copy(color = cs.onSurface, fontSize = 13.sp, textAlign = TextAlign.Center),
-                    ) { Box(Modifier.weight(1f, fill = false).padding(top = 2.dp)) { it() } }
+                        LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(color = cs.onSurface),
+                    ) { Box(Modifier.weight(1f, fill = false)) { it() } }
                 }
             }
-            AlertButtons(dismissButton, confirmButton, hair)
+            Row(
+                Modifier.fillMaxWidth().background(cs.surface).drawBehind { drawRect(line, size = Size(size.width, 1.dp.toPx())) }.padding(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CompositionLocalProvider(LocalAlertCell provides 2) { confirmButton() }
+                dismissButton?.let { CompositionLocalProvider(LocalAlertCell provides 1) { it() } }
+            }
         }
     }
 }
@@ -617,14 +915,14 @@ fun Card(
     border: BorderStroke? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
-        androidx.compose.material3.Card(
+    when (LocalDesignStyle.current) {
+        DesignStyle.MATERIAL -> androidx.compose.material3.Card(
             modifier = modifier, shape = shape, colors = colors ?: CardDefaults.cardColors(),
             elevation = elevation ?: CardDefaults.cardElevation(), border = border, content = content,
         )
-        return
+        DesignStyle.WINDOWS -> FluentCard(modifier, colors, border, null, true, null, content)
+        DesignStyle.GLASS -> IosCard(modifier, colors, elevation != null, border, null, true, content)
     }
-    IosCard(modifier, colors, elevation != null, border, null, true, content)
 }
 
 @Composable
@@ -639,14 +937,14 @@ fun Card(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
-        androidx.compose.material3.Card(
+    when (LocalDesignStyle.current) {
+        DesignStyle.MATERIAL -> androidx.compose.material3.Card(
             onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: CardDefaults.cardColors(),
             elevation = elevation ?: CardDefaults.cardElevation(), border = border, interactionSource = interactionSource, content = content,
         )
-        return
+        DesignStyle.WINDOWS -> FluentCard(modifier, colors, border, onClick, enabled, interactionSource, content)
+        DesignStyle.GLASS -> IosCard(modifier, colors, elevation != null, border, onClick, enabled, content)
     }
-    IosCard(modifier, colors, elevation != null, border, onClick, enabled, content)
 }
 
 @Composable
@@ -674,6 +972,41 @@ private fun IosCard(
     }
 }
 
+// WinUI card: layer fill, 1px stroke, 8dp corners, subtle hover.
+@Composable
+private fun FluentCard(
+    modifier: Modifier,
+    colors: CardColors?,
+    border: BorderStroke?,
+    onClick: (() -> Unit)?,
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource?,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val f = fluent()
+    val shape = RoundedCornerShape(8.dp)
+    val src = interactionSource ?: remember { MutableInteractionSource() }
+    val hovered by src.collectIsHoveredAsState()
+    val pressed by src.collectIsPressedAsState()
+    val fg = colors?.contentColor ?: cs.onSurface
+    val over = if (onClick == null) Color.Transparent else if (pressed) f.subtlePressed else if (hovered) f.subtleHover else Color.Transparent
+    Column(
+        modifier
+            .clip(shape)
+            .background(colors?.containerColor ?: cs.surfaceContainerLow)
+            .background(over)
+            .border(border ?: BorderStroke(1.dp, cs.outlineVariant), shape)
+            .then(
+                if (onClick != null) Modifier.hoverable(src, enabled)
+                    .clickable(interactionSource = src, indication = null, enabled = enabled, onClick = onClick)
+                else Modifier,
+            ),
+    ) {
+        CompositionLocalProvider(LocalContentColor provides fg) { content() }
+    }
+}
+
 @Composable
 fun LinearProgressIndicator(
     progress: () -> Float,
@@ -684,7 +1017,8 @@ fun LinearProgressIndicator(
     gapSize: Dp = Dp.Unspecified,
     drawStopIndicator: (DrawScope.() -> Unit)? = null,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         val c = color.takeOrElse { ProgressIndicatorDefaults.linearColor }
         val stop: DrawScope.() -> Unit = drawStopIndicator ?: {
             ProgressIndicatorDefaults.drawStopIndicator(this, ProgressIndicatorDefaults.LinearTrackStopIndicatorSize, c, strokeCap)
@@ -702,6 +1036,19 @@ fun LinearProgressIndicator(
     }
     val cs = MaterialTheme.colorScheme
     val c = color.takeOrElse { cs.primary }
+    if (style == DesignStyle.WINDOWS) {
+        // WinUI ProgressBar: 1px track, 3px rounded indicator.
+        val tc = trackColor.takeOrElse { fluent().strong }
+        Canvas(modifier.size(240.dp, 4.dp)) {
+            val h = minOf(size.height, 3.dp.toPx())
+            val y = size.height / 2
+            val t = 1.dp.toPx()
+            val p = progress().coerceIn(0f, 1f)
+            drawRect(tc, Offset(0f, y - t / 2), Size(size.width, t))
+            if (p > 0f) drawRoundRect(c, Offset(0f, y - h / 2), Size(size.width * p, h), CornerRadius(h / 2))
+        }
+        return
+    }
     val tc = trackColor.takeOrElse { cs.onSurface.copy(alpha = 0.15f) }
     Canvas(modifier.size(240.dp, 4.dp)) {
         val h = size.height
@@ -720,7 +1067,8 @@ fun CircularProgressIndicator(
     trackColor: Color = Color.Unspecified,
     strokeCap: StrokeCap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.CircularProgressIndicator(
             progress = progress,
             modifier = modifier,
@@ -732,14 +1080,17 @@ fun CircularProgressIndicator(
         return
     }
     val cs = MaterialTheme.colorScheme
+    val fluent = style == DesignStyle.WINDOWS
     val c = color.takeOrElse { cs.primary }
-    val tc = trackColor.takeOrElse { cs.onSurface.copy(alpha = 0.15f) }
-    Canvas(modifier.size(40.dp)) {
-        val sw = strokeWidth.toPx()
-        val d = size.minDimension - sw
+    // WinUI ProgressRing has no visible track and a thinner stroke.
+    val tc = if (fluent) Color.Transparent else trackColor.takeOrElse { cs.onSurface.copy(alpha = 0.15f) }
+    val sw = if (fluent) strokeWidth * 0.75f else strokeWidth
+    Canvas(modifier.size(if (fluent) 32.dp else 40.dp)) {
+        val w = sw.toPx()
+        val d = size.minDimension - w
         val tl = Offset((size.width - d) / 2, (size.height - d) / 2)
-        drawArc(tc, 0f, 360f, false, tl, Size(d, d), style = Stroke(sw))
-        drawArc(c, -90f, 360f * progress().coerceIn(0f, 1f), false, tl, Size(d, d), style = Stroke(sw, cap = StrokeCap.Round))
+        if (tc.alpha > 0f) drawArc(tc, 0f, 360f, false, tl, Size(d, d), style = Stroke(w))
+        drawArc(c, -90f, 360f * progress().coerceIn(0f, 1f), false, tl, Size(d, d), style = Stroke(w, cap = StrokeCap.Round))
     }
 }
 
@@ -751,7 +1102,8 @@ fun CircularProgressIndicator(
     trackColor: Color = Color.Unspecified,
     strokeCap: StrokeCap = ProgressIndicatorDefaults.CircularIndeterminateStrokeCap,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.CircularProgressIndicator(
             modifier = modifier,
             color = color.takeOrElse { ProgressIndicatorDefaults.circularColor },
@@ -759,6 +1111,21 @@ fun CircularProgressIndicator(
             trackColor = trackColor.takeOrElse { ProgressIndicatorDefaults.circularIndeterminateTrackColor },
             strokeCap = strokeCap,
         )
+        return
+    }
+    if (style == DesignStyle.WINDOWS) {
+        // WinUI ProgressRing: spinning accent arc that grows and shrinks.
+        val c = color.takeOrElse { MaterialTheme.colorScheme.primary }
+        val spin = rememberInfiniteTransition(label = "ring")
+        val rot by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(1100, easing = LinearEasing)), label = "rot")
+        val sweep by spin.animateFloat(30f, 270f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "sweep")
+        val sw = strokeWidth * 0.75f
+        Canvas(modifier.size(32.dp)) {
+            val w = sw.toPx()
+            val d = size.minDimension - w
+            val tl = Offset((size.width - d) / 2, (size.height - d) / 2)
+            drawArc(c, rot - 90f, sweep, false, tl, Size(d, d), style = Stroke(w, cap = StrokeCap.Round))
+        }
         return
     }
     // iOS activity indicator: 8 fading spokes.
@@ -804,7 +1171,8 @@ fun OutlinedTextField(
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
-    if (!LocalIosStyle.current) {
+    val design = LocalDesignStyle.current
+    if (design == DesignStyle.MATERIAL) {
         androidx.compose.material3.OutlinedTextField(
             value = value, onValueChange = onValueChange, modifier = modifier, enabled = enabled, readOnly = readOnly,
             textStyle = textStyle, label = label, placeholder = placeholder, leadingIcon = leadingIcon, trailingIcon = trailingIcon,
@@ -815,15 +1183,30 @@ fun OutlinedTextField(
         )
         return
     }
+    val fluent = design == DesignStyle.WINDOWS
     val cs = MaterialTheme.colorScheme
     val dark = LocalDarkTheme.current
-    val fill = cs.onSurface.copy(alpha = if (dark) 0.1f else 0.06f)
-    val style = MaterialTheme.typography.bodyLarge.copy(color = if (enabled) cs.onSurface else cs.onSurface.copy(alpha = 0.4f), textAlign = TextAlign.Start)
+    val f = fluent()
+    val src = interactionSource ?: remember { MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val hovered by src.collectIsHoveredAsState()
+    val box = RoundedCornerShape(if (fluent) 4.dp else 12.dp)
+    val fill = when {
+        !fluent -> cs.onSurface.copy(alpha = if (dark) 0.1f else 0.06f)
+        focused -> if (dark) Color(0xFF1F1F1F) else Color.White
+        hovered -> f.fillHover
+        else -> f.fill
+    }
+    // Fluent TextBox: accent underline (2dp) when focused, thin strong stroke otherwise.
+    val underline = if (isError) cs.error else if (focused) cs.primary else f.strong
+    val underlineW = if (focused || isError) 2.dp else 1.dp
+    val base = if (fluent) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge
+    val style = base.copy(color = if (enabled) cs.onSurface else cs.onSurface.copy(alpha = 0.4f), textAlign = TextAlign.Start)
     val hint = style.copy(color = cs.onSurfaceVariant)
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier,
+        modifier = if (fluent) modifier.hoverable(src, enabled) else modifier,
         enabled = enabled,
         readOnly = readOnly,
         textStyle = style,
@@ -833,14 +1216,27 @@ fun OutlinedTextField(
         maxLines = maxLines,
         minLines = minLines,
         visualTransformation = visualTransformation,
-        interactionSource = interactionSource,
+        interactionSource = src,
         cursorBrush = SolidColor(cs.primary),
         decorationBox = { inner ->
             Column {
+                if (fluent) label?.let {
+                    CompositionLocalProvider(LocalContentColor provides cs.onSurface, LocalTextStyle provides style) {
+                        Box(Modifier.padding(bottom = 8.dp)) { it() }
+                    }
+                }
                 Row(
-                    Modifier.clip(RoundedCornerShape(12.dp)).background(fill)
-                        .then(if (isError) Modifier.border(1.dp, cs.error, RoundedCornerShape(12.dp)) else Modifier)
-                        .defaultMinSize(minHeight = 44.dp).padding(horizontal = 12.dp, vertical = 10.dp),
+                    Modifier.clip(box).background(fill)
+                        .then(
+                            if (fluent) Modifier.fluentBorder(box, f.strokeTop, f.strokeTop).drawWithContent {
+                                drawContent()
+                                val h = underlineW.toPx()
+                                drawRect(underline, Offset(0f, size.height - h), Size(size.width, h))
+                            }
+                            else if (isError) Modifier.border(1.dp, cs.error, box) else Modifier,
+                        )
+                        .defaultMinSize(minHeight = if (fluent) 32.dp else 44.dp)
+                        .padding(horizontal = if (fluent) 11.dp else 12.dp, vertical = if (fluent) 6.dp else 10.dp),
                     verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,
                 ) {
                     CompositionLocalProvider(LocalContentColor provides cs.onSurfaceVariant, LocalTextStyle provides hint) {
@@ -848,7 +1244,7 @@ fun OutlinedTextField(
                         prefix?.let { it(); Spacer(Modifier.width(4.dp)) }
                     }
                     Box(Modifier.weight(1f)) {
-                        if (value.isEmpty()) (placeholder ?: label)?.let { p ->
+                        if (value.isEmpty()) (if (fluent) placeholder else placeholder ?: label)?.let { p ->
                             CompositionLocalProvider(LocalContentColor provides cs.onSurfaceVariant, LocalTextStyle provides hint) { p() }
                         }
                         inner()
@@ -861,7 +1257,7 @@ fun OutlinedTextField(
                 supportingText?.let {
                     val c = if (isError) cs.error else cs.onSurfaceVariant
                     CompositionLocalProvider(LocalContentColor provides c, LocalTextStyle provides MaterialTheme.typography.bodySmall.copy(color = c)) {
-                        Box(Modifier.padding(start = 12.dp, top = 4.dp)) { it() }
+                        Box(Modifier.padding(start = if (fluent) 0.dp else 12.dp, top = 4.dp)) { it() }
                     }
                 }
             }
@@ -881,10 +1277,21 @@ fun ListItem(
     tonalElevation: Dp = ListItemDefaults.Elevation,
     shadowElevation: Dp = ListItemDefaults.Elevation,
 ) {
+    val style = LocalDesignStyle.current
+    val mod = if (style == DesignStyle.WINDOWS) {
+        // Fluent list row: subtle hover fill.
+        val src = remember { MutableInteractionSource() }
+        val hovered by src.collectIsHoveredAsState()
+        val over = fluent().subtleHover
+        Modifier.hoverable(src).drawWithContent {
+            drawContent()
+            if (hovered) drawRoundRect(over, cornerRadius = CornerRadius(4.dp.toPx()))
+        }.then(modifier)
+    } else modifier
     androidx.compose.material3.ListItem(
-        headlineContent = headlineContent, modifier = modifier, overlineContent = overlineContent,
+        headlineContent = headlineContent, modifier = mod, overlineContent = overlineContent,
         supportingContent = supportingContent, leadingContent = leadingContent, trailingContent = trailingContent,
-        colors = colors, tonalElevation = if (LocalIosStyle.current) 0.dp else tonalElevation, shadowElevation = shadowElevation,
+        colors = colors, tonalElevation = if (style != DesignStyle.MATERIAL) 0.dp else tonalElevation, shadowElevation = shadowElevation,
     )
 }
 
@@ -901,7 +1308,8 @@ fun Snackbar(
     dismissActionContentColor: Color = SnackbarDefaults.dismissActionContentColor,
     content: @Composable () -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.Snackbar(
             modifier = modifier, action = action, dismissAction = dismissAction, actionOnNewLine = actionOnNewLine, shape = shape,
             containerColor = containerColor, contentColor = contentColor, actionContentColor = actionContentColor,
@@ -910,14 +1318,21 @@ fun Snackbar(
         return
     }
     val cs = MaterialTheme.colorScheme
+    val fluent = style == DesignStyle.WINDOWS
+    val surface = if (fluent) {
+        // WinUI InfoBar-like card.
+        val s = RoundedCornerShape(8.dp)
+        Modifier.shadow(8.dp, s, ambientColor = Color.Black.copy(alpha = 0.2f), spotColor = Color.Black.copy(alpha = 0.2f))
+            .clip(s).background(cs.surfaceContainerHigh).border(1.dp, cs.outline, s)
+    } else Modifier.liquidGlass(RoundedCornerShape(26.dp))
     Row(
-        modifier.widthIn(max = 560.dp).iosGlass(RoundedCornerShape(26.dp)).heightIn(min = 52.dp).padding(start = 18.dp, end = 6.dp),
+        modifier.widthIn(max = 560.dp).then(surface).heightIn(min = if (fluent) 48.dp else 52.dp).padding(start = if (fluent) 16.dp else 18.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
             CompositionLocalProvider(
                 LocalContentColor provides cs.onSurface,
-                LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(color = cs.onSurface, fontWeight = FontWeight.Medium),
+                LocalTextStyle provides MaterialTheme.typography.bodyMedium.copy(color = cs.onSurface, fontWeight = if (fluent) FontWeight.Normal else FontWeight.Medium),
             ) { content() }
         }
         action?.invoke()
@@ -932,26 +1347,48 @@ fun ModalBottomSheet(
     sheetState: SheetState = rememberModalBottomSheetState(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    if (!LocalIosStyle.current) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
         androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismissRequest, modifier = modifier, sheetState = sheetState, content = content)
         return
     }
     val cs = MaterialTheme.colorScheme
     val dark = LocalDarkTheme.current
+    if (style == DesignStyle.WINDOWS) {
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = onDismissRequest,
+            modifier = modifier,
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+            containerColor = cs.surfaceContainerHigh,
+            contentColor = cs.onSurface,
+            tonalElevation = 0.dp,
+            scrimColor = Color.Black.copy(alpha = 0.3f),
+            dragHandle = {
+                Box(Modifier.padding(top = 8.dp, bottom = 12.dp).size(32.dp, 4.dp).clip(CircleShape).background(cs.onSurfaceVariant.copy(alpha = 0.45f)))
+            },
+            content = content,
+        )
+        return
+    }
+    // Liquid Glass sheet: blurs what's behind it (it lives in its own window, so it can sample the source).
+    val shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+    val real = LocalGlass.current != null
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        modifier = modifier,
+        modifier = if (real) modifier.liquidGlass(shape, 12.dp, overlay = true) else modifier,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = if (dark) Color(0xF01C1C1E) else Color(0xF5F2F2F7),
+        shape = shape,
+        containerColor = if (real) Color.Transparent else if (dark) Color(0xF01C1C1E) else Color(0xF5F2F2F7),
         contentColor = cs.onSurface,
         tonalElevation = 0.dp,
-        scrimColor = Color.Black.copy(alpha = 0.35f),
+        scrimColor = Color.Black.copy(alpha = 0.25f),
         dragHandle = {
             Box(Modifier.padding(top = 6.dp, bottom = 12.dp).size(36.dp, 5.dp).clip(CircleShape).background(cs.onSurfaceVariant.copy(alpha = 0.5f)))
         },
-        content = content,
-    )
+    ) {
+        CompositionLocalProvider(LocalInGlassSource provides true) { content() }
+    }
 }
 
 private class IosRow(val inset: Dp)

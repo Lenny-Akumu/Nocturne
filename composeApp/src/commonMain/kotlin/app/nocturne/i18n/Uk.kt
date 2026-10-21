@@ -296,5 +296,6 @@ internal object Uk {
         "Couldn't remove: %s" to "Не вдалося прибрати: %s",
         "Created “%s” on %s" to "Створено «%s» на %s",
         "Couldn't create playlist: %s" to "Не вдалося створити плейлист: %s",
+        "Design style" to "Стиль оформлення",
     )
 }

@@ -284,5 +284,6 @@ internal object Zh {
         "e.g. en, uk, de" to "例如 en、uk、de",
         "Language" to "语言",
         "Interface language" to "界面语言",
+        "Design style" to "设计风格",
     )
 }

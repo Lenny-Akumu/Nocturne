@@ -284,5 +284,6 @@ internal object Pt {
         "e.g. en, uk, de" to "ex.: en, uk, de",
         "Language" to "Idioma",
         "Interface language" to "Idioma da interface",
+        "Design style" to "Estilo de design",
     )
 }
