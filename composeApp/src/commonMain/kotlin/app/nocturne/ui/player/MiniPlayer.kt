@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import androidx.compose.foundation.clickable
 import app.nocturne.ui.components.onRightClick
+import app.nocturne.ui.liquidGlass
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,7 +84,8 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
     val density = LocalDensity.current
     val swipe = with(density) { 90.dp.toPx() }
 
-    NocturneTheme(settings, seedOverride = seed, forceDark = dark, backdrop = backdrop) {
+    val glass = app.nocturne.ui.LocalGlass.current != null
+    NocturneTheme(settings, seedOverride = seed, forceDark = if (glass) null else dark, backdrop = backdrop) {
     val cs = MaterialTheme.colorScheme
     val container = if (backdrop) cs.surfaceContainerHigh.copy(alpha = 0.82f) else cs.surfaceContainerHigh
     Box(
@@ -95,11 +97,12 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
                 translationY = dy.value.coerceAtLeast(0f)
                 alpha = 1f - (abs(dx.value) / (swipe * 3)).coerceIn(0f, 0.5f) - (dy.value / (swipe * 1.5f)).coerceIn(0f, 0.8f)
             }
-            .shadow(6.dp, shape)
-            .clip(shape)
-            .background(container)
+            .then(
+                if (glass) Modifier.liquidGlass(shape)
+                else Modifier.shadow(6.dp, shape).clip(shape).background(container),
+            )
             .drawBehind {
-                if (settings.playerBackground == PlayerBackground.GRADIENT) {
+                if (!glass && settings.playerBackground == PlayerBackground.GRADIENT) {
                     drawRect(Brush.horizontalGradient(listOf(cs.primaryContainer.copy(alpha = 0.9f), cs.surfaceContainerHigh.copy(alpha = 0f))))
                 }
             }
@@ -130,13 +133,13 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
                 }
             },
     ) {
-        if (settings.playerBackground == PlayerBackground.BLUR) {
+        if (!glass && settings.playerBackground == PlayerBackground.BLUR) {
             Box(Modifier.matchParentSize()) {
                 AsyncImage(track.artworkUrl, null, Modifier.matchParentSize().blur(40.dp), contentScale = ContentScale.Crop)
                 Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.5f)))
             }
         }
-        if (settings.animatedBackground && settings.playerBackground != PlayerBackground.SOLID) {
+        if (!glass && settings.animatedBackground && settings.playerBackground != PlayerBackground.SOLID) {
             app.nocturne.ui.components.FlowingColors(listOf(cs.primary, cs.tertiary, cs.secondary), Modifier.matchParentSize(), 0.28f)
         }
         Column {

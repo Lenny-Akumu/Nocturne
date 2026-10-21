@@ -1,5 +1,13 @@
 package app.nocturne.ui
 
+import dev.chrisbanes.haze.hazeSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
 import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -106,7 +114,7 @@ fun App(backdrop: Boolean = false) {
     NocturneTheme(settings, backdrop = backdrop) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val base = androidx.compose.ui.platform.LocalDensity.current
-            val landscapePhone = app.nocturne.platformKind == app.nocturne.PlatformKind.ANDROID && maxHeight < 480.dp && maxWidth > maxHeight
+            val landscapePhone = app.nocturne.platformKind != app.nocturne.PlatformKind.DESKTOP && maxHeight < 480.dp && maxWidth > maxHeight
             val k = settings.uiScale.coerceIn(0.5f, 2f) * if (landscapePhone) 0.82f else 1f
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(base.density * k, base.fontScale),
@@ -154,13 +162,21 @@ private fun AppScaffold() {
             }
             MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = true, modifier = Modifier.align(Alignment.BottomCenter).padding(start = 80.dp).navigationBarsPadding())
         } else {
+            val settings by graph.settings.state.collectAsState()
+            val glass = settings.liquidGlass
+            val hazeState = remember { dev.chrisbanes.haze.HazeState() }
             val bottomPad = if (hasPlayer) 160.dp else 90.dp
-            Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().then(if (glass) Modifier.hazeSource(hazeState) else Modifier)) {
                 Box(Modifier.weight(1f)) {
                     ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(), bottom = bottomPad))
                 }
             }
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+            if (glass) CompositionLocalProvider(LocalGlass provides hazeState) {
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(bottom = 6.dp)) {
+                    MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
+                    GlassTabBar(nav)
+                }
+            } else Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                 MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (backdrop) 0.7f else 0.97f)) {
                     tabs.forEach { tab ->
@@ -244,5 +260,27 @@ private fun TopBar(padding: PaddingValues) {
         Spacer(Modifier.width(10.dp))
         Text(t("Nocturne"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         IconButton(onClick = { nav.push(Screen.Settings) }) { Icon(Icons.Rounded.Settings, "Settings") }
+    }
+}
+
+@Composable
+private fun GlassTabBar(nav: Navigator) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        Modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth().height(64.dp).liquidGlass(RoundedCornerShape(32.dp)).padding(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        tabs.forEach { tab ->
+            val selected = nav.currentTab == tab.screen
+            val bg by animateColorAsState(if (selected) cs.onSurface.copy(alpha = 0.1f) else Color.Transparent, label = "tab")
+            Column(
+                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(26.dp)).background(bg).clickable { nav.selectTab(tab.screen) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(if (selected) tab.selectedIcon else tab.icon, tab.label, tint = if (selected) cs.primary else cs.onSurface, modifier = Modifier.size(24.dp))
+                Text(t(tab.label), style = MaterialTheme.typography.labelSmall, color = if (selected) cs.primary else cs.onSurfaceVariant)
+            }
+        }
     }
 }

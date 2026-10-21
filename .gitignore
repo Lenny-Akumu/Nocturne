@@ -12,3 +12,7 @@ captures/
 composeApp/resources/windows/vlc/
 composeApp/src/androidMain/res/font/monocraft.*
 composeApp/src/desktopMain/resources/fonts/
+iosApp/build/
+iosApp/*.xcodeproj
+iosApp/iosApp/Info.plist
+iosApp/xcode.log

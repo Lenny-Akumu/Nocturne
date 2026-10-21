@@ -1,0 +1,45 @@
+name: Nocturne
+options:
+  bundleIdPrefix: app.nocturne
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  Nocturne:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+    scheme: {}
+    info:
+      path: iosApp/Info.plist
+      properties:
+        CFBundleDisplayName: Nocturne
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
+        UIRequiresFullScreen: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        CADisableMinimumFrameDurationOnPhone: true
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSLocalNetworkUsageDescription: Nocturne uses your local network to play with friends nearby.
+        CFBundleURLTypes:
+          - CFBundleURLName: app.nocturne
+            CFBundleURLSchemes: [nocturne]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.nocturne
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../composeApp/build/bin/iosArm64/releaseFramework
+        OTHER_LDFLAGS: ["-framework", "ComposeApp"]
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+        ENABLE_USER_SCRIPT_SANDBOXING: "NO"

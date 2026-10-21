@@ -8,7 +8,7 @@ expect object FileStore {
     fun delete(name: String)
 }
 
-enum class PlatformKind { ANDROID, DESKTOP }
+enum class PlatformKind { ANDROID, DESKTOP, IOS }
 
 expect val platformKind: PlatformKind
 expect fun currentHour(): Int

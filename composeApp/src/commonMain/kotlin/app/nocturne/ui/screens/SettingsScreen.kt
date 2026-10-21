@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.NotificationsActive
 import app.nocturne.model.isOnline
 import androidx.compose.material.icons.rounded.CleaningServices
@@ -285,6 +286,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive", "minecraft"), {
                             when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; "minecraft" -> "Minecraft"; else -> "Default" }
                         }) { v -> set { it.copy(fontStyle = v) } }
+                        Toggle("Liquid Glass", "Translucent, blurred navigation bar and mini player", Icons.Rounded.BlurOn, s.liquidGlass) { v -> set { it.copy(liquidGlass = v) } }
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }

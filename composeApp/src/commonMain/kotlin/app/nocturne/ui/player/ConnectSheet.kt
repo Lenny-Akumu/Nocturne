@@ -108,8 +108,11 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
                     }
                     partyStatus?.let { Text(t(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     Spacer(Modifier.height(6.dp))
-                    Text(t("On the same Wi-Fi they can also use:"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    hosting.forEach { Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium) }
+                    val lan = hosting.filter { it.isNotBlank() }
+                    if (lan.isNotEmpty()) {
+                        Text(t("On the same Wi-Fi they can also use:"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        lan.forEach { Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium) }
+                    }
                     Spacer(Modifier.height(8.dp))
                     FilledTonalButton(onClick = { party.stopHosting() }) { Text(t("Stop session")) }
                 }

@@ -28,6 +28,12 @@ kotlin {
     jvm("desktop") {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
     }
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "ComposeApp"
+            isStatic = true
+        }
+    }
 
     compilerOptions {
         freeCompilerArgs.addAll(
@@ -56,6 +62,7 @@ kotlin {
             implementation(libs.ktor.json)
             implementation(libs.coil.compose)
             implementation(libs.materialkolor)
+            implementation("dev.chrisbanes.haze:haze:1.7.3")
         }
 
         androidMain {
@@ -76,6 +83,11 @@ kotlin {
                 implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
                 implementation("androidx.fragment:fragment-ktx:1.8.9")
             }
+        }
+
+        iosMain.dependencies {
+            implementation("io.ktor:ktor-client-darwin:${libs.versions.ktor.get()}")
+            implementation("io.coil-kt.coil3:coil-network-ktor3:${libs.versions.coil.get()}")
         }
 
         desktopMain.kotlin.srcDir("src/jvmShared/kotlin")

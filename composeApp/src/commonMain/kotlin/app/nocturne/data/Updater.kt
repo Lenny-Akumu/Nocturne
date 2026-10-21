@@ -54,6 +54,7 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
             val name = a.path("name").str.orEmpty()
             when (platformKind) {
                 PlatformKind.ANDROID -> name.endsWith(".apk")
+                PlatformKind.IOS -> name.endsWith(".ipa")
                 PlatformKind.DESKTOP -> name.contains("Setup", ignoreCase = true) && name.endsWith(".exe")
             }
         } ?: return null

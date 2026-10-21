@@ -35,6 +35,7 @@ data class Settings(
     val windowBackdrop: WindowBackdrop = WindowBackdrop.MICA,
     val compactLists: Boolean = false,
     val uiScale: Float = 1f,
+    val liquidGlass: Boolean = app.nocturne.platformKind == app.nocturne.PlatformKind.IOS,
     val colorStyle: String = "TonalSpot",
     val fontStyle: String = "default",
 

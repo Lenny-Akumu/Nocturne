@@ -53,15 +53,15 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     }
 
     fun host() {
-        if (server != null) return
+        if (_code.value != null) return
         val s = runCatching {
             startPartyServer {
                 val p = graph.player.state.value
                 json.encodeToString(PartyState.serializer(), PartyState(p.current, p.positionMs, p.isPlaying))
             }
-        }.getOrElse { _status.value = it.message; return }
+        }.getOrNull()
         server = s
-        _hosting.value = lanAddresses().map { "$it:${s.port}" }
+        _hosting.value = s?.let { srv -> lanAddresses().map { "$it:${srv.port}" } }.orEmpty().ifEmpty { listOf("") }
         val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val code = (1..8).map { alphabet.random() }.joinToString("")
         _code.value = code
