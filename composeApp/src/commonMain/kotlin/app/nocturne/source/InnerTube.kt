@@ -72,6 +72,9 @@ class InnerTube(
         return json.parseToJsonElement(raw)
     }
 
+    suspend fun request(endpoint: String, body: Map<String, JsonElement>): JsonElement =
+        json.parseToJsonElement(call(endpoint) { body })
+
     private fun entries(root: JsonElement): List<MediaEntry> =
         (root.findAll("musicTwoRowItemRenderer").mapNotNull { parseTwoRow(it) } +
             root.findAll("musicResponsiveListItemRenderer").mapNotNull { parseListItem(it) ?: parseListCollection(it) })
