@@ -167,6 +167,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
 
     BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding()) {
         val wide = maxWidth > 760.dp && maxWidth > maxHeight
+        val short = maxHeight < 560.dp
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onCollapse) { Icon(Icons.Rounded.KeyboardArrowDown, "Collapse", Modifier.size(30.dp)) }
@@ -178,7 +179,6 @@ private fun PlayerContent(onCollapse: () -> Unit) {
             }
 
             if (wide) {
-                val short = maxHeight < 560.dp
                 val auto = Pane.LYRICS.takeIf { settings.showLyrics && !noLyrics } ?: Pane.QUEUE
                 val shown = if (pane == Pane.ARTWORK && !short) auto else pane
                 Row(

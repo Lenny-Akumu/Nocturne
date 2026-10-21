@@ -136,7 +136,7 @@ class VlcAudioEngine : AudioEngine {
             else {
                 val bands = f.equalizer().bands()
                 val eq = f.equalizer().newEqualizer()
-                eq.preamp = 12f
+                eq.setPreamp(12f)
                 bands.forEachIndexed { i, hz -> eq.setAmp(i, Eq.gainAt(hz, gains).coerceIn(-20f, 20f)) }
                 audio().setEqualizer(eq)
             }
