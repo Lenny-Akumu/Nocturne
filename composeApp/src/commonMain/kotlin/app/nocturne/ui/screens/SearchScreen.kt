@@ -51,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
@@ -162,13 +163,23 @@ fun SearchScreen(contentPadding: PaddingValues) {
         s.loading = false
     }
 
+    val fieldFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    // fresh search: jump straight into typing
+    LaunchedEffect(Unit) {
+        if (s.submitted != null) return@LaunchedEffect
+        delay(120)
+        runCatching { fieldFocus.requestFocus() }
+        keyboard?.show()
+    }
+
     val design = LocalDesignStyle.current
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
         TextField(
             value = s.query,
             onValueChange = { s.query = it },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus).padding(horizontal = 16.dp, vertical = 8.dp)
                 .then(if (design == DesignStyle.GLASS) Modifier.liquidGlass(CircleShape, 6.dp) else Modifier),
             placeholder = { Text(t("Songs, albums, artists or a link")) },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
