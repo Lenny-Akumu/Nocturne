@@ -73,7 +73,6 @@ internal enum class Relay(val url: String) {
     EMQX("wss://broker.emqx.io:8084/mqtt"),
     HIVEMQ("wss://broker.hivemq.com:8884/mqtt"),
     MOSQUITTO("wss://test.mosquitto.org:8081"),
-    ECLIPSE("wss://mqtt.eclipseprojects.io:443/mqtt"), // port 443: passes networks that block 8081/8084/8884
     NTFY("https://ntfy.sh/"),
 }
 
