@@ -1415,55 +1415,6 @@ private fun Modifier.maxHeightFraction(fraction: Float): Modifier = layout { mea
     layout(p.width, p.height) { p.place(0, 0) }
 }
 
-private class IosRow(val inset: Dp)
-
-// Marks a child of [IosGroupedColumn] as an inset-grouped row; [inset] = separator start.
-fun Modifier.iosGroupRow(inset: Dp = 61.dp): Modifier = layoutId(IosRow(inset))
-
-// Column that draws iOS inset-grouped backgrounds behind runs of consecutive [iosGroupRow] children.
-@Composable
-fun IosGroupedColumn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val bg = MaterialTheme.colorScheme.surfaceContainerLow
-    val sep = MaterialTheme.colorScheme.outlineVariant
-    SubcomposeLayout(modifier) { constraints ->
-        val w = constraints.maxWidth
-        val side = 16.dp.roundToPx()
-        val measurables = subcompose("content", content)
-        val rows = measurables.map { it.layoutId as? IosRow }
-        val placeables = measurables.mapIndexed { i, m ->
-            if (rows[i] != null) m.measure(Constraints.fixedWidth((w - 2 * side).coerceAtLeast(0)))
-            else m.measure(Constraints(maxWidth = w))
-        }
-        val ys = IntArray(placeables.size)
-        var total = 0
-        placeables.forEachIndexed { i, p -> ys[i] = total; total += p.height }
-        val runs = mutableListOf<IntRange>()
-        var start = -1
-        for (i in rows.indices) {
-            if (rows[i] != null && start < 0) start = i
-            if (rows[i] == null && start >= 0) { runs += start until i; start = -1 }
-        }
-        if (start >= 0) runs += start until rows.size
-        val bgs = runs.mapIndexed { ri, run ->
-            val top = ys[run.first]
-            val h = ys[run.last] + placeables[run.last].height - top
-            val seps = run.drop(1).map { (ys[it] - top).toFloat() to rows[it - 1]!!.inset.toPx() }
-            subcompose("bg$ri") {
-                Box(
-                    Modifier.clip(RoundedCornerShape(22.dp)).background(bg).drawBehind {
-                        val t = 0.5.dp.toPx().coerceAtLeast(1f)
-                        seps.forEach { (y, inset) -> drawRect(sep, Offset(inset, y - t / 2), Size(size.width - inset, t)) }
-                    },
-                )
-            }.first().measure(Constraints.fixed((w - 2 * side).coerceAtLeast(0), h))
-        }
-        layout(w, total) {
-            runs.forEachIndexed { ri, run -> bgs[ri].place(side, ys[run.first]) }
-            placeables.forEachIndexed { i, p -> p.place(if (rows[i] != null) side else 0, ys[i]) }
-        }
-    }
-}
-
 // Round tonal icon button: glass circle with accent glyph (Glass), WinUI standard button (Windows).
 @Composable
 fun FilledTonalIconButton(

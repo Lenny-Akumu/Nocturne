@@ -31,7 +31,7 @@ class VlcAudioEngine : AudioEngine {
     // libVLC decodes (and applies rate) and hands us PCM; effects run in our own Dsp, output goes to a Java Sound line.
     @Volatile private var factory: MediaPlayerFactory? = null
     @Volatile private var player: MediaPlayer? = null
-    private val dsp = Dsp(RATE)
+    private val dsp = Dsp(RATE).apply { analyzer.latencyMs = 120 } // ≈ Java Sound line buffer
     private val sink = Sink()
     @Volatile var dspActive = false
         private set
@@ -46,6 +46,8 @@ class VlcAudioEngine : AudioEngine {
     val mediaFactory: MediaPlayerFactory? get() = factory
 
     override val fx: Set<AudioFx> get() = if (dspActive) AudioFx.entries.toSet() else emptySet()
+
+    override fun levels(): FloatArray? = if (dspActive) dsp.analyzer.levels() else null
 
     private val events = object : MediaPlayerEventAdapter() {
         override fun playing(mediaPlayer: MediaPlayer) {

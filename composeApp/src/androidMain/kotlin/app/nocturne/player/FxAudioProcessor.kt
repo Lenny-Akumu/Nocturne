@@ -14,12 +14,12 @@ class FxAudioProcessor : BaseAudioProcessor() {
     @Volatile var spatial = false
     @Volatile var eightD = false
     @Volatile var vocalRemover = false
-    private var dsp: Dsp? = null
+    @Volatile private var dsp: Dsp? = null
     private var floats = FloatArray(0)
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount != 2) return AudioProcessor.AudioFormat.NOT_SET
-        if (dsp?.rate != inputAudioFormat.sampleRate) dsp = Dsp(inputAudioFormat.sampleRate)
+        if (dsp?.rate != inputAudioFormat.sampleRate) dsp = Dsp(inputAudioFormat.sampleRate).apply { analyzer.latencyMs = 250 } // ≈ AudioTrack buffer
         return inputAudioFormat
     }
 
@@ -37,6 +37,8 @@ class FxAudioProcessor : BaseAudioProcessor() {
         for (i in 0 until n) out.putShort((floats[i] * 32767f).toInt().toShort())
         out.flip()
     }
+
+    fun levels(): FloatArray? = dsp?.analyzer?.levels()
 
     override fun onReset() {
         dsp = null

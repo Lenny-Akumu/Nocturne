@@ -636,5 +636,9 @@ internal object Uk {
         "Your year in music" to "Твій рік у музиці",
         "e.g. en, uk, de" to "напр. en, uk, de",
         "just now" to "щойно",
+        "Sleep timer · %s min" to "Таймер сну · %s хв",
+        "Instrumental version" to "Інструментальна версія",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Караоке: вмикає інструментальну версію або прибирає вокал по центру",
+        "Karaoke: plays the instrumental version when there is one" to "Караоке: вмикає інструментальну версію, якщо вона є",
     )
 }

@@ -630,5 +630,9 @@ internal object Pt {
         "Liked Songs" to "Músicas curtidas",
         "Connection details" to "Detalhes da conexão",
         "Hide details" to "Ocultar detalhes",
+        "Sleep timer · %s min" to "Temporizador · %s min",
+        "Instrumental version" to "Versão instrumental",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaokê: toca a versão instrumental ou remove a voz central",
+        "Karaoke: plays the instrumental version when there is one" to "Karaokê: toca a versão instrumental quando houver",
     )
 }

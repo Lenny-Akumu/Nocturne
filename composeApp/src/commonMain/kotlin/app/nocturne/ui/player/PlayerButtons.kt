@@ -253,23 +253,32 @@ fun TransportButton(
 // Secondary toggle (shuffle/repeat/lyrics/queue...). Glass: glass capsule when on. Windows: accent glyph + indicator.
 @Composable
 fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, icon: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    val material = LocalDesignStyle.current == DesignStyle.MATERIAL
+    ToggleGlyph(checked, onClick, contentDescription, modifier, enabled) { tint, size ->
+        if (material) Icon(icon, contentDescription, Modifier.size(size), tint = tint) else Glyph(icon, contentDescription, size, tint)
+    }
+}
+
+// Same toggle with custom glyph content drawn at (tint, size), e.g. the animated EQ bars.
+@Composable
+fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, contentDescription: String?, modifier: Modifier = Modifier, enabled: Boolean = true, glyph: @Composable (Color, Dp) -> Unit) {
     val cs = MaterialTheme.colorScheme
     when (LocalDesignStyle.current) {
         DesignStyle.MATERIAL -> IconToggleButton(checked = checked, onCheckedChange = { onClick() }, modifier = modifier, enabled = enabled) {
-            Icon(icon, contentDescription, tint = if (checked) cs.primary else cs.onSurfaceVariant)
+            glyph(if (checked) cs.primary else cs.onSurfaceVariant, 24.dp)
         }
         DesignStyle.GLASS -> {
             val on by animateFloatAsState(if (checked) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 500f), label = "on")
             Box(modifier.size(48.dp), contentAlignment = Alignment.Center) {
                 GlassButton(onClick, enabled, Modifier.size(44.dp, 34.dp), RoundedCornerShape(50), on) {
-                    Glyph(icon, contentDescription, 22.dp, lerp(cs.onSurfaceVariant, cs.onSurface, on))
+                    glyph(lerp(cs.onSurfaceVariant, cs.onSurface, on), 22.dp)
                 }
             }
         }
         DesignStyle.WINDOWS -> {
             val bar by animateDpAsState(if (checked) 14.dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 500f), label = "bar")
             FluentGhost(onClick, contentDescription, modifier.size(48.dp), 40.dp, enabled) {
-                Glyph(icon, contentDescription, 20.dp, if (checked) cs.primary else cs.onSurfaceVariant)
+                glyph(if (checked) cs.primary else cs.onSurfaceVariant, 20.dp)
                 if (bar > 0.dp) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp).size(bar, 3.dp).background(cs.primary, CircleShape))
             }
         }

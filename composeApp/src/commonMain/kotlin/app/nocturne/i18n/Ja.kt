@@ -630,5 +630,9 @@ internal object Ja {
         "Liked Songs" to "お気に入りの曲",
         "Connection details" to "接続の詳細",
         "Hide details" to "詳細を隠す",
+        "Sleep timer · %s min" to "スリープタイマー · 残り%s分",
+        "Instrumental version" to "インストゥルメンタル版",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "カラオケ：インスト版を再生、なければ中央のボーカルを除去",
+        "Karaoke: plays the instrumental version when there is one" to "カラオケ：インスト版があれば再生",
     )
 }

@@ -630,5 +630,9 @@ internal object Pl {
         "Liked Songs" to "Polubione utwory",
         "Connection details" to "Szczegóły połączenia",
         "Hide details" to "Ukryj szczegóły",
+        "Sleep timer · %s min" to "Wyłącznik czasowy · %s min",
+        "Instrumental version" to "Wersja instrumentalna",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: odtwarza wersję instrumentalną lub usuwa wokal ze środka",
+        "Karaoke: plays the instrumental version when there is one" to "Karaoke: odtwarza wersję instrumentalną, jeśli istnieje",
     )
 }

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -38,6 +39,8 @@ data class PlayerState(
     val sleepAtMs: Long? = null,
     val sleepAfterTrack: Boolean = false,
     val queueTitle: String? = null,
+    /** Audio comes from an official instrumental (vocal remover on); metadata stays the original track's. */
+    val instrumental: Boolean = false,
 ) {
     val current: Track? get() = queue.getOrNull(index)
     val hasNext: Boolean get() = index < queue.lastIndex || repeat == RepeatMode.ALL
@@ -69,6 +72,10 @@ class PlayerController(
     private var loadGen = 0
     private var synced = false
     private val json = Json { ignoreUnknownKeys = true }
+    private val instrumentals = Instrumentals(providers, scope)
+    private var lastVocal = settings.value.vocalRemover
+    private var swapJob: Job? = null
+    private var audioTrack: Track? = null // what the engine really plays (the instrumental or the track itself)
 
     init {
         engine.setListener(this)
@@ -298,6 +305,9 @@ class PlayerController(
 
     val audioFx: Set<AudioFx> get() = engine.fx
 
+    /** Spectrum for the EQ icon, polled per frame; null → the UI animates a synthetic one. */
+    fun levels(): FloatArray? = engine.levels()
+
     /** Live EQ while dragging, without persisting settings. */
     fun previewEqualizer(gains: List<Float>) { if (partyAudio == null) engine.setEqualizer(true, gains) }
 
@@ -316,8 +326,44 @@ class PlayerController(
         rampSpeed(a?.speed ?: s.playbackSpeed)
         if (a != null) engine.setEqualizer(a.eq, a.gains.takeIf { it.size == s.eqGains.size } ?: s.eqGains)
         else engine.setEqualizer(s.eqEnabled, s.eqGains)
-        if (a != null) engine.setEffects(a.normalize, a.spatial, a.eightD, a.vocal)
-        else engine.setEffects(s.normalizeVolume, s.spatialAudio, s.eightD, s.vocalRemover)
+        applyEffects()
+        val want = vocalWanted()
+        if (want != lastVocal) { lastVocal = want; swapVocal(want) }
+    }
+
+    // An instrumental is already vocal-free: the DSP remover stays off for it.
+    private fun applyEffects() {
+        val s = settings.value
+        val a = partyAudio
+        val vocal = vocalWanted() && !_state.value.instrumental
+        if (a != null) engine.setEffects(a.normalize, a.spatial, a.eightD, vocal)
+        else engine.setEffects(s.normalizeVolume, s.spatialAudio, s.eightD, vocal)
+    }
+
+    private fun vocalWanted() = partyAudio?.vocal ?: settings.value.vocalRemover
+
+    // Vocal remover toggled mid-track: switch between the original and its instrumental at the same position.
+    private fun swapVocal(on: Boolean) {
+        swapJob?.cancel()
+        val cur = _state.value.current ?: return
+        if (loadingKey != null || loadedKey != cur.key) return // the pending load reads the setting itself
+        if (on == _state.value.instrumental) return
+        swapJob = scope.launch {
+            val src = if (on) instrumentals.find(cur) ?: return@launch else cur
+            val stream = runCatching { resolve(src) }.getOrNull() ?: return@launch
+            if (_state.value.current?.key != cur.key || loadingKey != null || vocalWanted() != on) return@launch
+            val pos = engine.positionMs
+            engine.load(stream, cur, pos, _state.value.isPlaying)
+            audioTrack = src
+            setInstrumental(on)
+        }
+    }
+
+    private fun setInstrumental(on: Boolean) {
+        val was = _state.value.instrumental
+        _state.update { it.copy(instrumental = on) }
+        applyEffects()
+        // shown as a subtitle in the player, no toast
     }
 
     private var speedJob: Job? = null
@@ -465,6 +511,7 @@ class PlayerController(
             listOfNotNull(s.queue.getOrNull(s.index + 1), s.queue.getOrNull(s.index + 2)).forEach { t ->
                 runCatching { resolve(t) }
             }
+            s.queue.getOrNull(s.index + 1)?.let { if (vocalWanted()) instrumentals.prefetch(it) }
         }
     }
 
@@ -478,15 +525,22 @@ class PlayerController(
         pendingPlay = null
         pendingStartMs = null
         engine.stop()
-        _state.update { it.copy(positionMs = startMs, durationMs = track.durationMs, isBuffering = true, error = null) }
+        swapJob?.cancel()
+        _state.update { it.copy(positionMs = startMs, durationMs = track.durationMs, isBuffering = true, error = null, instrumental = false) }
+        applyEffects()
         queueChanged()
         loadJob = scope.launch {
             try {
-                val stream = resolve(track)
+                // vocal remover: prefer an official instrumental (bounded wait; the lookup finishes and caches anyway)
+                val inst = if (vocalWanted()) withTimeoutOrNull(4000) { instrumentals.find(track) } else null
+                val instStream = inst?.let { runCatching { resolve(it) }.getOrNull() }
+                val stream = instStream ?: resolve(track)
                 if (_state.value.current?.key != track.key) { if (gen == loadGen) loadingKey = null; return@launch }
                 val play = pendingPlay ?: playWhenReady
                 val start = pendingStartMs ?: startAt?.invoke() ?: startMs
                 engine.load(stream, track, start, play)
+                audioTrack = if (instStream != null) inst else track
+                setInstrumental(instStream != null)
                 loadedKey = track.key
                 loadingKey = null
                 pendingPlay = null
@@ -531,7 +585,8 @@ class PlayerController(
                 val pos = engine.positionMs
                 val track = _state.value.current ?: return@launch
                 runCatching {
-                    engine.load(resolve(track, fresh = true), track, pos, true)
+                    val src = audioTrack?.takeIf { _state.value.instrumental } ?: track
+                    engine.load(resolve(src, fresh = true), track, pos, true)
                 }.onSuccess { return@launch }
             }
             _state.update { it.copy(isBuffering = false, isPlaying = false, error = app.nocturne.i18n.t("Playback error: %s", error.message)) }

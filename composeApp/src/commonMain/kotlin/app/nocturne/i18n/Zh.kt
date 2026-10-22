@@ -630,5 +630,9 @@ internal object Zh {
         "Liked Songs" to "喜欢的歌曲",
         "Connection details" to "连接详情",
         "Hide details" to "隐藏详情",
+        "Sleep timer · %s min" to "睡眠定时 · %s 分钟",
+        "Instrumental version" to "伴奏版",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "卡拉 OK：播放伴奏版，否则消除居中人声",
+        "Karaoke: plays the instrumental version when there is one" to "卡拉 OK：有伴奏版时播放伴奏版",
     )
 }

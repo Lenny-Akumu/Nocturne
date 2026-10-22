@@ -120,7 +120,12 @@ fun AudioSheet(onDismiss: () -> Unit) {
                     if (AudioFx.NORMALIZE in fx) FxSwitch("Normalize volume", "Even out loud and quiet tracks", settings.normalizeVolume) { v -> graph.settings.update { it.copy(normalizeVolume = v) } }
                     if (AudioFx.SPATIAL in fx) FxSwitch("Spatial sound", "Wider, more open stereo", settings.spatialAudio) { v -> graph.settings.update { it.copy(spatialAudio = v) } }
                     if (AudioFx.EIGHT_D in fx) FxSwitch("8D audio", "Sound slowly circles around your head — best with headphones", settings.eightD) { v -> graph.settings.update { it.copy(eightD = v) } }
-                    if (AudioFx.VOCAL_REMOVER in fx) FxSwitch("Vocal remover", "Karaoke: cuts the centered vocals", settings.vocalRemover) { v -> graph.settings.update { it.copy(vocalRemover = v) } }
+                    // instrumental lookup works everywhere; the DSP fallback only where the engine has it
+                    FxSwitch(
+                        "Vocal remover",
+                        if (AudioFx.VOCAL_REMOVER in fx) "Karaoke: plays the instrumental version, or cuts the centered vocals" else "Karaoke: plays the instrumental version when there is one",
+                        settings.vocalRemover,
+                    ) { v -> graph.settings.update { it.copy(vocalRemover = v) } }
                     var fade by remember(settings.crossfadeSec) { mutableFloatStateOf(settings.crossfadeSec.toFloat()) }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                         Text(t("Crossfade"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))

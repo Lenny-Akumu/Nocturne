@@ -19,6 +19,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import app.nocturne.ui.kit.TextButton
+import app.nocturne.ui.kit.optionRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,12 +47,13 @@ actual fun ShortcutSettings() {
     val settings by graph.settings.state.collectAsState()
     var editing by remember { mutableStateOf<HotkeyAction?>(null) }
 
-    Column {
+    // Rows go straight into the settings page's grouped column.
+    run {
         Text(
             t("Click an action and press the new key combination. Media keys always work."),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
         )
         ListItem(
             headlineContent = { Text(t("Work when Nocturne is minimized")) },
@@ -63,7 +65,7 @@ actual fun ShortcutSettings() {
                 )
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.padding(horizontal = 8.dp),
+            modifier = Modifier.optionRow(),
         )
         HotkeyAction.entries.forEach { action ->
             ListItem(
@@ -73,14 +75,14 @@ actual fun ShortcutSettings() {
                 },
                 leadingContent = { Icon(Icons.Rounded.Keyboard, null) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clickable { editing = action }.padding(horizontal = 8.dp),
+                modifier = Modifier.optionRow(56.dp).clickable { editing = action },
             )
         }
         ListItem(
             headlineContent = { Text(t("Reset to defaults")) },
             leadingContent = { Icon(Icons.Rounded.Restore, null) },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.clickable { graph.settings.update { it.copy(hotkeys = emptyMap()) } }.padding(horizontal = 8.dp),
+            modifier = Modifier.optionRow(56.dp).clickable { graph.settings.update { it.copy(hotkeys = emptyMap()) } },
         )
     }
 

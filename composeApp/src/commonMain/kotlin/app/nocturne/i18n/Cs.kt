@@ -630,5 +630,9 @@ internal object Cs {
         "Liked Songs" to "Oblíbené skladby",
         "Connection details" to "Podrobnosti připojení",
         "Hide details" to "Skrýt podrobnosti",
+        "Sleep timer · %s min" to "Časovač vypnutí · %s min",
+        "Instrumental version" to "Instrumentální verze",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: přehraje instrumentální verzi, nebo odstraní zpěv ze středu",
+        "Karaoke: plays the instrumental version when there is one" to "Karaoke: přehraje instrumentální verzi, pokud existuje",
     )
 }

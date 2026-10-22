@@ -61,6 +61,8 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
 
     override val fx = AudioFx.entries.toSet()
 
+    override fun levels(): FloatArray? = fxProcessor.levels()
+
     val exo: ExoPlayer = ExoPlayer.Builder(context)
         .setRenderersFactory(object : DefaultRenderersFactory(context) {
             override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =

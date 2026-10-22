@@ -147,7 +147,8 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
                 Text(track.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (settings.showSourceBadges) { SourceBadge(track.source, size = 12.dp); Spacer(Modifier.width(5.dp)) }
-                    Text(track.artistNames, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // links only in the wide bar; on phones the whole mini player opens the full player
+                    app.nocturne.ui.components.ArtistLinks(track, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, enabled = wide)
                 }
             }
             if (wide) {

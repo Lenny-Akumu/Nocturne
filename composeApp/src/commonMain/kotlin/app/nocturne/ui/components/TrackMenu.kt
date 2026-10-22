@@ -68,7 +68,15 @@ import app.nocturne.model.Source
 import app.nocturne.model.Track
 import app.nocturne.ui.Screen
 
-data class TrackMenuContext(val playlistId: String? = null, val queueIndex: Int? = null, val remotePlaylist: CollectionRef? = null)
+data class TrackMenuContext(
+    val playlistId: String? = null,
+    val queueIndex: Int? = null,
+    val remotePlaylist: CollectionRef? = null,
+    val extras: List<MenuExtra> = emptyList(),
+)
+
+/** Caller-specific menu entry (e.g. the full player's sleep timer); [label] is shown as given. */
+class MenuExtra(val icon: ImageVector, val label: String, val onClick: () -> Unit)
 
 val LocalTrackMenu = staticCompositionLocalOf<(Track, TrackMenuContext) -> Unit> { { _, _ -> } }
 
@@ -133,7 +141,8 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                 }
                 MenuItem(Icons.Rounded.Radio, "Start radio") { close(); graph.player.startRadio(track) }
                 MenuItem(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist") { playlistPicker = listOf(track); close() }
-                track.artists.firstOrNull { it.id != null }?.let { artist ->
+                ctx.extras.forEach { e -> MenuItem(e.icon, e.label) { close(); e.onClick() } }
+                track.artists.filter { it.id != null }.take(4).forEach { artist ->
                     MenuItem(Icons.Rounded.Person, t("Go to %s", artist.name)) {
                         close()
                         graph.navigator.push(Screen.Collection(CollectionRef(artist.id!!, track.source, CollectionType.ARTIST, artist.name)))

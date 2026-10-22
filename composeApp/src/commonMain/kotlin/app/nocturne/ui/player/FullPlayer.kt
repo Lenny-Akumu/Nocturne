@@ -47,7 +47,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.VideocamOff
 import androidx.compose.runtime.produceState
@@ -97,15 +96,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.nocturne.AppGraph
 import app.nocturne.data.PlayerBackground
-import app.nocturne.model.CollectionRef
-import app.nocturne.model.CollectionType
 import app.nocturne.nowMillis
-import app.nocturne.ui.Screen
 import app.nocturne.ui.components.Artwork
 import app.nocturne.ui.components.LocalTrackMenu
 import app.nocturne.ui.components.SourceBadge
 import app.nocturne.ui.components.FlowingColors
 import app.nocturne.ui.components.TrackMenuContext
+import app.nocturne.ui.components.MenuExtra
+import app.nocturne.ui.components.ArtistLinks
 import app.nocturne.ui.theme.NocturneTheme
 import app.nocturne.ui.theme.isDark
 import app.nocturne.ui.theme.rememberArtworkSeed
@@ -195,13 +193,19 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(t("PLAYING FROM"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.queueTitle ?: track.album ?: track.source.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (state.instrumental) Text(t("Instrumental version"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
                 val castDevice by graph.cast.device.collectAsState()
                 TransportButton(
                     if (castDevice != null) Icons.Rounded.CastConnected else Icons.Rounded.Devices, "Devices", { overlays.connect = true },
                     tint = if (castDevice != null) MaterialTheme.colorScheme.primary else LocalContentColor.current, glassIcon = Icons.Rounded.Airplay,
                 )
-                TransportButton(Icons.Rounded.MoreVert, "More", { menu(track, TrackMenuContext()) })
+                TransportButton(Icons.Rounded.MoreVert, "More", {
+                    val s = graph.player.state.value
+                    val sleep = s.sleepAtMs?.let { t("Sleep timer · %s min", ((it - nowMillis()) / 60_000).coerceAtLeast(0) + 1) }
+                        ?: if (s.sleepAfterTrack) t("Sleep timer") + " · " + t("End of track") else t("Sleep timer")
+                    menu(track, TrackMenuContext(extras = listOf(MenuExtra(Icons.Rounded.Bedtime, sleep) { overlays.sleep = true })))
+                })
             }
 
             if (wide) {
@@ -233,8 +237,8 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                         else PaneContent(p)
                     }
                 }
-                // Phone: transport and actions in two rounded cards, lifted off the bottom edge for thumbs.
-                Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp)) {
+                // Phone: transport and actions in two rounded cards, lifted well off the bottom edge for thumbs.
+                Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp, bottom = if (maxHeight > 680.dp) 76.dp else 28.dp)) {
                     Controls(cards = true)
                     BottomActions(pane, { pane = if (pane == it) Pane.ARTWORK else it }, hideArtworkToggle = false, card = true)
                 }
@@ -354,20 +358,13 @@ private fun Controls(compact: Boolean = false, cards: Boolean = false) {
             Text(track.title, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.basicMarquee())
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (settings.showSourceBadges) { SourceBadge(track.source, size = 16.dp); Spacer(Modifier.width(6.dp)) }
-                val artist = track.artists.firstOrNull()
-                Text(
-                    track.artistNames,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = cs.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable(enabled = artist?.id != null) {
-                        val a = artist ?: return@clickable
-                        val id = a.id ?: return@clickable
-                        graph.navigator.push(Screen.Collection(CollectionRef(id, track.source, CollectionType.ARTIST, a.name)))
-                    },
-                )
+                ArtistLinks(track, style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
             }
+        }
+        if (track.source == app.nocturne.model.Source.YOUTUBE_MUSIC) {
+            val overlays = LocalOverlays.current
+            TransportButton(Icons.Rounded.ChatBubbleOutline, "Comments", { overlays.comments = true }, iconSize = 24.dp, tint = cs.onSurfaceVariant, circle = true)
+            Box(Modifier.padding(horizontal = 4.dp).size(1.dp, 24.dp).background(cs.onSurface.copy(alpha = 0.2f)))
         }
         TransportButton(Icons.Rounded.ThumbDownOffAlt, "Not interested", { graph.notInterested(track) }, iconSize = 26.dp, tint = cs.onSurfaceVariant, circle = true)
         val liked = library.liked.any { it.key == track.key }
@@ -451,7 +448,6 @@ private fun ActionsRow(modifier: Modifier, pane: Pane, onPane: (Pane) -> Unit, h
     val settings by graph.settings.state.collectAsState()
     val state by graph.player.state.collectAsState()
     val overlays = LocalOverlays.current
-    val cs = MaterialTheme.colorScheme
     Row(modifier, horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
         if (onVolume != null) ToggleGlyph(
             false, onVolume,
@@ -477,18 +473,11 @@ private fun ActionsRow(modifier: Modifier, pane: Pane, onPane: (Pane) -> Unit, h
                 if (settings.showVideo) "Show artwork" else "Show video",
             )
         }
-        ToggleGlyph(settings.eqEnabled || settings.playbackSpeed != 1f, { overlays.audio = true }, Icons.Rounded.GraphicEq, "Equalizer and speed")
-        if (current?.source == app.nocturne.model.Source.YOUTUBE_MUSIC) {
-            ToggleGlyph(overlays.comments, { overlays.comments = true }, Icons.Rounded.ChatBubbleOutline, "Comments")
+        ToggleGlyph(settings.eqEnabled || settings.playbackSpeed != 1f, { overlays.audio = true }, "Equalizer and speed") { tint, size ->
+            EqBars(state.isPlaying, Modifier.size(size), tint)
         }
         if (settings.showLyrics) {
             ToggleGlyph(pane == Pane.LYRICS || (hideArtworkToggle && pane == Pane.ARTWORK), { onPane(Pane.LYRICS) }, Icons.Rounded.Lyrics, "Lyrics")
-        }
-        val sleeping = state.sleepAtMs != null || state.sleepAfterTrack
-        ToggleGlyph(sleeping, { overlays.sleep = true }, Icons.Rounded.Bedtime, "Sleep timer")
-        state.sleepAtMs?.let {
-            val left = ((it - nowMillis()) / 60_000).coerceAtLeast(0) + 1
-            Text("${left}m", style = MaterialTheme.typography.labelMedium, color = cs.primary)
         }
         ToggleGlyph(pane == Pane.QUEUE, { onPane(Pane.QUEUE) }, Icons.AutoMirrored.Rounded.QueueMusic, "Queue")
     }

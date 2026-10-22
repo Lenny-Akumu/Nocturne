@@ -630,5 +630,9 @@ internal object De {
         "Liked Songs" to "Lieblingssongs",
         "Connection details" to "Verbindungsdetails",
         "Hide details" to "Details ausblenden",
+        "Sleep timer · %s min" to "Sleep-Timer · %s Min.",
+        "Instrumental version" to "Instrumentalversion",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: spielt die Instrumentalversion oder entfernt den zentrierten Gesang",
+        "Karaoke: plays the instrumental version when there is one" to "Karaoke: spielt die Instrumentalversion, wenn es eine gibt",
     )
 }

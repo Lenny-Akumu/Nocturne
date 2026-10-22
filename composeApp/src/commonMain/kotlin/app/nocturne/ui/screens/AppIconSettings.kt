@@ -20,7 +20,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nocturne.PlatformKind
-import app.nocturne.data.DesignStyle
 import app.nocturne.data.IconBackground
 import app.nocturne.data.IconPalette
 import app.nocturne.data.Settings
@@ -28,8 +27,7 @@ import app.nocturne.i18n.t
 import app.nocturne.platformKind
 import app.nocturne.ui.NocturneIcon
 import app.nocturne.ui.applyAppIcon
-import app.nocturne.ui.kit.LocalDesignStyle
-import app.nocturne.ui.kit.iosGroupRow
+import app.nocturne.ui.kit.optionRow
 
 /** Settings → Appearance → App icon: background and colour pickers with live previews. */
 @Composable
@@ -54,8 +52,7 @@ fun AppIconSettings(s: Settings, set: ((Settings) -> Settings) -> Unit) {
 
 @Composable
 private fun IconRow(title: String, content: @Composable () -> Unit) {
-    val ios = LocalDesignStyle.current == DesignStyle.GLASS
-    Column((if (ios) Modifier.iosGroupRow(16.dp) else Modifier).padding(horizontal = if (ios) 16.dp else 24.dp, vertical = 10.dp)) {
+    Column(Modifier.optionRow().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(t(title), style = MaterialTheme.typography.bodyLarge)
         FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }

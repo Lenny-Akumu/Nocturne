@@ -630,5 +630,9 @@ internal object Tr {
         "Liked Songs" to "Beğenilen şarkılar",
         "Connection details" to "Bağlantı ayrıntıları",
         "Hide details" to "Ayrıntıları gizle",
+        "Sleep timer · %s min" to "Uyku zamanlayıcısı · %s dk",
+        "Instrumental version" to "Enstrümantal sürüm",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: enstrümantal sürümü çalar veya ortadaki vokalleri kaldırır",
+        "Karaoke: plays the instrumental version when there is one" to "Karaoke: varsa enstrümantal sürümü çalar",
     )
 }

@@ -4,6 +4,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.exp
+import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sin
@@ -66,7 +67,11 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
     private val limRelease = coef(80.0)
     private var vol = 1f
 
+    /** Band levels for the EQ bars, taken after the effects (pre-volume). */
+    val analyzer = Analyzer(rate)
+
     fun reset() {
+        analyzer.reset()
         eqF.forEach { it.clear() }
         bassA.clear(); bassB.clear(); haas.clear(); dl.clear(); dr.clear()
         lim = 1f
@@ -80,6 +85,7 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
         val want8d = if (eightD) 1f else 0f
         val wantNorm = if (normalize) 1f else 0f
         val wantVol = volume.coerceIn(0f, 2f)
+        analyzer.begin(System.nanoTime())
         var i = 0
         for (n in 0 until frames) {
             if (eqBlock-- <= 0) {
@@ -145,6 +151,7 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
             val peak = max(abs(l), abs(r))
             lim = 1f + (lim - 1f) * limRelease
             if (peak * lim > CEIL) lim = CEIL / peak
+            analyzer.feed((l + r) * 0.5f * lim)
             vol = wantVol + (vol - wantVol) * smooth
             val g = lim * vol
             buf[i] = (l * g).coerceIn(-1f, 1f)
@@ -195,6 +202,15 @@ internal class Biquad {
         a1 = -2 * cos(w) / a0; a2 = (1 - alpha / a) / a0
     }
 
+    // constant 0 dB peak gain
+    fun bandPass(f: Double, rate: Int, q: Double) {
+        val w = 2 * PI * f.coerceAtMost(rate * 0.45) / rate
+        val alpha = sin(w) / (2 * q)
+        val a0 = 1 + alpha
+        b0 = alpha / a0; b1 = 0.0; b2 = -alpha / a0
+        a1 = -2 * cos(w) / a0; a2 = (1 - alpha) / a0
+    }
+
     fun lowPass(f: Double, rate: Int, q: Double = 0.7071) {
         val w = 2 * PI * f / rate
         val alpha = sin(w) / (2 * q)
@@ -241,4 +257,70 @@ internal class Delay(size: Int) {
     }
 
     fun clear() = buf.fill(0f)
+}
+
+/**
+ * 5-band level meter (60 Hz…10 kHz) for the animated EQ icon. Fed per sample on the audio thread; each ~33 ms
+ * snapshot is stamped with when it will be heard ([latencyMs] = output buffer), so [levels] lines up with the speaker.
+ */
+class Analyzer(private val rate: Int) {
+    @Volatile var latencyMs = 0
+    private val f = Array(FREQS.size) { Biquad().apply { bandPass(FREQS[it], rate, 1.4) } }
+    private val f2 = Array(FREQS.size) { Biquad().apply { bandPass(FREQS[it], rate, 1.4) } } // cascaded: 4th order
+    private val acc = FloatArray(FREQS.size)
+    private val peak = FloatArray(FREQS.size) { -30f }
+    private val hop = max(1, rate / 30)
+    private var count = 0
+    private var base = 0L
+    private var frame = 0L
+    private val ring = arrayOfNulls<FloatArray>(RING)
+    private val due = LongArray(RING)
+    @Volatile private var head = -1
+
+    fun begin(now: Long) { base = now; frame = 0 }
+
+    fun reset() { f.forEach { it.clear() }; f2.forEach { it.clear() }; acc.fill(0f); count = 0 }
+
+    fun feed(x: Float) {
+        for (b in f.indices) { val y = f2[b].left(f[b].left(x)); acc[b] += y * y }
+        frame++
+        if (++count < hop) return
+        val out = FloatArray(FREQS.size)
+        var top = -100f
+        for (b in f.indices) {
+            val db = 10f * log10(acc[b] / count + 1e-10f)
+            // per-band normalization: adaptive peak that falls ~2.4 dB/s, floored so silence stays low
+            peak[b] = max(db, max(peak[b] - 0.08f, -42f))
+            top = max(top, peak[b])
+            out[b] = db
+            acc[b] = 0f
+        }
+        // quiet bands get up to 15 dB of lift, not more, so filter leakage doesn't read as full scale
+        for (b in f.indices) out[b] = ((out[b] - max(peak[b], top - 15f) + RANGE) / RANGE).coerceIn(0f, 1f)
+        count = 0
+        val i = (head + 1) and (RING - 1)
+        ring[i] = out
+        due[i] = base + frame * 1_000_000_000L / rate + latencyMs * 1_000_000L
+        head = i
+    }
+
+    /** Latest snapshot due by now (0..1 per band); zeros once stale, null before any audio. */
+    fun levels(now: Long = System.nanoTime()): FloatArray? {
+        val h = head
+        if (h < 0) return null
+        for (k in 0 until RING) {
+            val i = (h - k) and (RING - 1)
+            val d = due[i]
+            val v = ring[i] ?: break
+            if (d <= now) return if (now - d > 250_000_000L) SILENT else v
+        }
+        return SILENT
+    }
+
+    companion object {
+        val FREQS = doubleArrayOf(60.0, 250.0, 1000.0, 4000.0, 10000.0)
+        private const val RANGE = 26f
+        private const val RING = 32
+        private val SILENT = FloatArray(5)
+    }
 }

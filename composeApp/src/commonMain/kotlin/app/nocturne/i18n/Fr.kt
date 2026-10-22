@@ -630,5 +630,9 @@ internal object Fr {
         "Liked Songs" to "Titres likés",
         "Connection details" to "Détails de la connexion",
         "Hide details" to "Masquer les détails",
+        "Sleep timer · %s min" to "Minuterie · %s min",
+        "Instrumental version" to "Version instrumentale",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoké : lit la version instrumentale ou supprime la voix centrale",
+        "Karaoke: plays the instrumental version when there is one" to "Karaoké : lit la version instrumentale s'il y en a une",
     )
 }

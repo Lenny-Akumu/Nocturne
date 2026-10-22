@@ -95,9 +95,10 @@ import app.nocturne.ui.kit.Slider
 import app.nocturne.ui.kit.Switch
 import androidx.compose.material3.Text
 import app.nocturne.ui.kit.TextButton
-import app.nocturne.ui.kit.IosGroupedColumn
+import app.nocturne.ui.kit.GroupedColumn
+import app.nocturne.ui.kit.OptionHeader
 import app.nocturne.ui.kit.LocalDesignStyle
-import app.nocturne.ui.kit.iosGroupRow
+import app.nocturne.ui.kit.optionRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -203,7 +204,6 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
     val s by graph.settings.state.collectAsState()
     val set: ((Settings) -> Settings) -> Unit = { graph.settings.update(it) }
     val desktop = platformKind == PlatformKind.DESKTOP
-    val ios = LocalDesignStyle.current == DesignStyle.GLASS
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
@@ -264,7 +264,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             t("Placeholders: %s", "{title} {artist} {album} {source} {app}"),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
                         )
                         TextPref("First line", "{title}", Icons.Rounded.TextFields, s.discordDetails) { v -> set { it.copy(discordDetails = v) } }
                         TextPref("Second line", "{artist}", Icons.Rounded.TextFields, s.discordState) { v -> set { it.copy(discordState = v) } }
@@ -375,7 +375,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             t("Spotify uses the official Web API. Sign in under Accounts — Nocturne uses Spotify's PKCE sign-in, so only a Client ID is needed. To use your own Spotify app, create one at developer.spotify.com, add the redirect URIs nocturne://spotify-callback and http://127.0.0.1:43821/callback, and paste its Client ID here. Audio is matched and streamed from YouTube Music."),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
                         )
                         TextPref("Client ID", null, Icons.Rounded.Key, s.spotifyClientId) { v -> set { it.copy(spotifyClientId = v.trim()) } }
                         TextPref("Client secret (optional, search without sign-in)", null, Icons.Rounded.Security, s.spotifyClientSecret, secret = true) { v -> set { it.copy(spotifyClientSecret = v.trim()) } }
@@ -447,7 +447,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     }
                 }
             }
-            if (ios) IosGroupedColumn(Modifier.padding(top = 4.dp), content = body) else Column { body() }
+            GroupedColumn(Modifier.padding(top = 4.dp, bottom = 16.dp), segmented = true, content = body)
         }
     }
 }
@@ -460,22 +460,7 @@ private fun sourceSummary(src: Source, s: Settings) = when (src) {
 }
 
 @Composable
-private fun Header(text: String) {
-    if (LocalDesignStyle.current == DesignStyle.GLASS) {
-        Text(
-            t(text).uppercase(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 24.dp, bottom = 7.dp),
-        )
-        return
-    }
-    // Fluent settings: BodyStrong section titles in the text color.
-    val fluent = LocalDesignStyle.current == DesignStyle.WINDOWS
-    Text(
-        t(text), style = if (fluent) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelLarge,
-        color = if (fluent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 6.dp),
-    )
-}
+private fun Header(text: String) = OptionHeader(t(text))
 
 @Composable
 private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked: Boolean, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {
@@ -486,7 +471,7 @@ private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked:
         leadingContent = leading ?: icon?.let { { if (ios) IosBadge(it, badgeColor(title)) else Icon(it, null) } },
         trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = rowModifier(ios, leading != null || icon != null).clickable { onChange(!checked) }.padding(horizontal = if (ios) 0.dp else 8.dp),
+        modifier = rowModifier(leading != null || icon != null).clickable { onChange(!checked) },
     )
 }
 
@@ -499,11 +484,12 @@ private fun Action(title: String, summary: String?, icon: ImageVector, chevron: 
         leadingContent = { if (ios) IosBadge(icon, badgeColor(title)) else Icon(icon, null) },
         trailingContent = if (ios && chevron) { { Chevron() } } else null,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = rowModifier(ios, true).clickable(onClick = onClick).padding(horizontal = if (ios) 0.dp else 8.dp),
+        modifier = rowModifier(true).clickable(onClick = onClick),
     )
 }
 
-private fun rowModifier(ios: Boolean, leading: Boolean): Modifier = if (ios) Modifier.iosGroupRow(if (leading) 61.dp else 16.dp) else Modifier
+// Every option row sits in a grouped container; [leading] = has an icon (separator inset).
+private fun rowModifier(leading: Boolean): Modifier = Modifier.optionRow(if (leading) 61.dp else 16.dp)
 
 @Composable
 private fun Chevron() {
@@ -602,8 +588,7 @@ private fun TextPref(title: String, hint: String?, icon: ImageVector, value: Str
 @Composable
 private fun SliderPref(title: String, valueLabel: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int, onChange: (Float) -> Unit) {
     var local by remember(value) { mutableFloatStateOf(value) }
-    val ios = LocalDesignStyle.current == DesignStyle.GLASS
-    Column(rowModifier(ios, false).padding(horizontal = if (ios) 16.dp else 24.dp, vertical = 8.dp)) {
+    Column(rowModifier(false).padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row {
             Text(t(title), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Text(valueLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -615,7 +600,7 @@ private fun SliderPref(title: String, valueLabel: String, value: Float, range: C
 @Composable
 private fun AccentPicker(selected: Long, onSelect: (Long) -> Unit) {
     val ios = LocalDesignStyle.current == DesignStyle.GLASS
-    FlowRow(rowModifier(ios, false).padding(horizontal = if (ios) 16.dp else 24.dp, vertical = if (ios) 14.dp else 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    FlowRow(rowModifier(false).padding(horizontal = 16.dp, vertical = if (ios) 14.dp else 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         AccentPresets.forEach { c ->
             Box(
                 Modifier.size(44.dp).clip(CircleShape).background(Color(c))
@@ -625,5 +610,4 @@ private fun AccentPicker(selected: Long, onSelect: (Long) -> Unit) {
             ) { if (c == selected) Icon(Icons.Rounded.Check, null, tint = Color.White) }
         }
     }
-    if (!ios) HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
 }

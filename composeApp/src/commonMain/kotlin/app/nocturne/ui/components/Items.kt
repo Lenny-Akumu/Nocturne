@@ -37,7 +37,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Explicit
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MoreVert
 import app.nocturne.ui.kit.Button
 import app.nocturne.ui.kit.CircularProgressIndicator
@@ -65,6 +64,16 @@ import app.nocturne.model.SectionLayout
 import app.nocturne.model.Track
 import app.nocturne.model.formatDuration
 import app.nocturne.ui.Screen
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
+import app.nocturne.ui.player.EqBars
 
 @Composable
 fun TrackRow(
@@ -105,7 +114,7 @@ fun TrackRow(
                 Box(
                     Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.45f)),
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.GraphicEq, null, tint = Color.White) }
+                ) { EqBars(player.isPlaying, Modifier.size(22.dp), Color.White) }
             }
         }
         Spacer(Modifier.width(14.dp))
@@ -150,6 +159,26 @@ fun TrackRow(
             Icon(Icons.Rounded.MoreVert, "More", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+/** Artists as "A, B & C"; each one with an id opens its artist page (when [enabled]). */
+@Composable
+fun ArtistLinks(track: Track, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, color: Color = Color.Unspecified, enabled: Boolean = true) {
+    val graph = AppGraph.instance
+    val text = remember(track.source, track.artists, enabled) {
+        val hover = TextLinkStyles(hoveredStyle = SpanStyle(textDecoration = TextDecoration.Underline))
+        buildAnnotatedString {
+            track.artists.forEachIndexed { i, a ->
+                if (i > 0) append(if (i == track.artists.lastIndex) " & " else ", ")
+                val id = a.id
+                if (!enabled || id == null) append(a.name)
+                else withLink(LinkAnnotation.Clickable("artist:$id", hover) {
+                    graph.navigator.push(Screen.Collection(CollectionRef(id, track.source, app.nocturne.model.CollectionType.ARTIST, a.name)))
+                }) { append(a.name) }
+            }
+        }
+    }
+    Text(text, modifier, color = color, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 private val builtInCollectionIds = setOf("liked", "me:liked", "me:likes", "LM")

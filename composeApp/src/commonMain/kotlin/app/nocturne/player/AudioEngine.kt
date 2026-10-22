@@ -32,5 +32,7 @@ interface AudioEngine {
     fun setEqualizer(enabled: Boolean, gains: List<Float>) {}
     fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {}
     fun onQueueChanged(hasPrevious: Boolean, hasNext: Boolean) {}
+    /** Live 5-band levels (0..1, low→high) of what is audible now; null when the engine has no PCM access. */
+    fun levels(): FloatArray? = null
     fun release()
 }

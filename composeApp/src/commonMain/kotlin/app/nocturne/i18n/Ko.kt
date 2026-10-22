@@ -630,5 +630,9 @@ internal object Ko {
         "Liked Songs" to "좋아요 표시한 곡",
         "Connection details" to "연결 세부정보",
         "Hide details" to "세부정보 숨기기",
+        "Sleep timer · %s min" to "취침 타이머 · %s분",
+        "Instrumental version" to "인스트루멘털 버전",
+        "Karaoke: plays the instrumental version, or cuts the centered vocals" to "노래방: 인스트루멘털 버전을 재생하거나 가운데 보컬을 제거",
+        "Karaoke: plays the instrumental version when there is one" to "노래방: 인스트루멘털 버전이 있으면 재생",
     )
 }

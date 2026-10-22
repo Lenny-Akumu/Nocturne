@@ -63,6 +63,9 @@ import app.nocturne.sync.Peer
 import app.nocturne.ui.kit.AlertDialog
 import app.nocturne.ui.kit.Card
 import app.nocturne.ui.kit.FilledTonalButton
+import app.nocturne.ui.kit.GroupedColumn
+import app.nocturne.ui.kit.OptionGroup
+import app.nocturne.ui.kit.optionRow
 import app.nocturne.ui.kit.OutlinedButton
 import app.nocturne.ui.kit.OutlinedTextField
 import app.nocturne.ui.kit.Slider
@@ -129,9 +132,9 @@ private fun OnlineDot(online: Boolean) {
 }
 
 @Composable
-private fun DeviceRow(p: Peer, now: Long, trailing: @Composable () -> Unit = {}) {
+private fun DeviceRow(p: Peer, now: Long, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
     val online = p.online(now)
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(p.info.platform.icon(), null, tint = if (online) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
@@ -170,7 +173,7 @@ fun DevicesSettings() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp),
         )
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+        Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
             Row(Modifier.padding(18.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Devices, null, Modifier.size(32.dp))
                 Spacer(Modifier.width(14.dp))
@@ -188,8 +191,9 @@ fun DevicesSettings() {
                 }
             }
         }
-        if (peers.isNotEmpty()) Column(Modifier.padding(horizontal = 8.dp)) {
-            peers.forEach { p -> DeviceRow(p, now) { TextButton(onClick = { unpair = p }) { Text(t("Unpair")) } } }
+        // Paired devices in one card, divided rows.
+        if (peers.isNotEmpty()) GroupedColumn(side = 0.dp) {
+            peers.forEach { p -> DeviceRow(p, now, Modifier.optionRow(54.dp).padding(start = 16.dp, end = 8.dp)) { TextButton(onClick = { unpair = p }) { Text(t("Unpair")) } } }
         } else if (group != null) {
             Text(t("No other devices yet."), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 8.dp))
         }
@@ -308,42 +312,41 @@ fun YourDevicesSection() {
     val player by graph.player.state.collectAsState()
     val now = rememberNow()
     if (peers.isEmpty()) return
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
-        Icon(Icons.Rounded.Devices, null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(10.dp))
-        Text(t("Your devices"), style = MaterialTheme.typography.titleLarge)
-    }
-    peers.sortedByDescending { it.online(now) }.forEach { p -> key(p.info.id) {
-        val online = p.online(now)
-        val s = p.state
-        DeviceRow(p, now)
-        if (online && s != null) {
-            if (!s.rc) {
-                Text(t("Remote control is off on this device"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (s.track != null) {
-                        IconButton(onClick = { sync.control(p.info.id, "prev") }) { Icon(Icons.Rounded.SkipPrevious, t("Previous")) }
-                        IconButton(onClick = { sync.control(p.info.id, "toggle") }) {
-                            Icon(if (s.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t(if (s.playing) "Pause" else "Play"))
+    OptionGroup(t("Your devices"), icon = Icons.Rounded.Devices) {
+        peers.sortedByDescending { it.online(now) }.forEach { p -> key(p.info.id) {
+            val online = p.online(now)
+            val s = p.state
+            // One row per device: status plus its remote controls.
+            Column(Modifier.optionRow(54.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                DeviceRow(p, now)
+                if (online && s != null) {
+                    if (!s.rc) {
+                        Text(t("Remote control is off on this device"), Modifier.padding(bottom = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (s.track != null) {
+                                IconButton(onClick = { sync.control(p.info.id, "prev") }) { Icon(Icons.Rounded.SkipPrevious, t("Previous")) }
+                                IconButton(onClick = { sync.control(p.info.id, "toggle") }) {
+                                    Icon(if (s.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t(if (s.playing) "Pause" else "Play"))
+                                }
+                                IconButton(onClick = { sync.control(p.info.id, "next") }) { Icon(Icons.Rounded.SkipNext, t("Next")) }
+                                FilledTonalButton(onClick = { sync.playHere(p.info.id) }) { Text(t("Play here")) }
+                            }
+                            if (player.current != null) OutlinedButton(onClick = { sync.playOn(p.info.id) }) { Text(t("Play on %s", p.info.name)) }
                         }
-                        IconButton(onClick = { sync.control(p.info.id, "next") }) { Icon(Icons.Rounded.SkipNext, t("Next")) }
-                        FilledTonalButton(onClick = { sync.playHere(p.info.id) }) { Text(t("Play here")) }
-                    }
-                    if (player.current != null) OutlinedButton(onClick = { sync.playOn(p.info.id) }) { Text(t("Play on %s", p.info.name)) }
-                }
-                if (s.track != null) {
-                    var vol by remember(p.info.id, s.vol) { mutableFloatStateOf(s.vol) }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(10.dp))
-                        Slider(vol, { vol = it }, Modifier.weight(1f), onValueChangeFinished = { sync.control(p.info.id, "vol", vol = vol) })
+                        if (s.track != null) {
+                            var vol by remember(p.info.id, s.vol) { mutableFloatStateOf(s.vol) }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.width(10.dp))
+                                Slider(vol, { vol = it }, Modifier.weight(1f), onValueChangeFinished = { sync.control(p.info.id, "vol", vol = vol) })
+                            }
+                        }
                     }
                 }
             }
-        }
-    } }
-    Spacer(Modifier.height(18.dp))
+        } }
+    }
 }
 
 /** Thin bar above the mini player while another device plays and nothing plays here. */
