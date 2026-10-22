@@ -65,6 +65,10 @@ import app.nocturne.ui.theme.LocalBackdrop
 
 @Composable
 fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifier) {
+    if (!wide && app.nocturne.ui.kit.LocalDesignStyle.current == app.nocturne.data.DesignStyle.MATERIAL) {
+        app.nocturne.ui.style.material.MaterialMiniPlayer(onExpand, modifier)
+        return
+    }
     val graph = AppGraph.instance
     val state by graph.player.state.collectAsState()
     val settings by graph.settings.state.collectAsState()

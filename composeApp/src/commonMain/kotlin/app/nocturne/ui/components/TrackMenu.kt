@@ -67,6 +67,13 @@ import app.nocturne.model.CollectionType
 import app.nocturne.model.Source
 import app.nocturne.model.Track
 import app.nocturne.ui.Screen
+import app.nocturne.data.DesignStyle
+import app.nocturne.ui.kit.LocalDesignStyle
+import app.nocturne.ui.style.glass.GlassMenuGap
+import app.nocturne.ui.style.glass.GlassMenuOverlay
+import app.nocturne.ui.style.glass.GlassMenuRow
+import app.nocturne.ui.style.glass.GlassTouch
+import app.nocturne.ui.style.glass.glassTouchTracker
 
 data class TrackMenuContext(
     val playlistId: String? = null,
@@ -100,14 +107,20 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
     val library by graph.library.state.collectAsState()
     val clipboard = LocalClipboardManager.current
 
-    CompositionLocalProvider(LocalTrackMenu provides { t, c -> target = t to c }) { content() }
+    // Liquid Glass: iOS context menu growing out of the touch point instead of a bottom sheet.
+    val glass = LocalDesignStyle.current == DesignStyle.GLASS
+    var closing by remember { mutableStateOf(false) }
+    CompositionLocalProvider(LocalTrackMenu provides { t, c -> target = t to c; closing = false }) {
+        Box(Modifier.glassTouchTracker()) { content() }
+    }
     LaunchedEffect(target != null) { trackMenuOpen = target != null }
 
     target?.let { (track, ctx) ->
         val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val close = { target = null }
-        ModalBottomSheet(onDismissRequest = close, sheetState = sheet) {
-            Column(Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
+        val close: () -> Unit = { if (glass) { closing = true } else { target = null } }
+        val anchor = remember(track, ctx) { GlassTouch.last }
+        val body: @Composable () -> Unit = {
+            Column(if (glass) Modifier else Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Artwork(track.artworkUrl, Modifier.size(56.dp), RoundedCornerShape(10.dp))
                     Spacer(Modifier.width(14.dp))
@@ -120,7 +133,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                         }
                     }
                 }
-                HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                if (glass) GlassMenuGap() else HorizontalDivider(Modifier.padding(vertical = 6.dp))
                 val liked = library.liked.any { it.key == track.key }
                 MenuItem(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) "Remove from liked" else "Like") {
                     graph.toggleLike(track); close()
@@ -156,21 +169,23 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                 }
                 if (track.source != app.nocturne.model.Source.LOCAL) {
                     val downloads by graph.downloads.items.collectAsState()
-                    if (downloads.containsKey(track.key)) MenuItem(Icons.Rounded.DeleteOutline, "Remove download") { close(); graph.downloads.remove(track) }
+                    if (downloads.containsKey(track.key)) MenuItem(Icons.Rounded.DeleteOutline, "Remove download", destructive = true) { close(); graph.downloads.remove(track) }
                     else MenuItem(Icons.Rounded.Download, "Download") { close(); graph.downloads.enqueue(listOf(track)); graph.toast(t("Downloading “%s”", track.title)) }
                 }
                 MenuItem(Icons.Rounded.ContentCopy, "Copy link") { clipboard.setText(AnnotatedString(track.shareUrl())); close(); graph.toast(t("Link copied")) }
                 ctx.playlistId?.let { pid ->
-                    MenuItem(Icons.Rounded.Delete, "Remove from playlist") { graph.library.removeFromPlaylist(pid, track); close() }
+                    MenuItem(Icons.Rounded.Delete, "Remove from playlist", destructive = true) { graph.library.removeFromPlaylist(pid, track); close() }
                 }
                 ctx.remotePlaylist?.let { ref ->
-                    MenuItem(Icons.Rounded.Delete, "Remove from playlist") { graph.remotePlaylists.remove(ref, track); close() }
+                    MenuItem(Icons.Rounded.Delete, "Remove from playlist", destructive = true) { graph.remotePlaylists.remove(ref, track); close() }
                 }
                 ctx.queueIndex?.let { qi ->
-                    MenuItem(Icons.Rounded.Delete, "Remove from queue") { close(); graph.player.removeFromQueue(qi, track) }
+                    MenuItem(Icons.Rounded.Delete, "Remove from queue", destructive = true) { close(); graph.player.removeFromQueue(qi, track) }
                 }
             }
         }
+        if (glass) GlassMenuOverlay(visible = !closing, anchor = anchor, onDismiss = close, onGone = { target = null; closing = false }) { body() }
+        else ModalBottomSheet(onDismissRequest = close, sheetState = sheet) { body() }
     }
 
     playlistPicker?.let { tracks ->
@@ -179,7 +194,8 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun MenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun MenuItem(icon: ImageVector, label: String, destructive: Boolean = false, onClick: () -> Unit) {
+    if (LocalDesignStyle.current == DesignStyle.GLASS) return GlassMenuRow(icon, t(label), destructive, onClick = onClick)
     ListItem(
         headlineContent = { Text(t(label)) },
         leadingContent = { Icon(icon, null) },

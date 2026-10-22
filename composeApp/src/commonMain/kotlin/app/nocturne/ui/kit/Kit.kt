@@ -132,6 +132,7 @@ import app.nocturne.ui.LocalGlass
 import app.nocturne.ui.LocalInGlassSource
 import app.nocturne.ui.glassSheen
 import app.nocturne.ui.liquidGlass
+import app.nocturne.ui.style.glass.glassAppear
 import app.nocturne.ui.theme.LocalDarkTheme
 import kotlin.math.PI
 import kotlin.math.cos
@@ -188,7 +189,9 @@ fun Switch(
 ) {
     when (LocalDesignStyle.current) {
         DesignStyle.MATERIAL -> androidx.compose.material3.Switch(
-            checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, thumbContent = thumbContent,
+            checked = checked, onCheckedChange = onCheckedChange, modifier = modifier,
+            // Expressive switch: check icon in the thumb when on.
+            thumbContent = thumbContent ?: if (checked) ({ Icon(Icons.Rounded.Check, null, Modifier.size(SwitchDefaults.IconSize)) }) else null,
             enabled = enabled, colors = colors, interactionSource = interactionSource,
         )
         DesignStyle.WINDOWS -> FluentSwitch(checked, onCheckedChange, modifier, enabled, interactionSource)
@@ -601,10 +604,13 @@ fun Button(
 ) {
     val cs = MaterialTheme.colorScheme
     when (LocalDesignStyle.current) {
-        DesignStyle.MATERIAL -> androidx.compose.material3.Button(
-            onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.buttonColors(),
-            elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = interactionSource, content = content,
-        )
+        DesignStyle.MATERIAL -> {
+            val src = interactionSource ?: remember { MutableInteractionSource() }
+            androidx.compose.material3.Button(
+                onClick = onClick, modifier = modifier, enabled = enabled, shape = app.nocturne.ui.style.material.morphShape(shape, src), colors = colors ?: ButtonDefaults.buttonColors(),
+                elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = src, content = content,
+            )
+        }
         DesignStyle.WINDOWS -> FluentButton(onClick, modifier, enabled, true, colors, border, fluentPadding(contentPadding), interactionSource, content)
         DesignStyle.GLASS -> IosButton(
             onClick, modifier, enabled, colors?.containerColor ?: cs.primary, colors?.contentColor ?: cs.onPrimary,
@@ -628,10 +634,13 @@ fun FilledTonalButton(
 ) {
     val cs = MaterialTheme.colorScheme
     when (LocalDesignStyle.current) {
-        DesignStyle.MATERIAL -> androidx.compose.material3.FilledTonalButton(
-            onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.filledTonalButtonColors(),
-            elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = interactionSource, content = content,
-        )
+        DesignStyle.MATERIAL -> {
+            val src = interactionSource ?: remember { MutableInteractionSource() }
+            androidx.compose.material3.FilledTonalButton(
+                onClick = onClick, modifier = modifier, enabled = enabled, shape = app.nocturne.ui.style.material.morphShape(shape, src), colors = colors ?: ButtonDefaults.filledTonalButtonColors(),
+                elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = src, content = content,
+            )
+        }
         DesignStyle.WINDOWS -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
         DesignStyle.GLASS -> {
             val tint = lerp(glassFill(), cs.primary, if (LocalDarkTheme.current) 0.22f else 0.12f)
@@ -658,11 +667,14 @@ fun OutlinedButton(
 ) {
     val cs = MaterialTheme.colorScheme
     when (LocalDesignStyle.current) {
-        DesignStyle.MATERIAL -> androidx.compose.material3.OutlinedButton(
-            onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.outlinedButtonColors(),
-            elevation = elevation, border = border ?: ButtonDefaults.outlinedButtonBorder(enabled), contentPadding = contentPadding,
-            interactionSource = interactionSource, content = content,
-        )
+        DesignStyle.MATERIAL -> {
+            val src = interactionSource ?: remember { MutableInteractionSource() }
+            androidx.compose.material3.OutlinedButton(
+                onClick = onClick, modifier = modifier, enabled = enabled, shape = app.nocturne.ui.style.material.morphShape(shape, src), colors = colors ?: ButtonDefaults.outlinedButtonColors(),
+                elevation = elevation, border = border ?: ButtonDefaults.outlinedButtonBorder(enabled), contentPadding = contentPadding,
+                interactionSource = src, content = content,
+            )
+        }
         DesignStyle.WINDOWS -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
         DesignStyle.GLASS -> IosButton(
             onClick, modifier, enabled, colors?.containerColor?.takeIf { it.alpha > 0f } ?: glassFill(), colors?.contentColor ?: cs.primary,
@@ -686,9 +698,10 @@ fun TextButton(
 ) {
     val style = LocalDesignStyle.current
     if (style == DesignStyle.MATERIAL) {
+        val src = interactionSource ?: remember { MutableInteractionSource() }
         androidx.compose.material3.TextButton(
-            onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: ButtonDefaults.textButtonColors(),
-            elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = interactionSource, content = content,
+            onClick = onClick, modifier = modifier, enabled = enabled, shape = app.nocturne.ui.style.material.morphShape(shape, src), colors = colors ?: ButtonDefaults.textButtonColors(),
+            elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = src, content = content,
         )
         return
     }
@@ -769,6 +782,7 @@ fun AlertDialog(
         CompositionLocalProvider(LocalInGlassSource provides true) {
             Column(
                 modifier
+                    .glassAppear() // liquid swell-in
                     .width(300.dp)
                     .then(
                         if (real) Modifier.liquidGlass(shape, 30.dp, overlay = true)
@@ -1108,13 +1122,8 @@ fun CircularProgressIndicator(
 ) {
     val style = LocalDesignStyle.current
     if (style == DesignStyle.MATERIAL) {
-        androidx.compose.material3.CircularProgressIndicator(
-            modifier = modifier,
-            color = color.takeOrElse { ProgressIndicatorDefaults.circularColor },
-            strokeWidth = strokeWidth,
-            trackColor = trackColor.takeOrElse { ProgressIndicatorDefaults.circularIndeterminateTrackColor },
-            strokeCap = strokeCap,
-        )
+        // Expressive morphing-shape loading indicator instead of a spinner.
+        app.nocturne.ui.style.material.LoadingIndicator(modifier, color.takeOrElse { MaterialTheme.colorScheme.primary })
         return
     }
     if (style == DesignStyle.WINDOWS) {
@@ -1425,7 +1434,8 @@ fun FilledTonalIconButton(
 ) {
     val style = LocalDesignStyle.current
     if (style == DesignStyle.MATERIAL) {
-        androidx.compose.material3.FilledTonalIconButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+        val src = remember { MutableInteractionSource() }
+        androidx.compose.material3.FilledTonalIconButton(onClick = onClick, modifier = modifier, enabled = enabled, shape = app.nocturne.ui.style.material.morphShape(CircleShape, src), interactionSource = src, content = content)
         return
     }
     val cs = MaterialTheme.colorScheme

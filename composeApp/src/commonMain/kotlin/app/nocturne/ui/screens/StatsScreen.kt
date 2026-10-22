@@ -117,24 +117,7 @@ private fun StatCard(label: String, value: String, modifier: Modifier) {
 
 @Composable
 fun SmartMixes(onPlay: (List<app.nocturne.model.Track>, String) -> Unit) {
-    val graph = AppGraph.instance
-    val library by graph.library.state.collectAsState()
-    val now = nowMillis()
-    val month = now - 30L * 86_400_000L
-    val onRepeat = library.plays.filter { it.t >= month }.groupingBy { it.k }.eachCount().entries
-        .sortedByDescending { it.value }.filter { it.value >= 2 }.take(40).mapNotNull { graph.library.trackFor(it.key) }
-    val forgotten = library.history.filter { it.playedAt < month && (library.playCounts[it.track.key] ?: 0) >= 3 }
-        .sortedByDescending { library.playCounts[it.track.key] ?: 0 }.take(40).map { it.track }
-    val likedMix = remember(library.liked.size) { library.liked.shuffled().take(50) }
-    val night = remember(library.history.size) {
-        library.history.filter { val h = ((it.playedAt / 3_600_000L) % 24); h >= 21 || h <= 4 }.map { it.track }.distinctBy { it.key }.take(40)
-    }
-    val mixes = listOfNotNull(
-        ("On repeat" to onRepeat).takeIf { onRepeat.size >= 4 },
-        ("Long time no listen" to forgotten).takeIf { forgotten.size >= 4 },
-        ("Liked mix" to likedMix).takeIf { likedMix.size >= 4 },
-        ("Late night" to night).takeIf { night.size >= 6 },
-    )
+    val mixes = smartMixes()
     if (mixes.isEmpty()) return
     Column {
         Text(t("Your mixes"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 8.dp))
@@ -155,4 +138,27 @@ fun SmartMixes(onPlay: (List<app.nocturne.model.Track>, String) -> Unit) {
             }
         }
     }
+}
+
+// Mixes built from listening history: (untranslated title, tracks).
+@Composable
+fun smartMixes(): List<Pair<String, List<app.nocturne.model.Track>>> {
+    val graph = AppGraph.instance
+    val library by graph.library.state.collectAsState()
+    val now = nowMillis()
+    val month = now - 30L * 86_400_000L
+    val onRepeat = library.plays.filter { it.t >= month }.groupingBy { it.k }.eachCount().entries
+        .sortedByDescending { it.value }.filter { it.value >= 2 }.take(40).mapNotNull { graph.library.trackFor(it.key) }
+    val forgotten = library.history.filter { it.playedAt < month && (library.playCounts[it.track.key] ?: 0) >= 3 }
+        .sortedByDescending { library.playCounts[it.track.key] ?: 0 }.take(40).map { it.track }
+    val likedMix = remember(library.liked.size) { library.liked.shuffled().take(50) }
+    val night = remember(library.history.size) {
+        library.history.filter { val h = ((it.playedAt / 3_600_000L) % 24); h >= 21 || h <= 4 }.map { it.track }.distinctBy { it.key }.take(40)
+    }
+    return listOfNotNull(
+        ("On repeat" to onRepeat).takeIf { onRepeat.size >= 4 },
+        ("Long time no listen" to forgotten).takeIf { forgotten.size >= 4 },
+        ("Liked mix" to likedMix).takeIf { likedMix.size >= 4 },
+        ("Late night" to night).takeIf { night.size >= 6 },
+    )
 }

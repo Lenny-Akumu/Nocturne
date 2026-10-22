@@ -238,7 +238,7 @@ fun TransportButton(
 ) {
     val s = size.takeOrElse { 48.dp }
     when (LocalDesignStyle.current) {
-        DesignStyle.MATERIAL -> IconButton(onClick = onClick, modifier = if (size.isSpecified) modifier.size(size) else modifier, enabled = enabled) {
+        DesignStyle.MATERIAL -> app.nocturne.ui.style.material.ExpressiveIconButton(onClick, modifier, enabled, s) {
             Icon(icon, contentDescription, Modifier.size(iconSize), tint = tint)
         }
         DesignStyle.GLASS -> GlassButton(onClick, enabled, modifier.size(s).padding(if (circle) 4.dp else 0.dp), active = if (circle) 1f else 0f) {
@@ -252,21 +252,19 @@ fun TransportButton(
 
 // Secondary toggle (shuffle/repeat/lyrics/queue...). Glass: glass capsule when on. Windows: accent glyph + indicator.
 @Composable
-fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, icon: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, icon: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, enabled: Boolean = true, label: String? = null) {
     val material = LocalDesignStyle.current == DesignStyle.MATERIAL
-    ToggleGlyph(checked, onClick, contentDescription, modifier, enabled) { tint, size ->
+    ToggleGlyph(checked, onClick, contentDescription, modifier, enabled, label) { tint, size ->
         if (material) Icon(icon, contentDescription, Modifier.size(size), tint = tint) else Glyph(icon, contentDescription, size, tint)
     }
 }
 
-// Same toggle with custom glyph content drawn at (tint, size), e.g. the animated EQ bars.
+// Same toggle with custom glyph content drawn at (tint, size), e.g. the animated EQ bars. [label]: Material segment text.
 @Composable
-fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, contentDescription: String?, modifier: Modifier = Modifier, enabled: Boolean = true, glyph: @Composable (Color, Dp) -> Unit) {
+fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, contentDescription: String?, modifier: Modifier = Modifier, enabled: Boolean = true, label: String? = null, glyph: @Composable (Color, Dp) -> Unit) {
     val cs = MaterialTheme.colorScheme
     when (LocalDesignStyle.current) {
-        DesignStyle.MATERIAL -> IconToggleButton(checked = checked, onCheckedChange = { onClick() }, modifier = modifier, enabled = enabled) {
-            glyph(if (checked) cs.primary else cs.onSurfaceVariant, 24.dp)
-        }
+        DesignStyle.MATERIAL -> app.nocturne.ui.style.material.MaterialToggle(checked, onClick, label ?: contentDescription, modifier, enabled, glyph)
         DesignStyle.GLASS -> {
             val on by animateFloatAsState(if (checked) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 500f), label = "on")
             Box(modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -305,13 +303,7 @@ fun PlayPauseButton(
     val heroMod = if (compact) Modifier.size(width = 68.dp, height = 52.dp) else Modifier.size(width = 88.dp, height = 72.dp)
     when (LocalDesignStyle.current) {
         DesignStyle.MATERIAL -> if (hero) {
-            val corner by animateDpAsState(if (playing) 24.dp else 36.dp, label = "corner")
-            Surface(onClick = onClick, enabled = enabled, shape = RoundedCornerShape(corner), color = cs.primary, contentColor = cs.onPrimary, modifier = modifier.then(heroMod)) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (buffering) CircularProgressIndicator(Modifier.size(36.dp), color = cs.onPrimary, strokeWidth = 3.dp)
-                    else Glyph(icon, label, 40.dp, cs.onPrimary)
-                }
-            }
+            app.nocturne.ui.style.material.MorphPlayButton(playing, buffering, onClick, modifier, compact, enabled)
         } else {
             Box(modifier.size(size), contentAlignment = Alignment.Center) {
                 if (buffering) CircularProgressIndicator(Modifier.size(size - 4.dp), strokeWidth = 2.dp)
@@ -417,7 +409,8 @@ fun PlayerSeekBar(positionMs: Long, durationMs: Long, progress: Float, onSeek: (
                 Text(remaining(shownPos, durationMs), style = ts, color = cs.onSurface.copy(alpha = bright))
             }
         } else {
-            Slider(
+            if (style == DesignStyle.MATERIAL) app.nocturne.ui.style.material.MaterialSeekBar(seeking ?: progress, { seeking = it }, commit, Modifier.padding(top = if (compact) 0.dp else 8.dp))
+            else Slider(
                 value = seeking ?: progress,
                 onValueChange = { seeking = it },
                 onValueChangeFinished = commit,

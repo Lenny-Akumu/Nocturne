@@ -101,6 +101,20 @@ fun HomeScreen(contentPadding: PaddingValues) {
         refreshing = false
     }
 
+    if (app.nocturne.ui.kit.LocalDesignStyle.current == app.nocturne.data.DesignStyle.MATERIAL) {
+        app.nocturne.ui.style.material.MaterialHome(
+            contentPadding, listState, refreshing, { reload++ }, greeting(), recommended, sections, errors,
+            onPlay = { list, i, title -> playTrack(list, i, title) },
+        ) { ConnectSpotifyCard() }
+        return
+    }
+    if (app.nocturne.ui.kit.LocalDesignStyle.current == app.nocturne.data.DesignStyle.GLASS) {
+        app.nocturne.ui.style.glass.GlassHome(
+            contentPadding, listState, sections, recommended, errors, refreshing, { reload++ },
+            play = { list, i, title -> playTrack(list, i, title) },
+        ) { if (Source.SPOTIFY in settings.enabledSources && !graph.spotify.isConfigured) ConnectSpotifyCard() }
+        return
+    }
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = { reload++ }, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
             item {

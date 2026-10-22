@@ -28,7 +28,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -115,7 +117,7 @@ private val settingsTab = Tab(Screen.Settings, "Settings", Icons.Outlined.Settin
 fun App(backdrop: Boolean = false) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
-    NocturneTheme(settings, backdrop = backdrop) {
+    NocturneTheme(settings, seedOverride = app.nocturne.ui.style.material.rememberMaterialSeed(settings), backdrop = backdrop) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val base = androidx.compose.ui.platform.LocalDensity.current
             val landscapePhone = app.nocturne.platformKind != app.nocturne.PlatformKind.DESKTOP && maxHeight < 480.dp && maxWidth > maxHeight
@@ -177,8 +179,10 @@ private fun AppScaffold() {
             RemoteStrip(Modifier.align(Alignment.BottomCenter).padding(start = 80.dp, bottom = 12.dp).navigationBarsPadding().widthIn(max = 560.dp))
         } else {
             val glass = LocalGlass.current != null
-            val bottomPad = if (hasPlayer) 160.dp else 90.dp
-            GlassSource(Modifier.fillMaxSize()) {
+            val bottomPad = if (glass) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + (if (hasPlayer) 146.dp else 82.dp)
+                else if (hasPlayer) 160.dp else 90.dp
+            // Glass: observe scrolling so the tab bar minimizes / expands (iOS 26).
+            GlassSource(Modifier.fillMaxSize().then(if (glass) Modifier.nestedScroll(app.nocturne.ui.style.glass.GlassChrome.scroll) else Modifier)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
                         ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(), bottom = bottomPad))
@@ -186,15 +190,13 @@ private fun AppScaffold() {
                 }
             }
             if (glass) {
-                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(bottom = 6.dp)) {
-                    RemoteStrip()
-                    MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
-                    GlassTabBar(nav)
-                }
+                app.nocturne.ui.style.glass.GlassInlineBar(Modifier.align(Alignment.TopCenter))
+                app.nocturne.ui.style.glass.GlassBottomBar(nav, onExpand = { nav.playerExpanded = true }, modifier = Modifier.align(Alignment.BottomCenter))
             } else Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                 RemoteStrip()
                 MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (backdrop) 0.7f else 0.97f)) {
+                if (LocalDesignStyle.current == app.nocturne.data.DesignStyle.MATERIAL) app.nocturne.ui.style.material.MaterialNavBar(nav)
+                else NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (backdrop) 0.7f else 0.97f)) {
                     tabs.forEach { tab ->
                         val selected = nav.currentTab == tab.screen
                         NavigationBarItem(
@@ -277,7 +279,14 @@ private fun ScreenHost(padding: PaddingValues) {
     ) { screen ->
         Column(Modifier.fillMaxSize()) {
             val isTab = screen == Screen.Home || screen == Screen.Search || screen == Screen.Library
-            val inner = if (isTab) {
+            // Material home has its own search bar on top.
+            val ownTop = screen == Screen.Home && LocalDesignStyle.current == app.nocturne.data.DesignStyle.MATERIAL
+            // Glass: home brings its own scrolling large title; other tabs get a large title header.
+            val glassStyle = LocalDesignStyle.current == app.nocturne.data.DesignStyle.GLASS
+            val inner = if (isTab && glassStyle) {
+                if (screen != Screen.Home) app.nocturne.ui.style.glass.GlassLargeTitle(if (screen == Screen.Search) "Search" else "Library", padding) { nav.push(Screen.Settings) }
+                if (screen == Screen.Home) padding else PaddingValues(bottom = padding.calculateBottomPadding())
+            } else if (isTab && !ownTop) {
                 TopBar(padding)
                 PaddingValues(bottom = padding.calculateBottomPadding())
             } else padding
@@ -312,27 +321,5 @@ private fun TopBar(padding: PaddingValues) {
         Text(t("Nocturne"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         IconButton(onClick = { nav.push(Screen.Settings) }) { Icon(Icons.Rounded.Settings, "Settings") }
     }
-    }
-}
-
-@Composable
-private fun GlassTabBar(nav: Navigator) {
-    val cs = MaterialTheme.colorScheme
-    Row(
-        Modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth().height(64.dp).liquidGlass(RoundedCornerShape(32.dp)).padding(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        tabs.forEach { tab ->
-            val selected = nav.currentTab == tab.screen
-            val bg by animateColorAsState(if (selected) cs.onSurface.copy(alpha = 0.1f) else Color.Transparent, label = "tab")
-            Column(
-                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(26.dp)).background(bg).clickable { nav.selectTab(tab.screen) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(if (selected) tab.selectedIcon else tab.icon, tab.label, tint = if (selected) cs.primary else cs.onSurface, modifier = Modifier.size(24.dp))
-                Text(t(tab.label), style = MaterialTheme.typography.labelSmall, color = if (selected) cs.primary else cs.onSurfaceVariant)
-            }
-        }
     }
 }
