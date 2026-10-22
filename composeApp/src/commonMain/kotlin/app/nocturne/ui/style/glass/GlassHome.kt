@@ -121,7 +121,7 @@ fun GlassHome(
     }
 
     val ptr = rememberPullToRefreshState()
-    PullToRefreshBox(
+    app.nocturne.ui.components.RefreshBox(
         isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize(), state = ptr,
         // Below the status bar: the glass home has no top bar above it.
         indicator = { PullToRefreshDefaults.Indicator(state = ptr, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter).padding(top = contentPadding.calculateTopPadding())) },

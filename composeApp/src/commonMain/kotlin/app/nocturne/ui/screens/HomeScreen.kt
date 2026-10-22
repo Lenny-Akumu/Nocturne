@@ -115,7 +115,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
         ) { if (Source.SPOTIFY in settings.enabledSources && !graph.spotify.isConfigured) ConnectSpotifyCard() }
         return
     }
-    PullToRefreshBox(isRefreshing = refreshing, onRefresh = { reload++ }, modifier = Modifier.fillMaxSize()) {
+    app.nocturne.ui.components.RefreshBox(isRefreshing = refreshing, onRefresh = { reload++ }, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
             item {
                 Text(

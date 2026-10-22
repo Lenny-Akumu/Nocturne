@@ -104,7 +104,7 @@ fun MaterialHome(
     val graph = AppGraph.instance
     val library by graph.library.state.collectAsState()
     val settings by graph.settings.state.collectAsState()
-    PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+    app.nocturne.ui.components.RefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
             item {
                 MaterialSearchBar(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp))
