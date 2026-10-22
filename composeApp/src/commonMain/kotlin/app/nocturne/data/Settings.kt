@@ -41,6 +41,9 @@ enum class IconPalette(val label: String) {
 }
 
 @Serializable
+enum class SeekBarStyle(val label: String) { WAVE("Wave"), BAR("Line"), DOT("Dot"), SPECTRUM("Spectrum") }
+
+@Serializable
 enum class LyricsAlign(val label: String) { START("Left"), CENTER("Center") }
 
 @Serializable
@@ -50,6 +53,7 @@ data class Settings(
     val accentColor: Long = 0xFF7C5CFF,
     val pureBlack: Boolean = false,
     val playerBackground: PlayerBackground = PlayerBackground.GRADIENT,
+    val seekBarStyle: SeekBarStyle = SeekBarStyle.WAVE,
     val animatedBackground: Boolean = true,
     val playerArtworkTint: Boolean = true,
     val showSourceBadges: Boolean = true,

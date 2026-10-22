@@ -650,5 +650,10 @@ internal object Uk {
         "From your connected account" to "З підключеного акаунта",
         "Reset" to "Скинути",
         "Change" to "Змінити",
+        "Seek bar" to "Повзунок перемотки",
+        "Wave" to "Хвиля",
+        "Line" to "Лінія",
+        "Dot" to "Крапка",
+        "Spectrum" to "Спектр",
     )
 }

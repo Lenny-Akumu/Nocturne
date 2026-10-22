@@ -644,5 +644,10 @@ internal object Cs {
         "From your connected account" to "Z připojeného účtu",
         "Reset" to "Obnovit",
         "Change" to "Změnit",
+        "Seek bar" to "Posuvník přehrávání",
+        "Wave" to "Vlna",
+        "Line" to "Čára",
+        "Dot" to "Tečka",
+        "Spectrum" to "Spektrum",
     )
 }

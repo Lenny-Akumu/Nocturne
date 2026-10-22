@@ -45,6 +45,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,15 +73,18 @@ import app.nocturne.data.DesignStyle
 import app.nocturne.i18n.t
 import app.nocturne.ui.kit.LocalDesignStyle
 import app.nocturne.ui.player.pressAmount
+import app.nocturne.data.SeekBarStyle
 import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.sin
 
 // Full-player pieces for Material You 3 (Expressive): wavy seek bar, morphing play button, toggles, segmented actions.
 
 private val bouncy = spring<Float>(dampingRatio = 0.55f, stiffness = 420f)
 
-// Expressive wavy seek bar: the played part is a sine wave that flows while playing and flattens when paused;
-// a vertical bar thumb with gaps, flat inactive track and an end stop dot.
+// Expressive seek bar. WAVE: the played part is a slow sine that flattens when paused, bar thumb.
+// BAR / DOT: flat track with a bar or round thumb. SPECTRUM: OneUI-style hills over the played part driven by the audio levels.
 @Composable
 fun WavySeekBar(
     progress: Float,
@@ -90,18 +94,39 @@ fun WavySeekBar(
     modifier: Modifier = Modifier,
     active: Color = MaterialTheme.colorScheme.primary,
     inactive: Color = MaterialTheme.colorScheme.secondaryContainer,
+    style: SeekBarStyle = SeekBarStyle.WAVE,
 ) {
     var dragging by remember { mutableStateOf(false) }
-    val amp by animateFloatAsState(if (playing && !dragging) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 120f), label = "amp")
+    val moving = playing && !dragging
+    val amp by animateFloatAsState(if (moving) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 120f), label = "amp")
     val thumbH by animateDpAsState(if (dragging) 30.dp else 22.dp, spring(dampingRatio = 0.5f, stiffness = 600f), label = "thumb")
     val thumbW by animateDpAsState(if (dragging) 3.dp else 4.dp, spring(stiffness = 600f), label = "thumbW")
+    val dotR by animateDpAsState(if (dragging) 10.dp else 8.dp, spring(dampingRatio = 0.5f, stiffness = 600f), label = "dot")
     var phase by remember { mutableFloatStateOf(0f) }
-    val waving by rememberUpdatedState(playing && !dragging)
-    LaunchedEffect(playing, dragging) {
+    var drift by remember { mutableFloatStateOf(0f) }
+    val bands = remember { FloatArray(5) }
+    var frame by remember { mutableIntStateOf(0) }
+    val waving by rememberUpdatedState(moving)
+    val animated = style == SeekBarStyle.WAVE || style == SeekBarStyle.SPECTRUM
+    LaunchedEffect(moving, style) {
+        if (!animated) return@LaunchedEffect
+        val player = AppGraph.instance.player
+        val synth = app.nocturne.ui.player.SynthLevels()
         var last = 0L
-        while (waving) withFrameNanos { now ->
-            if (last != 0L) phase = (phase + (now - last) / 1e9f * 2.2f) % 1f
+        while (waving || (style == SeekBarStyle.SPECTRUM && bands.any { it > 0.01f })) withFrameNanos { now ->
+            val dt = if (last == 0L) 0.016f else ((now - last) / 1e9f).coerceIn(0f, 0.1f)
             last = now
+            // Pixel-like: one slow ripple roughly every two seconds
+            phase = (phase + dt * 0.5f) % 1f
+            drift = (drift + dt * 0.08f) % 1f
+            if (style == SeekBarStyle.SPECTRUM) {
+                val src = if (waving) player.levels() ?: synth.next(dt) else null
+                for (i in bands.indices) {
+                    val want = src?.getOrNull(i) ?: 0f
+                    bands[i] += (want - bands[i]) * (1f - exp(-dt * if (want > bands[i]) 18f else 5f))
+                }
+                frame++
+            }
         }
     }
     val change by rememberUpdatedState(onChange)
@@ -110,7 +135,7 @@ fun WavySeekBar(
     Box(
         modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(if (style == SeekBarStyle.SPECTRUM) 52.dp else 44.dp)
             .pointerInput(Unit) { detectTapGestures { o -> change((o.x / size.width).coerceIn(0f, 1f)); finish() } }
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -120,38 +145,78 @@ fun WavySeekBar(
                 ) { c, _ -> c.consume(); change((c.position.x / size.width).coerceIn(0f, 1f)) }
             }
             .drawBehind {
+                frame
                 val stroke = 4.dp.toPx()
-                val tw = thumbW.toPx()
                 val gap = 5.dp.toPx()
-                val cy = size.height / 2
+                val cy = if (style == SeekBarStyle.SPECTRUM) size.height * 0.68f else size.height / 2
                 val left = stroke / 2
                 val right = size.width - stroke / 2
                 val x = left + (right - left) * progress.coerceIn(0f, 1f)
-                // Played wave, ending a gap before the thumb.
-                val waveEnd = x - tw / 2 - gap
-                if (waveEnd > left) {
-                    val a = 3.dp.toPx() * amp
-                    val len = 28.dp.toPx()
-                    path.reset()
-                    var px = left
-                    path.moveTo(px, cy + a * sin(2 * PI * (px / len - phase)).toFloat())
-                    val dx = 1.5.dp.toPx()
-                    while (px < waveEnd) {
-                        px = minOf(px + dx, waveEnd)
-                        // Ease the wave into a flat line right next to the thumb.
-                        val near = ((waveEnd - px) / len).coerceIn(0f, 1f)
-                        path.lineTo(px, cy + a * near * sin(2 * PI * (px / len - phase)).toFloat())
+                val round = style == SeekBarStyle.DOT || style == SeekBarStyle.SPECTRUM
+                val half = if (round) dotR.toPx() else thumbW.toPx() / 2
+                val activeEnd = if (style == SeekBarStyle.SPECTRUM) x else x - half - gap
+                val restStart = if (style == SeekBarStyle.SPECTRUM) x else x + half + gap
+
+                if (style == SeekBarStyle.SPECTRUM && x > left) {
+                    val maxH = cy - 4.dp.toPx()
+                    val dx = 2.dp.toPx()
+                    fun level(u: Float): Float {
+                        val f = ((u % 1f) + 1f) % 1f * bands.size
+                        val i = f.toInt() % bands.size
+                        val k = f - f.toInt()
+                        return bands[i] + (bands[(i + 1) % bands.size] - bands[i]) * k
                     }
-                    drawPath(path, active, style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    for (layer in 0..1) {
+                        path.reset()
+                        path.moveTo(left, cy)
+                        var px = left
+                        while (px < x) {
+                            px = minOf(px + dx, x)
+                            val u = px / size.width
+                            val hill = 0.5f - 0.5f * cos(2 * PI * (u * 5f + (if (layer == 0) drift else -drift * 1.4f) + layer * 0.37f)).toFloat()
+                            val edge = (minOf(px - left, x - px) / (24.dp.toPx())).coerceIn(0f, 1f)
+                            val h = maxH * level(u * 1.6f + layer * 0.45f) * hill * hill * edge
+                            path.lineTo(px, cy - h)
+                        }
+                        path.lineTo(x, cy)
+                        path.close()
+                        drawPath(path, if (layer == 0) active.copy(alpha = 0.35f) else active.copy(alpha = 0.6f))
+                    }
                 }
-                // Remaining track and stop dot.
-                val restStart = x + tw / 2 + gap
+
+                if (activeEnd > left) {
+                    if (style == SeekBarStyle.WAVE) {
+                        val a = 3.dp.toPx() * amp
+                        val len = 32.dp.toPx()
+                        path.reset()
+                        var px = left
+                        path.moveTo(px, cy + a * sin(2 * PI * (px / len - phase)).toFloat())
+                        val dx = 1.5.dp.toPx()
+                        while (px < activeEnd) {
+                            px = minOf(px + dx, activeEnd)
+                            val near = ((activeEnd - px) / len).coerceIn(0f, 1f)
+                            path.lineTo(px, cy + a * near * sin(2 * PI * (px / len - phase)).toFloat())
+                        }
+                        drawPath(path, active, style = Stroke(stroke, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    } else drawLine(active, Offset(left, cy), Offset(activeEnd, cy), stroke, StrokeCap.Round)
+                }
                 if (restStart < right) {
                     drawLine(inactive, Offset(restStart, cy), Offset(right, cy), stroke, StrokeCap.Round)
-                    drawCircle(active, stroke / 2, Offset(right, cy))
+                    if (style != SeekBarStyle.SPECTRUM) drawCircle(active, stroke / 2, Offset(right, cy))
                 }
-                val h = thumbH.toPx()
-                drawRoundRect(active, Offset(x - tw / 2, cy - h / 2), Size(tw, h), CornerRadius(tw / 2))
+                when (style) {
+                    SeekBarStyle.WAVE, SeekBarStyle.BAR -> {
+                        val tw = thumbW.toPx()
+                        val h = thumbH.toPx()
+                        drawRoundRect(active, Offset(x - tw / 2, cy - h / 2), Size(tw, h), CornerRadius(tw / 2))
+                    }
+                    SeekBarStyle.DOT -> drawCircle(active, half, Offset(x, cy))
+                    SeekBarStyle.SPECTRUM -> {
+                        drawCircle(active.copy(alpha = 0.25f), half + 4.dp.toPx(), Offset(x, cy))
+                        drawCircle(Color.White, half, Offset(x, cy))
+                        drawCircle(active, half - 2.dp.toPx(), Offset(x, cy))
+                    }
+                }
             },
     )
 }
@@ -160,7 +225,8 @@ fun WavySeekBar(
 @Composable
 fun MaterialSeekBar(value: Float, onChange: (Float) -> Unit, onFinished: () -> Unit, modifier: Modifier = Modifier) {
     val state by AppGraph.instance.player.state.collectAsState()
-    WavySeekBar(value, state.isPlaying, onChange, onFinished, modifier)
+    val settings by AppGraph.instance.settings.state.collectAsState()
+    WavySeekBar(value, state.isPlaying, onChange, onFinished, modifier, style = settings.seekBarStyle)
 }
 
 // Hero play/pause: a wide pill while playing that springs into a rounded square when paused; squishes on press.

@@ -644,5 +644,10 @@ internal object Ja {
         "From your connected account" to "接続したアカウントから",
         "Reset" to "リセット",
         "Change" to "変更",
+        "Seek bar" to "シークバー",
+        "Wave" to "ウェーブ",
+        "Line" to "ライン",
+        "Dot" to "ドット",
+        "Spectrum" to "スペクトラム",
     )
 }

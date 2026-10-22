@@ -644,5 +644,10 @@ internal object De {
         "From your connected account" to "Vom verbundenen Konto",
         "Reset" to "Zurücksetzen",
         "Change" to "Ändern",
+        "Seek bar" to "Fortschrittsleiste",
+        "Wave" to "Welle",
+        "Line" to "Linie",
+        "Dot" to "Punkt",
+        "Spectrum" to "Spektrum",
     )
 }

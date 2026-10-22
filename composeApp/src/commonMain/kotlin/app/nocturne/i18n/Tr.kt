@@ -644,5 +644,10 @@ internal object Tr {
         "From your connected account" to "Bağlı hesabından",
         "Reset" to "Sıfırla",
         "Change" to "Değiştir",
+        "Seek bar" to "İlerleme çubuğu",
+        "Wave" to "Dalga",
+        "Line" to "Çizgi",
+        "Dot" to "Nokta",
+        "Spectrum" to "Spektrum",
     )
 }

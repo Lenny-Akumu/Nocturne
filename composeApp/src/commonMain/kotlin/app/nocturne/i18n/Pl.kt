@@ -644,5 +644,10 @@ internal object Pl {
         "From your connected account" to "Z połączonego konta",
         "Reset" to "Resetuj",
         "Change" to "Zmień",
+        "Seek bar" to "Pasek postępu",
+        "Wave" to "Fala",
+        "Line" to "Linia",
+        "Dot" to "Kropka",
+        "Spectrum" to "Widmo",
     )
 }

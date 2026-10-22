@@ -644,5 +644,10 @@ internal object Zh {
         "From your connected account" to "来自已连接的账号",
         "Reset" to "重置",
         "Change" to "更改",
+        "Seek bar" to "进度条",
+        "Wave" to "波浪",
+        "Line" to "线条",
+        "Dot" to "圆点",
+        "Spectrum" to "频谱",
     )
 }

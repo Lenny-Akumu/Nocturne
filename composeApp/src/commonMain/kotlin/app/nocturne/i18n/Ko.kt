@@ -644,5 +644,10 @@ internal object Ko {
         "From your connected account" to "연결된 계정에서",
         "Reset" to "초기화",
         "Change" to "변경",
+        "Seek bar" to "탐색 막대",
+        "Wave" to "물결",
+        "Line" to "선",
+        "Dot" to "점",
+        "Spectrum" to "스펙트럼",
     )
 }

@@ -644,5 +644,10 @@ internal object Pt {
         "From your connected account" to "Da sua conta conectada",
         "Reset" to "Redefinir",
         "Change" to "Alterar",
+        "Seek bar" to "Barra de progresso",
+        "Wave" to "Onda",
+        "Line" to "Linha",
+        "Dot" to "Ponto",
+        "Spectrum" to "Espectro",
     )
 }

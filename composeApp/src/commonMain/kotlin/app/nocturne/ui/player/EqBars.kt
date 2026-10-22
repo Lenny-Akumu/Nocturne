@@ -27,7 +27,7 @@ private const val BARS = 5
 private const val IDLE = 0.14f
 
 // Stand-in spectrum when the engine has no PCM (iOS, cast): smoothed random targets with a shared pulse.
-private class SynthLevels {
+internal class SynthLevels {
     private val v = FloatArray(BARS)
     private val target = FloatArray(BARS)
     private val left = FloatArray(BARS)

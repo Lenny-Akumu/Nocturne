@@ -644,5 +644,10 @@ internal object It {
         "From your connected account" to "Dall'account collegato",
         "Reset" to "Ripristina",
         "Change" to "Cambia",
+        "Seek bar" to "Barra di avanzamento",
+        "Wave" to "Onda",
+        "Line" to "Linea",
+        "Dot" to "Punto",
+        "Spectrum" to "Spettro",
     )
 }

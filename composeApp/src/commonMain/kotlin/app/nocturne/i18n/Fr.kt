@@ -644,5 +644,10 @@ internal object Fr {
         "From your connected account" to "Depuis ton compte connecté",
         "Reset" to "Réinitialiser",
         "Change" to "Changer",
+        "Seek bar" to "Barre de lecture",
+        "Wave" to "Vague",
+        "Line" to "Ligne",
+        "Dot" to "Point",
+        "Spectrum" to "Spectre",
     )
 }

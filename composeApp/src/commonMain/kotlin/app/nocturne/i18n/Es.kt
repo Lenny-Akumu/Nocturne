@@ -644,5 +644,10 @@ internal object Es {
         "From your connected account" to "De tu cuenta conectada",
         "Reset" to "Restablecer",
         "Change" to "Cambiar",
+        "Seek bar" to "Barra de progreso",
+        "Wave" to "Onda",
+        "Line" to "Línea",
+        "Dot" to "Punto",
+        "Spectrum" to "Espectro",
     )
 }

@@ -329,6 +329,9 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         if (s.playerBackground != PlayerBackground.SOLID) {
                             Toggle("Animated", "Slowly flowing colors over the background", Icons.Rounded.Animation, s.animatedBackground) { v -> set { it.copy(animatedBackground = v) } }
                         }
+                        if (s.designStyle == app.nocturne.data.DesignStyle.MATERIAL) {
+                            Choice("Seek bar", Icons.Rounded.Tune, s.seekBarStyle, app.nocturne.data.SeekBarStyle.entries, { it.label }) { v -> set { it.copy(seekBarStyle = v) } }
+                        }
                         Toggle("Artwork-tinted player", "Theme the player with album colors", Icons.Rounded.Palette, s.playerArtworkTint) { v -> set { it.copy(playerArtworkTint = v) } }
                         Header("Lists")
                         Toggle("Source badges", "Show YouTube Music / Spotify / SoundCloud icons", Icons.Rounded.Tune, s.showSourceBadges) { v -> set { it.copy(showSourceBadges = v) } }
