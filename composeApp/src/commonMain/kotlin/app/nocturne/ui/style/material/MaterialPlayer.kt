@@ -234,7 +234,7 @@ fun MaterialToggle(checked: Boolean, onClick: () -> Unit, label: String?, modifi
     // Segment: selected one rounds into a pill, press squishes corners.
     val corner = (0.24f + 0.26f * on) * (1f - 0.45f * press)
     val shape = FracShape(corner)
-    BoxWithConstraints(
+    Box(
         modifier.fillMaxSize()
             .graphicsLayer { alpha = if (enabled) 1f else 0.38f }
             .clip(shape)
@@ -242,14 +242,7 @@ fun MaterialToggle(checked: Boolean, onClick: () -> Unit, label: String?, modifi
             .toggleable(checked, src, ripple(), enabled, Role.Checkbox) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        val roomy = maxWidth >= 76.dp
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            glyph(fg, 20.dp)
-            if (label != null && roomy) {
-                Spacer(Modifier.width(6.dp))
-                Text(t(label), style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
+        glyph(fg, 26.dp)
     }
 }
 
@@ -265,7 +258,7 @@ fun ActionsLayout(modifier: Modifier, content: @Composable () -> Unit) {
             val n = measurables.size.coerceAtLeast(1)
             val gap = 4.dp.roundToPx()
             val w = if (constraints.hasBoundedWidth) constraints.maxWidth else 360.dp.roundToPx()
-            val h = minOf(if (constraints.hasBoundedHeight) constraints.maxHeight else Int.MAX_VALUE, 48.dp.roundToPx())
+            val h = minOf(if (constraints.hasBoundedHeight) constraints.maxHeight else Int.MAX_VALUE, 68.dp.roundToPx())
             val cw = ((w - gap * (n - 1)) / n).coerceAtLeast(0)
             val placeables = measurables.map { it.measure(Constraints.fixed(cw, h)) }
             val height = maxOf(h, constraints.minHeight)

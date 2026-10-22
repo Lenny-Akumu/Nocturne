@@ -243,7 +243,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                     }
                 }
                 // Phone: transport and actions in two rounded cards, lifted well off the bottom edge for thumbs.
-                Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp, bottom = if (tall) 76.dp else 28.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp, bottom = if (tall) 40.dp else 20.dp)) {
                     Controls(cards = true)
                     BottomActions(pane, { pane = if (pane == it) Pane.ARTWORK else it }, hideArtworkToggle = false, card = true)
                 }
@@ -383,7 +383,7 @@ private fun Controls(compact: Boolean = false, cards: Boolean = false) {
     PlayerSeekBar(state.positionMs, state.durationMs, state.progress, { graph.player.seekTo(it) }, inset, compact = compact)
 
     if (cards) PlayerCard(Modifier.fillMaxWidth().padding(top = 10.dp)) {
-        TransportRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), compact)
+        TransportRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 18.dp), compact)
     } else TransportRow(Modifier.fillMaxWidth().padding(vertical = if (compact) 2.dp else 12.dp), compact)
 }
 
@@ -412,7 +412,7 @@ private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, hideArtworkToggle:
     LaunchedEffect(volumeOpen, touched) {
         if (volumeOpen) { delay(3500); volumeOpen = false }
     }
-    val row = if (card) Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp) else Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp)
+    val row = if (card) Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 4.dp) else Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp)
     val body: @Composable () -> Unit = {
         AnimatedContent(volumeOpen && desktop, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "actions") { open ->
             if (open) VolumeRow(row, onTouch = { touched++ }, onClose = { volumeOpen = false })

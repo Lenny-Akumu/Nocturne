@@ -200,7 +200,7 @@ internal fun GlassPlayerLayout(onCollapse: () -> Unit, pane: Pane, onPane: (Pane
 
         // Transport capsule.
         GlassSurface(
-            Modifier.glassAppear(120).padding(horizontal = 16.dp).padding(top = 10.dp).fillMaxWidth().height(if (tall) 96.dp else 80.dp),
+            Modifier.glassAppear(120).padding(horizontal = 16.dp).padding(top = 10.dp).fillMaxWidth().height(if (tall) 108.dp else 90.dp),
             RoundedCornerShape(34.dp), tint,
         ) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -214,22 +214,22 @@ internal fun GlassPlayerLayout(onCollapse: () -> Unit, pane: Pane, onPane: (Pane
 
         // Action capsule.
         GlassSurface(
-            Modifier.glassAppear(160).padding(horizontal = 16.dp).padding(top = 12.dp, bottom = if (tall) 20.dp else 10.dp).fillMaxWidth().height(62.dp),
+            Modifier.glassAppear(160).padding(horizontal = 16.dp).padding(top = 12.dp, bottom = if (tall) 48.dp else 22.dp).fillMaxWidth().height(74.dp),
             RoundedCornerShape(26.dp), tint,
         ) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
                 val c = track.source != Source.SOUNDCLOUD && track.source != Source.LOCAL
                 if (c) ActionItem(settings.showVideo, if (settings.showVideo) "Show artwork" else "Show video", { graph.settings.update { it.copy(showVideo = !it.showVideo) } }) { col ->
-                    Icon(if (settings.showVideo) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff, null, Modifier.size(22.dp), tint = col)
+                    Icon(if (settings.showVideo) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff, null, Modifier.size(25.dp), tint = col)
                 }
                 ActionItem(settings.eqEnabled || settings.playbackSpeed != 1f, "Equalizer and speed", { overlays.audio = true }) { col ->
-                    EqBars(state.isPlaying, Modifier.size(22.dp), col)
+                    EqBars(state.isPlaying, Modifier.size(25.dp), col)
                 }
                 if (settings.showLyrics) ActionItem(pane == Pane.LYRICS, "Lyrics", { onPane(if (pane == Pane.LYRICS) Pane.ARTWORK else Pane.LYRICS) }) { col ->
-                    Icon(Icons.Rounded.Lyrics, null, Modifier.size(22.dp), tint = col)
+                    Icon(Icons.Rounded.Lyrics, null, Modifier.size(25.dp), tint = col)
                 }
                 ActionItem(pane == Pane.QUEUE, "Queue", { onPane(if (pane == Pane.QUEUE) Pane.ARTWORK else Pane.QUEUE) }) { col ->
-                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, null, Modifier.size(22.dp), tint = col)
+                    Icon(Icons.AutoMirrored.Rounded.QueueMusic, null, Modifier.size(25.dp), tint = col)
                 }
             }
         }
@@ -255,7 +255,7 @@ private fun ModeButton(icon: ImageVector, cd: String, on: Boolean, onClick: () -
 @Composable
 private fun ActionItem(selected: Boolean, cd: String, onClick: () -> Unit, glyph: @Composable (Color) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    GlassInnerButton(onClick, Modifier.size(64.dp, 46.dp), selected = selected, shape = RoundedCornerShape(50), contentDescription = t(cd)) {
+    GlassInnerButton(onClick, Modifier.size(72.dp, 56.dp), selected = selected, shape = RoundedCornerShape(50), contentDescription = t(cd)) {
         glyph(if (selected) cs.onSurface else cs.onSurface.copy(alpha = 0.82f))
     }
 }
