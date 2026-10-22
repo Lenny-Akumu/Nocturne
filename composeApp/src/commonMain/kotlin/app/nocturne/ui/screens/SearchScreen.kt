@@ -51,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -181,7 +182,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
             onValueChange = { s.query = it },
             modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus).padding(horizontal = 16.dp, vertical = 8.dp)
                 .then(if (design == DesignStyle.GLASS) Modifier.liquidGlass(CircleShape, 6.dp) else Modifier),
-            placeholder = { Text(t("Songs, albums, artists or a link")) },
+            placeholder = { Text(t("Search songs, artists"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             trailingIcon = {
                 if (s.query.isNotEmpty()) IconButton(onClick = { s.query = ""; s.submitted = null; s.results = null }) { Icon(Icons.Rounded.Clear, "Clear") }
