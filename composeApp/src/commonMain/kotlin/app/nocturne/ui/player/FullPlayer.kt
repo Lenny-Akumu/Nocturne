@@ -6,7 +6,6 @@ import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
 import kotlinx.coroutines.delay
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -45,8 +44,6 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
@@ -58,15 +55,16 @@ import androidx.compose.material.icons.rounded.ThumbDownOffAlt
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FastRewind
+import androidx.compose.material.icons.rounded.Airplay
+import androidx.compose.material.icons.automirrored.rounded.VolumeMute
+import app.nocturne.data.DesignStyle
+import app.nocturne.ui.kit.LocalDesignStyle
 import app.nocturne.ui.kit.AlertDialog
-import app.nocturne.ui.kit.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
-import app.nocturne.ui.kit.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import app.nocturne.ui.kit.TextButton
 import androidx.compose.runtime.Composable
@@ -97,7 +95,6 @@ import app.nocturne.AppGraph
 import app.nocturne.data.PlayerBackground
 import app.nocturne.model.CollectionRef
 import app.nocturne.model.CollectionType
-import app.nocturne.model.formatDuration
 import app.nocturne.nowMillis
 import app.nocturne.ui.Screen
 import app.nocturne.ui.components.Artwork
@@ -177,7 +174,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
         val short = maxHeight < 560.dp
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onCollapse) { Icon(Icons.Rounded.KeyboardArrowDown, "Collapse", Modifier.size(30.dp)) }
+                TransportButton(Icons.Rounded.KeyboardArrowDown, "Collapse", onCollapse, iconSize = 30.dp)
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(t("PLAYING FROM"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.queueTitle ?: track.album ?: track.source.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -187,10 +184,11 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                 val castDevice by graph.cast.device.collectAsState()
                 if (carMode) CarModeDialog { carMode = false }
                 if (connect) ConnectSheet(onDismiss = { connect = false }, onCarMode = { carMode = true })
-                IconButton(onClick = { connect = true }) {
-                    Icon(if (castDevice != null) Icons.Rounded.CastConnected else Icons.Rounded.Devices, "Devices", tint = if (castDevice != null) MaterialTheme.colorScheme.primary else LocalContentColor.current)
-                }
-                IconButton(onClick = { menu(track, TrackMenuContext()) }) { Icon(Icons.Rounded.MoreVert, "More") }
+                TransportButton(
+                    if (castDevice != null) Icons.Rounded.CastConnected else Icons.Rounded.Devices, "Devices", { connect = true },
+                    tint = if (castDevice != null) MaterialTheme.colorScheme.primary else LocalContentColor.current, glassIcon = Icons.Rounded.Airplay,
+                )
+                TransportButton(Icons.Rounded.MoreVert, "More", { menu(track, TrackMenuContext()) })
             }
 
             if (wide) {
@@ -353,58 +351,26 @@ private fun Controls(compact: Boolean = false) {
                 )
             }
         }
-        IconButton(onClick = { graph.notInterested(track) }) {
-            Icon(Icons.Rounded.ThumbDownOffAlt, "Not interested", Modifier.size(26.dp), tint = cs.onSurfaceVariant)
-        }
+        TransportButton(Icons.Rounded.ThumbDownOffAlt, "Not interested", { graph.notInterested(track) }, iconSize = 26.dp, tint = cs.onSurfaceVariant, circle = true)
         val liked = library.liked.any { it.key == track.key }
-        IconButton(onClick = { graph.toggleLike(track) }) {
-            Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", Modifier.size(28.dp), tint = if (liked) cs.primary else cs.onSurface)
-        }
+        TransportButton(
+            if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", { graph.toggleLike(track) },
+            iconSize = 28.dp, tint = if (liked) cs.primary else cs.onSurface, circle = true,
+        )
     }
 
-    var seeking by remember { mutableStateOf<Float?>(null) }
-    val duration = state.durationMs.coerceAtLeast(1)
-    Slider(
-        value = seeking ?: state.progress,
-        onValueChange = { seeking = it },
-        onValueChangeFinished = { seeking?.let { graph.player.seekTo((it * duration).toLong()) }; seeking = null },
-        modifier = Modifier.padding(top = if (compact) 0.dp else 8.dp),
-        colors = SliderDefaults.colors(thumbColor = cs.primary, activeTrackColor = cs.primary, inactiveTrackColor = cs.onSurface.copy(alpha = 0.18f)),
-    )
-    Row {
-        Text(((seeking?.let { (it * duration).toLong() }) ?: state.positionMs).formatDuration(), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-        Spacer(Modifier.weight(1f))
-        Text(state.durationMs.formatDuration(), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-    }
+    PlayerSeekBar(state.positionMs, state.durationMs, state.progress, { graph.player.seekTo(it) }, compact = compact)
 
     Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 2.dp else 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        IconToggleButton(checked = state.shuffle, onCheckedChange = { graph.player.toggleShuffle() }) {
-            Icon(Icons.Rounded.Shuffle, "Shuffle", tint = if (state.shuffle) cs.primary else cs.onSurfaceVariant)
-        }
-        IconButton(onClick = graph.player::previous, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.SkipPrevious, "Previous", Modifier.size(38.dp)) }
-        val corner by animateDpAsState(if (state.isPlaying) 24.dp else 36.dp, label = "corner")
-        Surface(
-            onClick = graph.player::toggle,
-            shape = RoundedCornerShape(corner),
-            color = cs.primary,
-            contentColor = cs.onPrimary,
-            modifier = if (compact) Modifier.size(width = 68.dp, height = 52.dp) else Modifier.size(width = 88.dp, height = 72.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (state.isBuffering) CircularProgressIndicator(Modifier.size(36.dp), color = cs.onPrimary, strokeWidth = 3.dp)
-                else Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.isPlaying) "Pause" else "Play", Modifier.size(40.dp))
-            }
-        }
-        IconButton(onClick = graph.player::next, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.SkipNext, "Next", Modifier.size(38.dp)) }
-        IconToggleButton(checked = state.repeat != app.nocturne.player.RepeatMode.OFF, onCheckedChange = { graph.player.cycleRepeat() }) {
-            Icon(
-                if (state.repeat == app.nocturne.player.RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                "Repeat",
-                tint = if (state.repeat != app.nocturne.player.RepeatMode.OFF) cs.primary else cs.onSurfaceVariant,
-            )
-        }
+        ToggleGlyph(state.shuffle, { graph.player.toggleShuffle() }, Icons.Rounded.Shuffle, "Shuffle")
+        TransportButton(Icons.Rounded.SkipPrevious, "Previous", graph.player::previous, size = 56.dp, iconSize = 38.dp, glassIcon = Icons.Rounded.FastRewind)
+        PlayPauseButton(state.isPlaying, graph.player::toggle, buffering = state.isBuffering, hero = true, compact = compact)
+        TransportButton(Icons.Rounded.SkipNext, "Next", graph.player::next, size = 56.dp, iconSize = 38.dp, glassIcon = Icons.Rounded.FastForward)
+        ToggleGlyph(
+            state.repeat != app.nocturne.player.RepeatMode.OFF, { graph.player.cycleRepeat() },
+            if (state.repeat == app.nocturne.player.RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, "Repeat",
+        )
     }
-
 }
 
 @Composable
@@ -432,20 +398,23 @@ private fun VolumeRow(onTouch: () -> Unit, onClose: () -> Unit) {
     val settings by graph.settings.state.collectAsState()
     val cs = MaterialTheme.colorScheme
     var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
+    // Glass: Apple-style bar between a quiet and a loud speaker.
+    val glass = LocalDesignStyle.current == DesignStyle.GLASS
     Row(Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp, start = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { vol = if (vol > 0.01f) 0f else 0.6f; graph.player.setVolume(vol); onTouch() }, modifier = Modifier.size(36.dp)) {
-            Icon(if (vol <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, "Mute", Modifier.size(20.dp), tint = cs.primary)
-        }
-        Slider(
-            value = vol,
-            onValueChange = { vol = it; graph.player.setVolume(it); onTouch() },
-            modifier = Modifier.weight(1f).height(24.dp),
-            colors = SliderDefaults.colors(thumbColor = cs.primary, activeTrackColor = cs.primary, inactiveTrackColor = cs.onSurface.copy(alpha = 0.15f)),
+        TransportButton(
+            if (vol <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else if (glass) Icons.AutoMirrored.Rounded.VolumeMute else Icons.AutoMirrored.Rounded.VolumeUp, "Mute",
+            { vol = if (vol > 0.01f) 0f else 0.6f; graph.player.setVolume(vol); onTouch() },
+            size = 36.dp, iconSize = 20.dp, tint = if (glass) cs.onSurfaceVariant else cs.primary,
         )
-        Text("${(vol * 100).toInt()}", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.width(32.dp).padding(start = 6.dp))
-        IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Rounded.Close, "Close", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
-        }
+        PlayerVolumeSlider(
+            vol,
+            { vol = it; graph.player.setVolume(it); onTouch() },
+            Modifier.weight(1f).height(24.dp),
+            SliderDefaults.colors(thumbColor = cs.primary, activeTrackColor = cs.primary, inactiveTrackColor = cs.onSurface.copy(alpha = 0.15f)),
+        )
+        if (glass) Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, Modifier.padding(start = 8.dp).size(20.dp), tint = cs.onSurfaceVariant)
+        else Text("${(vol * 100).toInt()}", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.width(32.dp).padding(start = 6.dp))
+        TransportButton(Icons.Rounded.Close, "Close", onClose, size = 36.dp, iconSize = 20.dp, tint = cs.onSurfaceVariant)
     }
 }
 
@@ -456,8 +425,9 @@ private fun ActionsRow(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Unit, 
     val state by graph.player.state.collectAsState()
     val cs = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        IconButton(
-            onClick = onVolume,
+        ToggleGlyph(
+            false, onVolume,
+            if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, "Volume",
             modifier = Modifier.pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -470,40 +440,26 @@ private fun ActionsRow(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Unit, 
                     }
                 }
             },
-        ) {
-            Icon(if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, "Volume", tint = cs.onSurfaceVariant)
-        }
+        )
         val current = state.current
         if (current != null && current.source != app.nocturne.model.Source.SOUNDCLOUD && current.source != app.nocturne.model.Source.LOCAL) {
-            IconToggleButton(checked = settings.showVideo, onCheckedChange = { v -> graph.settings.update { it.copy(showVideo = v) } }) {
-                Icon(
-                    if (settings.showVideo) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff,
-                    if (settings.showVideo) "Show artwork" else "Show video",
-                    tint = if (settings.showVideo) cs.primary else cs.onSurfaceVariant,
-                )
-            }
+            ToggleGlyph(
+                settings.showVideo, { graph.settings.update { it.copy(showVideo = !it.showVideo) } },
+                if (settings.showVideo) Icons.Rounded.Videocam else Icons.Rounded.VideocamOff,
+                if (settings.showVideo) "Show artwork" else "Show video",
+            )
         }
-        IconButton(onClick = onAudio) {
-            Icon(Icons.Rounded.GraphicEq, "Equalizer and speed", tint = if (settings.eqEnabled || settings.playbackSpeed != 1f) cs.primary else cs.onSurfaceVariant)
-        }
+        ToggleGlyph(settings.eqEnabled || settings.playbackSpeed != 1f, onAudio, Icons.Rounded.GraphicEq, "Equalizer and speed")
         if (settings.showLyrics) {
-            IconToggleButton(checked = pane == Pane.LYRICS, onCheckedChange = { onPane(Pane.LYRICS) }) {
-                Icon(Icons.Rounded.Lyrics, "Lyrics", tint = if (pane == Pane.LYRICS || (hideArtworkToggle && pane == Pane.ARTWORK)) cs.primary else cs.onSurfaceVariant)
-            }
+            ToggleGlyph(pane == Pane.LYRICS || (hideArtworkToggle && pane == Pane.ARTWORK), { onPane(Pane.LYRICS) }, Icons.Rounded.Lyrics, "Lyrics")
         }
         val sleeping = state.sleepAtMs != null || state.sleepAfterTrack
-        IconButton(onClick = onSleep) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Bedtime, "Sleep timer", tint = if (sleeping) cs.primary else cs.onSurfaceVariant)
-            }
-        }
+        ToggleGlyph(sleeping, onSleep, Icons.Rounded.Bedtime, "Sleep timer")
         state.sleepAtMs?.let {
             val left = ((it - nowMillis()) / 60_000).coerceAtLeast(0) + 1
             Text("${left}m", style = MaterialTheme.typography.labelMedium, color = cs.primary)
         }
-        IconToggleButton(checked = pane == Pane.QUEUE, onCheckedChange = { onPane(Pane.QUEUE) }) {
-            Icon(Icons.AutoMirrored.Rounded.QueueMusic, "Queue", tint = if (pane == Pane.QUEUE) cs.primary else cs.onSurfaceVariant)
-        }
+        ToggleGlyph(pane == Pane.QUEUE, { onPane(Pane.QUEUE) }, Icons.AutoMirrored.Rounded.QueueMusic, "Queue")
     }
 }
 

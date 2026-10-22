@@ -25,7 +25,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material3.FilledTonalIconButton
+import app.nocturne.ui.kit.FilledTonalIconButton
 import androidx.compose.runtime.rememberCoroutineScope
 import app.nocturne.PlatformKind
 import app.nocturne.platformKind

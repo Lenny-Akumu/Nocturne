@@ -1,6 +1,13 @@
 package app.nocturne.ui.player
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import app.nocturne.data.DesignStyle
+import app.nocturne.ui.kit.LocalDesignStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,9 +82,21 @@ fun CarModeDialog(onDismiss: () -> Unit) {
     }
 }
 
+// Big tile: Windows uses 8dp corners, Liquid Glass springs down on press; the glyph crossfades.
 @Composable
 private fun BigButton(icon: ImageVector, bg: Color, modifier: Modifier, tint: Color = Color.White, onClick: () -> Unit) {
-    Box(modifier.clip(RoundedCornerShape(28.dp)).background(bg).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(64.dp), tint = tint)
+    val style = LocalDesignStyle.current
+    val shape = RoundedCornerShape(if (style == DesignStyle.WINDOWS) 8.dp else 28.dp)
+    val src = remember { MutableInteractionSource() }
+    val press = pressAmount(src)
+    Box(
+        modifier
+            .graphicsLayer { if (style == DesignStyle.GLASS) { val s = 1f - 0.05f * press.value; scaleX = s; scaleY = s } }
+            .clip(shape)
+            .background(bg)
+            .clickable(interactionSource = src, indication = if (style == DesignStyle.GLASS) null else LocalIndication.current, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Crossfade(icon, label = "car") { Icon(it, null, Modifier.size(64.dp), tint = tint) }
     }
 }

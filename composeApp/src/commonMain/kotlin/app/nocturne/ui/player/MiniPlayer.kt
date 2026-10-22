@@ -36,16 +36,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import app.nocturne.ui.kit.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import app.nocturne.ui.kit.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import app.nocturne.ui.kit.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -155,23 +152,19 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
             }
             if (wide) {
                 val liked = library.liked.any { it.key == track.key }
-                IconButton(onClick = { graph.toggleLike(track) }) {
-                    Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = graph.player::previous) { Icon(Icons.Rounded.SkipPrevious, "Previous") }
+                TransportButton(
+                    if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", { graph.toggleLike(track) },
+                    tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TransportButton(Icons.Rounded.SkipPrevious, "Previous", graph.player::previous, glassIcon = Icons.Rounded.FastRewind)
             }
-            Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                if (state.isBuffering) CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 2.dp)
-                IconButton(onClick = graph.player::toggle) {
-                    Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.isPlaying) "Pause" else "Play")
-                }
-            }
-            IconButton(onClick = graph.player::next) { Icon(Icons.Rounded.SkipNext, "Next") }
+            PlayPauseButton(state.isPlaying, graph.player::toggle, buffering = state.isBuffering)
+            TransportButton(Icons.Rounded.SkipNext, "Next", graph.player::next, glassIcon = Icons.Rounded.FastForward)
             if (wide && app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) {
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
-                Slider(value = vol, onValueChange = { vol = it; graph.player.setVolume(it) }, modifier = Modifier.widthIn(max = 140.dp).width(120.dp))
+                PlayerVolumeSlider(vol, { vol = it; graph.player.setVolume(it) }, Modifier.widthIn(max = 140.dp).width(120.dp))
                 Spacer(Modifier.width(8.dp))
             }
         }

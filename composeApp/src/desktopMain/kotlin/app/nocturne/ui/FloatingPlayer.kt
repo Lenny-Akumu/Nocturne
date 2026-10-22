@@ -41,14 +41,15 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.ThumbDown
 import app.nocturne.ui.kit.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import app.nocturne.ui.player.PlayPauseButton
+import app.nocturne.ui.player.TransportButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -297,9 +298,9 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?, canOpen: Boolea
                     contentKey = { it?.key },
                     label = "title",
                 ) { t -> TrackText(t) }
-                if ("prev" in b) PillButton(Icons.Rounded.SkipPrevious, Color.White, interactive) { graph.player.previous() }
-                PillButton(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, accent, interactive) { graph.player.toggle() }
-                if ("next" in b) PillButton(Icons.Rounded.SkipNext, Color.White, interactive) { graph.player.next() }
+                if ("prev" in b) PillButton(Icons.Rounded.SkipPrevious, Color.White, interactive, Icons.Rounded.FastRewind) { graph.player.previous() }
+                PlayPauseButton(state.isPlaying, { graph.player.toggle() }, size = BTN, enabled = interactive, tint = accent, accent = accent)
+                if ("next" in b) PillButton(Icons.Rounded.SkipNext, Color.White, interactive, Icons.Rounded.FastForward) { graph.player.next() }
             }
             Side("right", Alignment.Start, if (anchor == 1) sideW else null, rightExtras)
             if ("seek" in b) {
@@ -374,8 +375,8 @@ private fun Side(id: String, from: Alignment.Horizontal, width: Dp?, items: List
 }
 
 @Composable
-private fun PillButton(icon: ImageVector, tint: Color, enabled: Boolean = true, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(BTN)) { Icon(icon, null, tint = tint) }
+private fun PillButton(icon: ImageVector, tint: Color, enabled: Boolean = true, glassIcon: ImageVector = icon, onClick: () -> Unit) {
+    TransportButton(icon, null, onClick, size = BTN, tint = tint, glassIcon = glassIcon, enabled = enabled)
 }
 
 @Composable

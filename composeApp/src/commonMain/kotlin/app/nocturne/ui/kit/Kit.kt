@@ -1463,3 +1463,51 @@ fun IosGroupedColumn(modifier: Modifier = Modifier, content: @Composable () -> U
         }
     }
 }
+
+// Round tonal icon button: glass circle with accent glyph (Glass), WinUI standard button (Windows).
+@Composable
+fun FilledTonalIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    val style = LocalDesignStyle.current
+    if (style == DesignStyle.MATERIAL) {
+        androidx.compose.material3.FilledTonalIconButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+        return
+    }
+    val cs = MaterialTheme.colorScheme
+    val src = remember { MutableInteractionSource() }
+    val hovered by src.collectIsHoveredAsState()
+    val pressed by src.collectIsPressedAsState()
+    if (style == DesignStyle.GLASS) {
+        val dark = LocalDarkTheme.current
+        val s by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.55f, stiffness = 600f), label = "press")
+        Box(
+            modifier
+                .minimumInteractiveComponentSize()
+                .size(40.dp)
+                .graphicsLayer { scaleX = s; scaleY = s; alpha = if (enabled) 1f else 0.4f }
+                .clip(CircleShape)
+                .background(glassFill())
+                .glassSheen(CircleShape, dark)
+                .clickable(interactionSource = src, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) { CompositionLocalProvider(LocalContentColor provides cs.primary, content = content) }
+        return
+    }
+    val f = fluent()
+    val shape = RoundedCornerShape(4.dp)
+    Box(
+        modifier
+            .size(36.dp)
+            .alpha(if (enabled) 1f else 0.4f)
+            .clip(shape)
+            .background(if (pressed) f.fillPressed else if (hovered) f.fillHover else f.fill)
+            .fluentBorder(shape, f.strokeTop, f.strokeBottom)
+            .hoverable(src, enabled)
+            .clickable(interactionSource = src, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { CompositionLocalProvider(LocalContentColor provides if (pressed) cs.onSurface.copy(alpha = 0.8f) else cs.onSurface, content = content) }
+}
