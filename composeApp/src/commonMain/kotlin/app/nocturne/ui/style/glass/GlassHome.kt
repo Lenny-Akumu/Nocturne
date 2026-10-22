@@ -1,5 +1,8 @@
 package app.nocturne.ui.style.glass
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -132,9 +135,8 @@ fun GlassHome(
             }
             if (mixes.isNotEmpty()) item(key = "mixes") { MixCarousel(mixes) { m -> play(m.tracks, 0, m.title) } }
             if (recs.isNotEmpty()) item(key = "recs") {
-                var all by rememberSaveable { mutableStateOf(false) }
-                ShelfHeader(t("Recommended for you"), chevron = recs.size > 6, open = all, onClick = if (recs.size > 6) ({ all = !all }) else null)
-                GroupedGrid(if (all) recs.take(20) else recs.take(6)) { i -> play(recs, i, t("Recommended for you")) }
+                ShelfHeader(t("Recommended for you"))
+                GroupedGrid(recs.take(24)) { i -> play(recs, i, t("Recommended for you")) }
             }
             if (mostPlayed.size >= 4) item(key = "top") {
                 ShelfHeader(t("Your top tracks"))
@@ -300,18 +302,24 @@ private fun ShelfHeader(title: String, source: Source? = null, chevron: Boolean 
     }
 }
 
-// Inset grouped container (iOS grouped list) holding tracks in two columns.
+// Grouped containers of 4 rows paged sideways; the next one peeks at the edge.
 @Composable
 private fun GroupedGrid(tracks: List<Track>, onPlay: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Column(
-        Modifier.padding(horizontal = 16.dp).fillMaxWidth().animateContentSize(spring(dampingRatio = 0.85f, stiffness = 380f))
-            .clip(RoundedCornerShape(22.dp)).background(cs.surfaceContainerLow).padding(vertical = 4.dp),
-    ) {
-        tracks.indices.chunked(2).forEach { row ->
-            Row(Modifier.fillMaxWidth()) {
-                row.forEach { i -> GridCell(tracks[i], Modifier.weight(1f)) { onPlay(i) } }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
+    val pages = tracks.indices.chunked(4)
+    val state = rememberLazyListState()
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val pageW = if (pages.size > 1) maxWidth - 16.dp - 56.dp else maxWidth - 32.dp
+        LazyRow(
+            state = state,
+            flingBehavior = rememberSnapFlingBehavior(state),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(pages.size) { p ->
+                Column(Modifier.width(pageW).clip(RoundedCornerShape(22.dp)).background(cs.surfaceContainerLow).padding(vertical = 4.dp)) {
+                    pages[p].forEach { i -> GridCell(tracks[i], Modifier.fillMaxWidth()) { onPlay(i) } }
+                }
             }
         }
     }

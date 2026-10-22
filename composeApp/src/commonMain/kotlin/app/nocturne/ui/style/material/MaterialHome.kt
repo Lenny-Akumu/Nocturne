@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -173,18 +175,23 @@ private fun ShelfHeader(title: String, source: Source? = null, action: String? =
     }
 }
 
-// Two columns of compact rows; "See all" expands from 4 rows to everything.
+// Pages of 4 rows scrolled sideways; the next page peeks so it's clear there's more.
 @Composable
 private fun QuickGrid(title: String, tracks: List<Track>, source: Source? = null, onPlay: (Int) -> Unit) {
-    var expanded by rememberSaveable(title) { mutableStateOf(false) }
-    val rows = if (expanded) tracks.size else minOf(tracks.size, 8)
-    ShelfHeader(title, source, if (tracks.size > 8) t(if (expanded) "Show less" else "See all") else null) { expanded = !expanded }
-    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (r in 0 until (rows + 1) / 2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (c in 0..1) {
-                    val i = r * 2 + c
-                    if (i < rows) CompactRow(tracks[i], Modifier.weight(1f)) { onPlay(i) } else Spacer(Modifier.weight(1f))
+    ShelfHeader(title, source, null) {}
+    val pages = tracks.indices.chunked(4)
+    val state = rememberLazyListState()
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val pageW = if (pages.size > 1) maxWidth - 16.dp - 56.dp else maxWidth - 32.dp
+        LazyRow(
+            state = state,
+            flingBehavior = rememberSnapFlingBehavior(state),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(pages.size) { p ->
+                Column(Modifier.width(pageW), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    pages[p].forEach { i -> CompactRow(tracks[i], Modifier.fillMaxWidth()) { onPlay(i) } }
                 }
             }
         }
