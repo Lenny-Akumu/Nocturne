@@ -634,5 +634,10 @@ internal object Ko {
         "Instrumental version" to "인스트루멘털 버전",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "노래방: 인스트루멘털 버전을 재생하거나 가운데 보컬을 제거",
         "Karaoke: plays the instrumental version when there is one" to "노래방: 인스트루멘털 버전이 있으면 재생",
+        "Search songs, artists" to "노래, 아티스트 검색",
+        "See all" to "모두 보기",
+        "Show less" to "간략히 보기",
+        "Video" to "동영상",
+        "EQ" to "EQ",
     )
 }

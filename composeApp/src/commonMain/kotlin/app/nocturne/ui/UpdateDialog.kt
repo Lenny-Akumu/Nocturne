@@ -30,7 +30,7 @@ import androidx.compose.material.icons.rounded.SystemUpdate
 import app.nocturne.ui.kit.Button
 import app.nocturne.ui.kit.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import app.nocturne.ui.kit.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text

@@ -25,7 +25,7 @@ import androidx.compose.material.icons.rounded.AllInclusive
 import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Lyrics
 import app.nocturne.ui.kit.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import app.nocturne.ui.kit.Switch

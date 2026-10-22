@@ -634,5 +634,10 @@ internal object Pl {
         "Instrumental version" to "Wersja instrumentalna",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: odtwarza wersję instrumentalną lub usuwa wokal ze środka",
         "Karaoke: plays the instrumental version when there is one" to "Karaoke: odtwarza wersję instrumentalną, jeśli istnieje",
+        "Search songs, artists" to "Szukaj utworów, wykonawców",
+        "See all" to "Zobacz wszystko",
+        "Show less" to "Pokaż mniej",
+        "Video" to "Wideo",
+        "EQ" to "EQ",
     )
 }

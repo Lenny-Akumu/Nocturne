@@ -37,7 +37,7 @@ import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.ThumbDownOffAlt
 import app.nocturne.ui.kit.AlertDialog
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import app.nocturne.ui.kit.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme

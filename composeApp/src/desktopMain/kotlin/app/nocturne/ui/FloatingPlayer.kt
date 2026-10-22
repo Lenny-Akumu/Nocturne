@@ -47,7 +47,7 @@ import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.ThumbDown
 import app.nocturne.ui.kit.FilledTonalButton
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import app.nocturne.ui.player.PlayPauseButton
 import app.nocturne.ui.player.TransportButton
 import androidx.compose.material3.MaterialTheme

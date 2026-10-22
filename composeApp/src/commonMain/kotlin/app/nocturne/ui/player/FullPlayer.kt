@@ -65,7 +65,7 @@ import app.nocturne.ui.components.trackMenuOpen
 import app.nocturne.data.DesignStyle
 import app.nocturne.ui.kit.LocalDesignStyle
 import app.nocturne.ui.kit.AlertDialog
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text

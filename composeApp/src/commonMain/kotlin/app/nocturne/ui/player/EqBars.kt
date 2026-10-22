@@ -16,8 +16,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import app.nocturne.AppGraph
+import app.nocturne.ui.kit.LocalPixelIcons
 import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -75,8 +77,21 @@ fun EqBars(playing: Boolean, modifier: Modifier = Modifier, color: Color = Local
             }
         }
     }
+    val pixel = LocalPixelIcons.current
     Canvas(modifier) {
         frame // redraw per frame without recomposition
+        if (pixel) {
+            // 2-cell bars, 1-cell gaps on a 14-cell grid; heights snap to whole cells, grown evenly about the center
+            val u = size.width / 14
+            val rows = (size.height / u).toInt()
+            val y0 = (size.height - rows * u) / 2
+            if (rows >= 2) for (i in 0 until BARS) {
+                var cells = (rows * 0.9f * bars[i]).roundToInt().coerceIn(2, rows)
+                if ((rows - cells) % 2 != 0) cells--
+                drawRect(color, Offset(i * 3 * u, y0 + (rows - cells) / 2 * u), Size(2 * u, cells * u))
+            }
+            return@Canvas
+        }
         val w = size.width / (BARS * 1.75f - 0.75f)
         val gap = w * 0.75f
         val x0 = (size.width - (BARS * w + (BARS - 1) * gap)) / 2

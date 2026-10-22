@@ -34,7 +34,7 @@ import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import app.nocturne.ui.kit.FilterChip
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.IconButton
 import app.nocturne.ui.kit.ListItem
 import androidx.compose.material3.ListItemDefaults

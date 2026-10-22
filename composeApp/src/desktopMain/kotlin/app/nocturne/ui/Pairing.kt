@@ -18,7 +18,7 @@ import app.nocturne.ui.kit.AlertDialog
 import app.nocturne.ui.kit.Card
 import androidx.compose.material3.CardDefaults
 import app.nocturne.ui.kit.FilledTonalButton
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import app.nocturne.ui.kit.TextButton

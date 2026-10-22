@@ -23,6 +23,7 @@ import app.nocturne.data.DesignStyle
 import app.nocturne.data.Settings
 import app.nocturne.data.ThemeMode
 import app.nocturne.ui.kit.LocalDesignStyle
+import app.nocturne.ui.kit.LocalPixelIcons
 import com.materialkolor.PaletteStyle
 import com.materialkolor.rememberDynamicColorScheme
 
@@ -250,7 +251,10 @@ fun NocturneTheme(
         DesignStyle.MATERIAL -> nocturneTypography(settings.fontStyle)
     }
     val shapes = if (style == DesignStyle.WINDOWS) FluentShapes else NocturneShapes
-    CompositionLocalProvider(LocalDarkTheme provides dark, LocalBackdrop provides backdrop, LocalDesignStyle provides style) {
+    CompositionLocalProvider(
+        LocalDarkTheme provides dark, LocalBackdrop provides backdrop, LocalDesignStyle provides style,
+        LocalPixelIcons provides (settings.fontStyle == "minecraft"),
+    ) {
         MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
             if (style != DesignStyle.MATERIAL) {
                 CompositionLocalProvider(LocalContentColor provides scheme.onBackground, LocalRippleConfiguration provides IosRipple, content = content)

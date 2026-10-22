@@ -14,7 +14,7 @@ import app.nocturne.ui.kit.Card
 import androidx.compose.material3.CardDefaults
 import app.nocturne.ui.kit.CircularProgressIndicator
 import app.nocturne.ui.kit.FilledTonalButton
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

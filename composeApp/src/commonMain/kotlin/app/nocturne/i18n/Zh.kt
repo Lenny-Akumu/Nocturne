@@ -634,5 +634,10 @@ internal object Zh {
         "Instrumental version" to "伴奏版",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "卡拉 OK：播放伴奏版，否则消除居中人声",
         "Karaoke: plays the instrumental version when there is one" to "卡拉 OK：有伴奏版时播放伴奏版",
+        "Search songs, artists" to "搜索歌曲、艺人",
+        "See all" to "查看全部",
+        "Show less" to "收起",
+        "Video" to "视频",
+        "EQ" to "均衡器",
     )
 }

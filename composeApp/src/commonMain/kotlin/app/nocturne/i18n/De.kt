@@ -634,5 +634,10 @@ internal object De {
         "Instrumental version" to "Instrumentalversion",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: spielt die Instrumentalversion oder entfernt den zentrierten Gesang",
         "Karaoke: plays the instrumental version when there is one" to "Karaoke: spielt die Instrumentalversion, wenn es eine gibt",
+        "Search songs, artists" to "Songs, Künstler suchen",
+        "See all" to "Alle anzeigen",
+        "Show less" to "Weniger anzeigen",
+        "Video" to "Video",
+        "EQ" to "EQ",
     )
 }

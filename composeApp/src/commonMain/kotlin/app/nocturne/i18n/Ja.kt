@@ -634,5 +634,10 @@ internal object Ja {
         "Instrumental version" to "インストゥルメンタル版",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "カラオケ：インスト版を再生、なければ中央のボーカルを除去",
         "Karaoke: plays the instrumental version when there is one" to "カラオケ：インスト版があれば再生",
+        "Search songs, artists" to "曲、アーティストを検索",
+        "See all" to "すべて表示",
+        "Show less" to "表示を減らす",
+        "Video" to "ビデオ",
+        "EQ" to "EQ",
     )
 }

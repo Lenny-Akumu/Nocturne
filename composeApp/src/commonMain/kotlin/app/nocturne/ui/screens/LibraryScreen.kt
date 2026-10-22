@@ -32,7 +32,7 @@ import androidx.compose.material.icons.rounded.Shuffle
 import app.nocturne.ui.kit.AlertDialog
 import app.nocturne.ui.kit.FilledTonalButton
 import app.nocturne.ui.kit.FilterChip
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import app.nocturne.ui.kit.OutlinedTextField

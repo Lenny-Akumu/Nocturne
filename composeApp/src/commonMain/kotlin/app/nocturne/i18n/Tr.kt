@@ -634,5 +634,10 @@ internal object Tr {
         "Instrumental version" to "Enstrümantal sürüm",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: enstrümantal sürümü çalar veya ortadaki vokalleri kaldırır",
         "Karaoke: plays the instrumental version when there is one" to "Karaoke: varsa enstrümantal sürümü çalar",
+        "Search songs, artists" to "Şarkı, sanatçı ara",
+        "See all" to "Tümünü gör",
+        "Show less" to "Daha az göster",
+        "Video" to "Video",
+        "EQ" to "EQ",
     )
 }

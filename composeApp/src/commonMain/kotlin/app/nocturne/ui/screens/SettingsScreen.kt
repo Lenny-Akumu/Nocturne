@@ -84,7 +84,7 @@ import androidx.compose.material.icons.rounded.Window
 import androidx.compose.material.icons.rounded.Speed
 import app.nocturne.ui.kit.AlertDialog
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.IconButton
 import app.nocturne.ui.kit.ListItem
 import androidx.compose.material3.ListItemDefaults

@@ -634,5 +634,10 @@ internal object Pt {
         "Instrumental version" to "Versão instrumental",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaokê: toca a versão instrumental ou remove a voz central",
         "Karaoke: plays the instrumental version when there is one" to "Karaokê: toca a versão instrumental quando houver",
+        "Search songs, artists" to "Pesquisar músicas, artistas",
+        "See all" to "Ver tudo",
+        "Show less" to "Ver menos",
+        "Video" to "Vídeo",
+        "EQ" to "EQ",
     )
 }

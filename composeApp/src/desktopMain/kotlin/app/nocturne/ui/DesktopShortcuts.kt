@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Restore
 import app.nocturne.ui.kit.AlertDialog
-import androidx.compose.material3.Icon
+import app.nocturne.ui.kit.Icon
 import app.nocturne.ui.kit.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme

@@ -640,5 +640,10 @@ internal object Uk {
         "Instrumental version" to "Інструментальна версія",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Караоке: вмикає інструментальну версію або прибирає вокал по центру",
         "Karaoke: plays the instrumental version when there is one" to "Караоке: вмикає інструментальну версію, якщо вона є",
+        "Search songs, artists" to "Пошук пісень, виконавців",
+        "See all" to "Показати все",
+        "Show less" to "Показати менше",
+        "Video" to "Відео",
+        "EQ" to "EQ",
     )
 }

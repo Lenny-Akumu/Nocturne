@@ -634,5 +634,10 @@ internal object Cs {
         "Instrumental version" to "Instrumentální verze",
         "Karaoke: plays the instrumental version, or cuts the centered vocals" to "Karaoke: přehraje instrumentální verzi, nebo odstraní zpěv ze středu",
         "Karaoke: plays the instrumental version when there is one" to "Karaoke: přehraje instrumentální verzi, pokud existuje",
+        "Search songs, artists" to "Hledat skladby, interprety",
+        "See all" to "Zobrazit vše",
+        "Show less" to "Zobrazit méně",
+        "Video" to "Video",
+        "EQ" to "EQ",
     )
 }
