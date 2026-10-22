@@ -161,7 +161,7 @@ fun ImportDialog(source: Source, onDismiss: () -> Unit) {
                                             Modifier.fillMaxWidth().clickable { importPlaylist(ref) }.padding(vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
-                                            Artwork(ref.artworkUrl, Modifier.size(40.dp), RoundedCornerShape(6.dp))
+                                            app.nocturne.ui.components.CollectionArtwork(ref, Modifier.size(40.dp), RoundedCornerShape(6.dp))
                                             Spacer(Modifier.width(12.dp))
                                             Column(Modifier.weight(1f)) {
                                                 Text(ref.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)

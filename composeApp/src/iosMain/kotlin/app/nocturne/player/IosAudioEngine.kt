@@ -155,6 +155,8 @@ class IosAudioEngine : AudioEngine {
             return
         }
         val item = AVPlayerItem(asset = asset)
+        // pitch follows speed (like ExoPlayer / VLC here) and rate changes glide without re-buffering
+        item.audioTimePitchAlgorithm = AVAudioTimePitchAlgorithmVarispeed
         player.replaceCurrentItemWithPlayerItem(item)
         val center = NSNotificationCenter.defaultCenter
         observers = listOf(
@@ -258,8 +260,10 @@ class IosAudioEngine : AudioEngine {
     }
 
     override fun setPlaybackSpeed(speed: Float) {
-        this.speed = speed.coerceIn(0.5f, 2f)
-        if (player.rate != 0f) player.rate = this.speed
+        val s = speed.coerceIn(0.5f, 2f)
+        if (s == this.speed) return
+        this.speed = s
+        if (player.rate != 0f) player.rate = s
         updateNowPlaying()
     }
 

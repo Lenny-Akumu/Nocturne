@@ -53,7 +53,7 @@ class VlcAudioEngine : AudioEngine {
             playing = true
             mediaPlayer.submit {
                 if (!dspActive) mediaPlayer.audio().setVolume(volume)
-                if (speed != 1f) mediaPlayer.controls().setRate(speed)
+                if (vlcRate != 1f) mediaPlayer.controls().setRate(vlcRate)
             }
             listener?.onPlayingChanged(true)
             listener?.onBufferingChanged(false)
@@ -115,13 +115,14 @@ class VlcAudioEngine : AudioEngine {
         }
     }
 
-    /** Receives decoded S16 stereo from libVLC, runs [dsp] and writes to a ~120 ms Java Sound buffer. */
+    /** Receives decoded S16 stereo from libVLC, varispeeds it, runs [dsp] and writes to a ~120 ms Java Sound buffer. */
     private inner class Sink : AudioCallbackAdapter() {
         private val format = AudioFormat(RATE.toFloat(), 16, 2, true, false)
         @Volatile private var line: SourceDataLine? = null
         private var shorts = ShortArray(0)
         private var floats = FloatArray(0)
         private var bytes = ByteArray(0)
+        val vari = VariSpeed()
 
         fun open(): Boolean = line != null || runCatching {
             val l = AudioSystem.getSourceDataLine(format)
@@ -135,17 +136,23 @@ class VlcAudioEngine : AudioEngine {
             if (shorts.size < n) { shorts = ShortArray(n); floats = FloatArray(n); bytes = ByteArray(n * 2) }
             samples.read(0, shorts, 0, n)
             for (i in 0 until n) floats[i] = shorts[i] / 32768f
-            dsp.process(floats, sampleCount)
-            for (i in 0 until n) {
-                val v = (floats[i] * 32767f).toInt()
+            // VLC never flushed for the committed rate: assume it switched seamlessly
+            if (pendingRate && System.nanoTime() - rateAt > 600_000_000L) rateSwitched()
+            val frames = vari.process(floats, sampleCount)
+            val out = vari.out
+            dsp.process(out, frames)
+            val m = frames * 2
+            if (bytes.size < m * 2) bytes = ByteArray(m * 2)
+            for (i in 0 until m) {
+                val v = (out[i] * 32767f).toInt().coerceIn(-32768, 32767)
                 bytes[2 * i] = v.toByte()
                 bytes[2 * i + 1] = (v shr 8).toByte()
             }
-            if (!open()) return
+            if (m == 0 || !open()) return
             val l = line ?: return
             runCatching {
                 if (!l.isRunning) l.start()
-                l.write(bytes, 0, n * 2)
+                l.write(bytes, 0, m * 2)
             }.onFailure { // device lost: reopen on the next buffer
                 runCatching { l.close() }
                 line = null
@@ -154,13 +161,15 @@ class VlcAudioEngine : AudioEngine {
 
         override fun pause(mediaPlayer: MediaPlayer, pts: Long) { runCatching { line?.stop() } }
         override fun resume(mediaPlayer: MediaPlayer, pts: Long) { runCatching { line?.start() } }
-        override fun flush(mediaPlayer: MediaPlayer, pts: Long) = flush()
+        // A flush right after a committed rate change marks where VLC's new-rate PCM starts: keep the line playing.
+        override fun flush(mediaPlayer: MediaPlayer, pts: Long) = if (pendingRate) rateSwitched() else flush()
         override fun drain(mediaPlayer: MediaPlayer) { runCatching { line?.drain() } }
         override fun setVolume(volume: Float, mute: Boolean) = Unit // gain is applied by dsp
 
         fun flush() {
             runCatching { line?.flush() }
             dsp.reset()
+            vari.reset()
         }
 
         fun close() { runCatching { line?.close() }; line = null }
@@ -186,6 +195,11 @@ class VlcAudioEngine : AudioEngine {
         }
         time = startPositionMs
         length = track.durationMs
+        commitJob?.cancel(false)
+        pendingRate = false
+        val rate = speed
+        vlcRate = rate
+        sink.vari.target = 1.0
         sink.flush()
         val options = buildList {
             add(":http-user-agent=${InnerTube.USER_AGENT}")
@@ -193,7 +207,10 @@ class VlcAudioEngine : AudioEngine {
             add(":meta-title=${track.title}")
         }.toTypedArray()
         ended = false
-        async { if (playWhenReady) media().play(stream.url, *options) else media().startPaused(stream.url, *options) }
+        async {
+            controls().setRate(rate)
+            if (playWhenReady) media().play(stream.url, *options) else media().startPaused(stream.url, *options)
+        }
     }
 
     override fun play() = async { controls().play() }
@@ -211,10 +228,42 @@ class VlcAudioEngine : AudioEngine {
     }
 
     @Volatile private var speed = 1f
+    // VLC's own rate: changing it flushes its decoders (an audible skip), so ramps run in our VariSpeed
+    // and VLC follows once, after the ramp settles.
+    @Volatile private var vlcRate = 1f
+    @Volatile private var pendingRate = false
+    @Volatile private var rateAt = 0L
+    @Volatile private var commitJob: java.util.concurrent.ScheduledFuture<*>? = null
+    private val timer = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { Thread(it, "vlc-rate").apply { isDaemon = true } }
 
     override fun setPlaybackSpeed(speed: Float) {
-        this.speed = speed.coerceIn(0.5f, 2f)
-        async { controls().setRate(this@VlcAudioEngine.speed) }
+        val s = speed.coerceIn(0.5f, 2f)
+        if (s == this.speed && !pendingRate && s == vlcRate) return
+        this.speed = s
+        if (dspActive && !pendingRate) sink.vari.target = (s / vlcRate).toDouble()
+        commitJob?.cancel(false)
+        commitJob = timer.schedule({ commitRate() }, 350, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+
+    private fun commitRate() {
+        val s = speed
+        if (s == vlcRate || pendingRate) return
+        if (dspActive) {
+            rateAt = System.nanoTime()
+            pendingRate = true
+        }
+        vlcRate = s
+        async { controls().setRate(s) }
+    }
+
+    private fun rateSwitched() {
+        pendingRate = false
+        sink.vari.snap((speed / vlcRate).toDouble())
+        // speed moved again while the switch was pending
+        if (speed != vlcRate) {
+            commitJob?.cancel(false)
+            commitJob = timer.schedule({ commitRate() }, 350, java.util.concurrent.TimeUnit.MILLISECONDS)
+        }
     }
 
     override fun setEqualizer(enabled: Boolean, gains: List<Float>) = dsp.setEq(enabled, gains)
@@ -242,8 +291,57 @@ class VlcAudioEngine : AudioEngine {
     }
 
     override fun release() {
+        timer.shutdownNow()
         player?.release()
         factory?.release()
         sink.close()
+    }
+}
+
+/** Varispeed resampler (pitch follows speed, like VLC without time-stretch): reads [ratio] input frames per output frame, gliding to [target]. */
+internal class VariSpeed {
+    @Volatile var target = 1.0
+    private var ratio = 1.0
+    private var src = FloatArray(0)
+    private val hist = FloatArray(6) // last 3 stereo input frames
+    private var pos = 1.0
+    var out = FloatArray(0)
+        private set
+
+    fun reset() { hist.fill(0f); pos = 1.0; ratio = target }
+
+    /** Jumps straight to [r] (used when VLC's own rate takes over). */
+    fun snap(r: Double) { target = r; ratio = r }
+
+    fun process(inp: FloatArray, frames: Int): Int {
+        val goal = target.coerceIn(0.25, 4.0)
+        val total = frames + 3
+        if (src.size < total * 2) src = FloatArray(total * 2)
+        hist.copyInto(src, 0)
+        inp.copyInto(src, 6, 0, frames * 2)
+        val cap = ((frames / minOf(ratio, goal)) + 8).toInt() * 2
+        if (out.size < cap) out = FloatArray(cap)
+        var p = pos
+        var o = 0
+        val end = total - 2
+        while (p < end && o * 2 + 1 < out.size) {
+            val i = p.toInt()
+            val t = (p - i).toFloat()
+            for (c in 0..1) {
+                val y0 = src[(i - 1) * 2 + c]; val y1 = src[i * 2 + c]; val y2 = src[(i + 1) * 2 + c]; val y3 = src[(i + 2) * 2 + c]
+                // 4-point Hermite
+                val c1 = 0.5f * (y2 - y0)
+                val c2 = y0 - 2.5f * y1 + 2f * y2 - 0.5f * y3
+                val c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2)
+                out[o * 2 + c] = ((c3 * t + c2) * t + c1) * t + y1
+            }
+            o++
+            if (ratio != goal) ratio = if (kotlin.math.abs(goal - ratio) < 1e-5) goal else ratio + (goal - ratio) * 0.0005
+            p += ratio
+        }
+        if (ratio == 1.0 && goal == 1.0) p = kotlin.math.round(p).coerceAtLeast(1.0)
+        src.copyInto(hist, 0, (total - 3) * 2, total * 2)
+        pos = p - (total - 3)
+        return o
     }
 }

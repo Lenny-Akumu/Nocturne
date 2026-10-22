@@ -114,12 +114,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
         }
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Artwork(
-                    header.artworkUrl,
-                    Modifier.size(220.dp),
-                    header.type.shape(),
-                    header.type.fallbackIcon(),
-                )
+                app.nocturne.ui.components.CollectionArtwork(header, Modifier.size(220.dp), header.type.shape())
                 Spacer(Modifier.height(18.dp))
                 Text(header.displayTitle(), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
@@ -156,7 +151,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                             Icon(androidx.compose.material.icons.Icons.Rounded.Download, "Download")
                         }
                     }
-                    FilledTonalIconButton(onClick = { graph.player.addToQueue(tracks) }, enabled = tracks.isNotEmpty()) {
+                    FilledTonalIconButton(onClick = { val had = graph.player.state.value.current != null; if (graph.player.addToQueue(tracks) && had) graph.toast(app.nocturne.i18n.t("Added to queue")) }, enabled = tracks.isNotEmpty()) {
                         Icon(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue")
                     }
                     if (!local) {

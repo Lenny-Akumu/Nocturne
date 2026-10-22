@@ -6,5 +6,5 @@ import app.nocturne.ui.theme.platformAccentColor
 
 actual fun systemIconColors(): IconColors? = platformAccentColor()?.let(::iconColorsFrom)
 
-// Window, floating player and tray icons follow the settings in Main.kt; the exe/installer icon stays default.
+// Window, floating player, tray and (Windows) Start menu / desktop shortcut icons follow the settings in Main.kt.
 actual fun applyAppIcon(background: IconBackground, palette: IconPalette) = Unit

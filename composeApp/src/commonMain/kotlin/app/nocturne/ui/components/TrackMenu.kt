@@ -118,28 +118,39 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                     graph.toggleLike(track); close()
                 }
                 MenuItem(Icons.Rounded.ThumbDownOffAlt, "Not interested") { graph.notInterested(track); close() }
-                MenuItem(Icons.AutoMirrored.Rounded.PlaylistPlay, "Play next") { graph.player.playNext(listOf(track)); close() }
-                MenuItem(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") { graph.player.addToQueue(listOf(track)); close() }
-                MenuItem(Icons.Rounded.Radio, "Start radio") { graph.player.startRadio(track); close() }
+                // Actions call into AppGraph-scoped objects only: the sheet's own scope dies with it.
+                MenuItem(Icons.AutoMirrored.Rounded.PlaylistPlay, "Play next") {
+                    close()
+                    val wasEmpty = graph.player.state.value.current == null
+                    if (graph.player.playNext(listOf(track))) { if (!wasEmpty) graph.toast(t("Will play next")) }
+                    else graph.toast(t("Already playing"))
+                }
+                MenuItem(Icons.AutoMirrored.Rounded.QueueMusic, "Add to queue") {
+                    close()
+                    val wasEmpty = graph.player.state.value.current == null
+                    if (graph.player.addToQueue(listOf(track))) { if (!wasEmpty) graph.toast(t("Added to queue")) }
+                    else graph.toast(t("Already playing"))
+                }
+                MenuItem(Icons.Rounded.Radio, "Start radio") { close(); graph.player.startRadio(track) }
                 MenuItem(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist") { playlistPicker = listOf(track); close() }
                 track.artists.firstOrNull { it.id != null }?.let { artist ->
                     MenuItem(Icons.Rounded.Person, t("Go to %s", artist.name)) {
-                        graph.navigator.push(Screen.Collection(CollectionRef(artist.id!!, track.source, CollectionType.ARTIST, artist.name)))
                         close()
+                        graph.navigator.push(Screen.Collection(CollectionRef(artist.id!!, track.source, CollectionType.ARTIST, artist.name)))
                     }
                 }
                 if (track.albumId != null && track.album != null) {
                     MenuItem(Icons.Rounded.Album, "Go to album") {
-                        graph.navigator.push(Screen.Collection(CollectionRef(track.albumId, track.source, CollectionType.ALBUM, track.album, track.artistNames, track.artworkUrl)))
                         close()
+                        graph.navigator.push(Screen.Collection(CollectionRef(track.albumId, track.source, CollectionType.ALBUM, track.album, track.artistNames, track.artworkUrl)))
                     }
                 }
                 if (track.source != app.nocturne.model.Source.LOCAL) {
                     val downloads by graph.downloads.items.collectAsState()
-                    if (downloads.containsKey(track.key)) MenuItem(Icons.Rounded.DeleteOutline, "Remove download") { graph.downloads.remove(track); close() }
-                    else MenuItem(Icons.Rounded.Download, "Download") { graph.downloads.enqueue(listOf(track)); close() }
+                    if (downloads.containsKey(track.key)) MenuItem(Icons.Rounded.DeleteOutline, "Remove download") { close(); graph.downloads.remove(track) }
+                    else MenuItem(Icons.Rounded.Download, "Download") { close(); graph.downloads.enqueue(listOf(track)); graph.toast(t("Downloading “%s”", track.title)) }
                 }
-                MenuItem(Icons.Rounded.ContentCopy, "Copy link") { clipboard.setText(AnnotatedString(track.shareUrl())); close() }
+                MenuItem(Icons.Rounded.ContentCopy, "Copy link") { clipboard.setText(AnnotatedString(track.shareUrl())); close(); graph.toast(t("Link copied")) }
                 ctx.playlistId?.let { pid ->
                     MenuItem(Icons.Rounded.Delete, "Remove from playlist") { graph.library.removeFromPlaylist(pid, track); close() }
                 }
@@ -147,7 +158,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                     MenuItem(Icons.Rounded.Delete, "Remove from playlist") { graph.remotePlaylists.remove(ref, track); close() }
                 }
                 ctx.queueIndex?.let { qi ->
-                    MenuItem(Icons.Rounded.Delete, "Remove from queue") { graph.player.removeAt(qi); close() }
+                    MenuItem(Icons.Rounded.Delete, "Remove from queue") { close(); graph.player.removeFromQueue(qi, track) }
                 }
             }
         }

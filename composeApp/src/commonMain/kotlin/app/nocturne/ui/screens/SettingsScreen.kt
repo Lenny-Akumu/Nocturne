@@ -81,6 +81,7 @@ import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Window
+import androidx.compose.material.icons.rounded.Speed
 import app.nocturne.ui.kit.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -314,6 +315,10 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         }) { v -> set { it.copy(fontStyle = v) } }
                         Choice("Design style", Icons.Rounded.BlurOn, s.designStyle, DesignStyle.entries, { it.label }) { v -> set { it.copy(designStyle = v) } }
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
+                        // desktop follows the monitor through vsync
+                        if (!desktop) {
+                            Choice("Refresh rate", Icons.Rounded.Speed, s.refreshRate, listOf(0, 60, 90, 120), { if (it == 0) "Auto" else "$it Hz" }) { v -> set { it.copy(refreshRate = v) } }
+                        }
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }
                         }

@@ -56,6 +56,7 @@ data class Settings(
     val windowBackdrop: WindowBackdrop = WindowBackdrop.MICA,
     val compactLists: Boolean = false,
     val uiScale: Float = 1f,
+    val refreshRate: Int = 0, // display refresh in Hz; 0 = auto
     val designStyle: DesignStyle = defaultDesignStyle(),
     val colorStyle: String = "TonalSpot",
     val fontStyle: String = "default",

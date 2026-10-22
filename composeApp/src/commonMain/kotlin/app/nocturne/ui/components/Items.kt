@@ -166,8 +166,8 @@ fun CollectionCard(ref: CollectionRef, onClick: () -> Unit, modifier: Modifier =
         horizontalAlignment = if (ref.type == app.nocturne.model.CollectionType.ARTIST) Alignment.CenterHorizontally else Alignment.Start,
     ) {
         Box {
-            Artwork(ref.artworkUrl, Modifier.fillMaxWidth().aspectRatio(1f), ref.type.shape(), ref.type.fallbackIcon())
-            if (settings.showSourceBadges) {
+            CollectionArtwork(ref, Modifier.fillMaxWidth().aspectRatio(1f), ref.type.shape())
+            if (settings.showSourceBadges && ref.likedBrand() == null) {
                 SourceBadge(ref.source, Modifier.align(Alignment.BottomEnd).padding(6.dp), 18.dp)
             }
         }

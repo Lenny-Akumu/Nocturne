@@ -174,7 +174,13 @@ private fun launchApp() {
         ) {
             window.minimumSize = java.awt.Dimension(420, 600)
             LaunchedEffect(settings.iconBackground, settings.iconPalette) {
-                AppIcon.update(settings.iconBackground, settings.iconPalette).takeIf { it.isNotEmpty() }?.let { window.iconImages = it }
+                val images = AppIcon.update(settings.iconBackground, settings.iconPalette)
+                images.takeIf { it.isNotEmpty() }?.let { window.iconImages = it }
+                // Start menu / desktop shortcuts follow too (Windows)
+                val isDefault = settings.iconBackground == app.nocturne.data.IconBackground.SQUARE && settings.iconPalette == app.nocturne.data.IconPalette.STANDARD
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    ShellIcon.sync("${settings.iconBackground}-${settings.iconPalette}", isDefault, images)
+                }
             }
             MainWindow.window = window
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }

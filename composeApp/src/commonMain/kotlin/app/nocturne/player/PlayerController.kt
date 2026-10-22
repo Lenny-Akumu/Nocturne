@@ -151,20 +151,56 @@ class PlayerController(
         fetchRadio(track, replace = true)
     }
 
-    fun playNext(tracks: List<Track>) {
-        if (_state.value.current == null) return play(tracks)
+    /** Inserts right after the current track (moving copies already queued); starts playback on an empty queue. False if nothing changed. */
+    fun playNext(tracks: List<Track>): Boolean = enqueue(tracks, next = true)
+
+    /** Appends to the end of the queue (moving copies already queued); starts playback on an empty queue. */
+    fun addToQueue(tracks: List<Track>): Boolean = enqueue(tracks, next = false)
+
+    private fun enqueue(tracks: List<Track>, next: Boolean): Boolean {
+        val add = filterExplicit(tracks).distinctBy { it.key }
+        if (add.isEmpty()) return false
+        val cur = _state.value.current
+        if (cur == null) { play(add); return true }
+        val fresh = add.filter { it.key != cur.key }
+        if (fresh.isEmpty()) return false
+        val keys = fresh.map { it.key }.toSet()
         _state.update { s ->
-            val q = s.queue.toMutableList()
-            q.addAll(s.index + 1, tracks.filter { t -> q.none { it.key == t.key } })
-            s.copy(queue = q)
+            val c = s.current ?: return@update s
+            val kept = s.queue.filterIndexed { i, t -> i == s.index || t.key !in keys }
+            val idx = kept.indexOfFirst { it === c }.takeIf { it >= 0 } ?: kept.indexOfFirst { it.key == c.key }.coerceAtLeast(0)
+            val q = kept.toMutableList().apply { if (next) addAll(idx + 1, fresh) else addAll(fresh) }
+            s.copy(queue = q, index = idx)
+        }
+        // keep the un-shuffled order in step so turning shuffle off doesn't lose the placement
+        if (_state.value.shuffle) {
+            val base = originalOrder.filter { it.key !in keys }.toMutableList()
+            val at = base.indexOfFirst { it.key == cur.key }
+            if (next && at >= 0) base.addAll(at + 1, fresh) else base.addAll(fresh)
+            originalOrder = base
         }
         queueChanged()
+        return true
     }
 
-    fun addToQueue(tracks: List<Track>) {
-        if (_state.value.current == null) return play(tracks)
-        _state.update { s -> s.copy(queue = s.queue + tracks.filter { t -> s.queue.none { it.key == t.key } }) }
-        queueChanged()
+    /** Removes the queue entry at [i] (re-located by key if the queue moved meanwhile); skips ahead when it's the current track. */
+    fun removeFromQueue(i: Int, track: Track) {
+        val s = _state.value
+        val at = if (s.queue.getOrNull(i)?.key == track.key) i else s.queue.indexOfFirst { it.key == track.key }
+        if (at < 0) return
+        if (at != s.index) return removeAt(at)
+        when {
+            s.queue.size == 1 -> stop()
+            at < s.queue.lastIndex -> {
+                _state.update { it.copy(queue = it.queue.toMutableList().apply { removeAt(at) }) }
+                loadCurrent(0, s.isPlaying || loadingKey != null)
+            }
+            else -> {
+                _state.update { it.copy(queue = it.queue.toMutableList().apply { removeAt(at) }, index = at - 1) }
+                pause()
+                loadCurrent(0, false)
+            }
+        }
     }
 
     fun removeAt(i: Int) {
@@ -277,11 +313,35 @@ class PlayerController(
         val s = settings.value
         val a = partyAudio
         engine.setSkipSilence(s.skipSilence)
-        engine.setPlaybackSpeed(a?.speed ?: s.playbackSpeed)
+        rampSpeed(a?.speed ?: s.playbackSpeed)
         if (a != null) engine.setEqualizer(a.eq, a.gains.takeIf { it.size == s.eqGains.size } ?: s.eqGains)
         else engine.setEqualizer(s.eqEnabled, s.eqGains)
         if (a != null) engine.setEffects(a.normalize, a.spatial, a.eightD, a.vocal)
         else engine.setEffects(s.normalizeVolume, s.spatialAudio, s.eightD, s.vocalRemover)
+    }
+
+    private var speedJob: Job? = null
+    private var appliedSpeed = Float.NaN
+
+    // Version / speed changes glide (ease-in-out, ~1.3 s) while playing instead of jumping.
+    private fun rampSpeed(target: Float) {
+        val from = appliedSpeed
+        if (from == target) return
+        speedJob?.cancel()
+        if (from.isNaN() || !_state.value.isPlaying) {
+            appliedSpeed = target
+            engine.setPlaybackSpeed(target)
+            return
+        }
+        speedJob = scope.launch {
+            val steps = 30
+            for (i in 1..steps) {
+                delay(1300L / steps)
+                val t = i / steps.toFloat()
+                appliedSpeed = if (i == steps) target else from + (target - from) * t * t * (3 - 2 * t)
+                engine.setPlaybackSpeed(appliedSpeed)
+            }
+        }
     }
 
     fun setSleepTimer(minutes: Int?) {
