@@ -649,5 +649,8 @@ internal object Zh {
         "Line" to "线条",
         "Dot" to "圆点",
         "Spectrum" to "频谱",
+        "Controlling %s from here" to "正在从这里控制 %s",
+        "Remember connection" to "记住连接",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "“在…上播放”后，此设备仍作为遥控器：在这里切歌，在那边播放",
     )
 }

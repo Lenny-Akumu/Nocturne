@@ -135,8 +135,7 @@ fun GlassHome(
             }
             if (mixes.isNotEmpty()) item(key = "mixes") { MixCarousel(mixes) { m -> play(m.tracks, 0, m.title) } }
             if (recs.isNotEmpty()) item(key = "recs") {
-                ShelfHeader(t("Recommended for you"))
-                GroupedGrid(recs.take(24)) { i -> play(recs, i, t("Recommended for you")) }
+                GroupedGrid(recs.take(24), t("Recommended for you")) { i -> play(recs, i, t("Recommended for you")) }
             }
             if (mostPlayed.size >= 4) item(key = "top") {
                 ShelfHeader(t("Your top tracks"))
@@ -304,12 +303,17 @@ private fun ShelfHeader(title: String, source: Source? = null, chevron: Boolean 
 
 // Grouped containers of 4 rows paged sideways; the next one peeks at the edge.
 @Composable
-private fun GroupedGrid(tracks: List<Track>, onPlay: (Int) -> Unit) {
+private fun GroupedGrid(tracks: List<Track>, title: String? = null, onPlay: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val pages = tracks.indices.chunked(4)
     val state = rememberLazyListState()
+    if (title != null) Box(Modifier.fillMaxWidth()) {
+        ShelfHeader(title)
+        if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP && pages.size > 1)
+            app.nocturne.ui.components.PagerArrows(state, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 8.dp))
+    }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val pageW = if (pages.size > 1) maxWidth - 16.dp - 56.dp else maxWidth - 32.dp
+        val pageW = (if (pages.size > 1) maxWidth - 16.dp - 56.dp else maxWidth - 32.dp).coerceAtMost(460.dp)
         LazyRow(
             state = state,
             flingBehavior = rememberSnapFlingBehavior(state),

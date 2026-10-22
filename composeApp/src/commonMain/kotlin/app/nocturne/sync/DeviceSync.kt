@@ -162,6 +162,8 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
     private var libLink: Int? = null
     private val deltaTick = MutableStateFlow(0)
     private val snapTick = MutableStateFlow(0)
+    private val _connectedTo = MutableStateFlow<String?>(null)
+    val connectedTo: StateFlow<String?> = _connectedTo.asStateFlow()
 
     init {
         _group.value?.let { setKeys(it.secret) }
@@ -310,11 +312,41 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
         command(peer, RemoteCmd("transfer"))
     }
 
-    /** Hand our queue to the peer and pause here. */
+    /** Hand our queue to the peer and pause here; with "stay connected" this device keeps controlling it. */
     fun playOn(peer: String) {
         val c = loadCmd() ?: return
         command(peer, c)
-        graph.player.pause()
+        if (graph.settings.value.stayConnected) {
+            graph.player.pause()
+            attach(peer)
+            graph.settings.update { it.copy(connectedDevice = peer) }
+        } else graph.player.pause()
+    }
+
+    private fun attach(peer: String) {
+        if (_connectedTo.value == peer) return
+        _connectedTo.value = peer
+        graph.player.remote = object : app.nocturne.player.RemoteOutput {
+            override val name get() = nameOf(peer)
+            override fun send(op: String, ms: Long, vol: Float) = control(peer, op, ms, vol)
+            override fun load(queue: List<Track>, index: Int, ms: Long, play: Boolean, title: String?) =
+                command(peer, RemoteCmd("load", ms = ms, queue = queue, index = index, play = play, title = title))
+        }
+        states[peer]?.let { (st, at) -> mirrorFrom(st, at) }
+    }
+
+    /** Stop being a remote; [takeOver] moves playback back here. */
+    fun disconnect(takeOver: Boolean) {
+        val peer = _connectedTo.value ?: return
+        _connectedTo.value = null
+        graph.player.remote = null
+        graph.settings.update { it.copy(connectedDevice = null) }
+        if (takeOver) playHere(peer)
+    }
+
+    private fun mirrorFrom(st: DeviceState, receivedAt: Long) {
+        val pos = Peer(DeviceInfo(st.id, st.name, st.platform), st, receivedAt).position()
+        graph.player.mirror(st.track, pos, st.dur, st.playing)
     }
 
     private fun loadCmd(): RemoteCmd? {
@@ -445,6 +477,12 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
         // A retained state may be old: date it by its own clock (devices' clocks are close enough).
         states[e.f] = s to if (retained) now - (now - s.at).coerceIn(0, OFFLINE_MS) else now
         upsert(DeviceInfo(s.id, s.name, s.platform, s.at))
+        val at = states[e.f]!!.second
+        when {
+            _connectedTo.value == e.f && (!s.rc || !s.online) -> { _connectedTo.value = null; graph.player.remote = null }
+            _connectedTo.value == e.f -> mirrorFrom(s, at)
+            _connectedTo.value == null && s.online && s.rc && graph.settings.value.connectedDevice == e.f && now - at < OFFLINE_MS -> attach(e.f)
+        }
         refreshPeers()
     }
 
@@ -530,7 +568,8 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
     private fun stateNow(online: Boolean): DeviceState {
         val p = graph.player.state.value
         val s = graph.settings.value
-        return DeviceState(myId, myName, platformKind, p.current, p.positionMs, p.durationMs, p.isPlaying && online, s.volume, s.remoteControl, online, nowMillis())
+        val remote = _connectedTo.value != null
+        return DeviceState(myId, myName, platformKind, p.current.takeIf { !remote }, p.positionMs, p.durationMs, p.isPlaying && online && !remote, s.volume, s.remoteControl, online, nowMillis())
     }
 
     private fun sealState(online: Boolean) = seal("s/$myId", env("st", json.encodeToString(DeviceState.serializer(), stateNow(online))), retain = true)

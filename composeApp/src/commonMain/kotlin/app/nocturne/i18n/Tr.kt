@@ -649,5 +649,8 @@ internal object Tr {
         "Line" to "Çizgi",
         "Dot" to "Nokta",
         "Spectrum" to "Spektrum",
+        "Controlling %s from here" to "%s buradan kontrol ediliyor",
+        "Remember connection" to "Bağlantıyı hatırla",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "“Şurada çal…” sonrası bu cihaz kumanda olarak kalır: parçayı burada değiştir, orada çalsın",
     )
 }

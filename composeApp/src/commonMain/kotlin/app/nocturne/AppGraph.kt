@@ -20,6 +20,9 @@ import app.nocturne.source.YouTubeMusicProvider
 import app.nocturne.source.createNewPipeBackend
 import app.nocturne.ui.Navigator
 import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
 import io.ktor.client.plugins.HttpTimeout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -245,6 +248,25 @@ class AppGraph(val engine: AudioEngine) {
 
     suspend fun openUrl(url: String): MediaEntry? =
         allProviders.values.firstOrNull { it.canOpen(url) }?.open(url)
+
+    // Any music link (Spotify without sign-in, Apple Music, Deezer, TikTok…): read the page's title tags into a search query.
+    suspend fun linkQuery(url: String): String? = runCatching {
+        val html = http.get(url) {
+            header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36")
+            header("Accept-Language", "en")
+        }.bodyAsText()
+        fun meta(name: String) = Regex("""<meta[^>]+(?:property|name)=["']$name["'][^>]+content=["']([^"']*)["']""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1)
+            ?: Regex("""<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']$name["']""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1)
+        val title = (meta("og:title") ?: Regex("<title>([^<]*)</title>", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1))
+            ?.let(::unescapeHtml)?.trim().orEmpty()
+        // Spotify: "Song · Artist · Song · 2024"; Apple: "Artist - Song"
+        val artist = (meta("music:musician_description") ?: meta("twitter:audio:artist_name")
+            ?: meta("og:description")?.let(::unescapeHtml)?.split(" · ")?.firstOrNull()?.takeIf { it.length < 60 })?.trim().orEmpty()
+        val cleaned = title.substringBefore(" | ").removeSuffix(" - song and lyrics by").trim()
+        listOf(cleaned, artist).filter { it.isNotBlank() }.distinct().joinToString(" ").takeIf { it.isNotBlank() }
+    }.getOrNull()
+
+    private fun unescapeHtml(s: String) = s.replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&#x27;", "'").replace("&lt;", "<").replace("&gt;", ">")
 
     companion object {
         lateinit var instance: AppGraph

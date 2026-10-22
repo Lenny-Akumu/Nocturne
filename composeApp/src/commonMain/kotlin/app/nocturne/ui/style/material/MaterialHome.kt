@@ -178,11 +178,15 @@ private fun ShelfHeader(title: String, source: Source? = null, action: String? =
 // Pages of 4 rows scrolled sideways; the next page peeks so it's clear there's more.
 @Composable
 private fun QuickGrid(title: String, tracks: List<Track>, source: Source? = null, onPlay: (Int) -> Unit) {
-    ShelfHeader(title, source, null) {}
     val pages = tracks.indices.chunked(4)
     val state = rememberLazyListState()
+    Box {
+        ShelfHeader(title, source, null) {}
+        if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP && pages.size > 1)
+            app.nocturne.ui.components.PagerArrows(state, Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 7.dp))
+    }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val pageW = if (pages.size > 1) maxWidth - 16.dp - 56.dp else maxWidth - 32.dp
+        val pageW = (if (pages.size > 1) maxWidth - 16.dp - 56.dp else maxWidth - 32.dp).coerceAtMost(460.dp)
         LazyRow(
             state = state,
             flingBehavior = rememberSnapFlingBehavior(state),

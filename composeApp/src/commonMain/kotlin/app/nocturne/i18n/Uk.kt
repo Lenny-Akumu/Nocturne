@@ -655,5 +655,8 @@ internal object Uk {
         "Line" to "Лінія",
         "Dot" to "Крапка",
         "Spectrum" to "Спектр",
+        "Controlling %s from here" to "Керуєш %s звідси",
+        "Remember connection" to "Запам'ятати підключення",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Після «Грати на…» цей пристрій лишається пультом: перемикаєш треки тут — грають там",
     )
 }

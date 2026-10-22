@@ -649,5 +649,8 @@ internal object Fr {
         "Line" to "Ligne",
         "Dot" to "Point",
         "Spectrum" to "Spectre",
+        "Controlling %s from here" to "Tu contrôles %s d'ici",
+        "Remember connection" to "Mémoriser la connexion",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Après « Lire sur… », cet appareil reste une télécommande : change de titre ici, il joue là-bas",
     )
 }

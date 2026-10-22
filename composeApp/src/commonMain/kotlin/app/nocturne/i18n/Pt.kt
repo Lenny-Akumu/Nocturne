@@ -649,5 +649,8 @@ internal object Pt {
         "Line" to "Linha",
         "Dot" to "Ponto",
         "Spectrum" to "Espectro",
+        "Controlling %s from here" to "Controlando %s daqui",
+        "Remember connection" to "Lembrar conexão",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Depois de “Tocar em…”, este dispositivo continua como controle: troque faixas aqui e elas tocam lá",
     )
 }

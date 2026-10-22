@@ -649,5 +649,8 @@ internal object Cs {
         "Line" to "Čára",
         "Dot" to "Tečka",
         "Spectrum" to "Spektrum",
+        "Controlling %s from here" to "Ovládáš %s odsud",
+        "Remember connection" to "Zapamatovat připojení",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Po „Přehrát na…“ zůstane toto zařízení ovladačem: přepínáš skladby tady, hrají tam",
     )
 }

@@ -199,6 +199,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                     Text(t("PLAYING FROM"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.queueTitle ?: track.album ?: track.source.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (state.instrumental) Text(t("Instrumental version"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    state.remoteName?.let { Text(t("Playing on %s", it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1) }
                 }
                 val castDevice by graph.cast.device.collectAsState()
                 TransportButton(

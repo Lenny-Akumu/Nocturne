@@ -81,14 +81,14 @@ fun AudioSheet(onDismiss: () -> Unit) {
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
             Text(t("Versions"), style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TrackVersion.entries.forEach { v ->
                     val selected = abs(settings.playbackSpeed - v.speed) < 0.01f
                     OutlinedButton(
                         onClick = { graph.settings.update { it.copy(playbackSpeed = v.speed) } },
                         border = if (selected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface)
                         else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    ) { Text(v.label) }
+                    ) { Text(v.label, maxLines = 1, softWrap = false) }
                 }
             }
             var speed by remember(settings.playbackSpeed) { mutableFloatStateOf(settings.playbackSpeed) }

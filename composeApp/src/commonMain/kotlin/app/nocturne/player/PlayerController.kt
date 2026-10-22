@@ -41,11 +41,20 @@ data class PlayerState(
     val queueTitle: String? = null,
     /** Audio comes from an official instrumental (vocal remover on); metadata stays the original track's. */
     val instrumental: Boolean = false,
+    /** Connected to another device: this one is only a remote, audio plays there. */
+    val remoteName: String? = null,
 ) {
     val current: Track? get() = queue.getOrNull(index)
     val hasNext: Boolean get() = index < queue.lastIndex || repeat == RepeatMode.ALL
     val hasPrevious: Boolean get() = index > 0 || positionMs > 3000
     val progress: Float get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+}
+
+/** Where playback goes while connected to another device. */
+interface RemoteOutput {
+    val name: String
+    fun send(op: String, ms: Long = 0, vol: Float = -1f)
+    fun load(queue: List<Track>, index: Int, ms: Long, play: Boolean, title: String?)
 }
 
 @Serializable
@@ -106,7 +115,7 @@ class PlayerController(
             while (isActive) {
                 delay(500)
                 val s = _state.value
-                if (s.current != null && loadingKey == null) {
+                if (s.current != null && loadingKey == null && remote == null) {
                     _state.update { it.copy(positionMs = engine.positionMs, durationMs = engine.durationMs.takeIf { d -> d > 0 } ?: it.current?.durationMs ?: 0) }
                 }
                 s.sleepAtMs?.let { if (nowMillis() >= it) { pause(); _state.update { st -> st.copy(sleepAtMs = null) } } }
@@ -243,15 +252,41 @@ class PlayerController(
 
     fun toggle() = if (_state.value.isPlaying) pause() else resume()
 
+    var remote: RemoteOutput? = null
+        set(v) {
+            field = v
+            if (v != null) { engine.stop(); loadedKey = null }
+            _state.update { it.copy(remoteName = v?.name, isBuffering = false) }
+        }
+
+    /** Remote device's playback mirrored into the local state (no audio here). */
+    fun mirror(track: Track?, positionMs: Long, durationMs: Long, playing: Boolean) {
+        if (remote == null) return
+        _state.update { s ->
+            val base = when {
+                track == null -> s
+                s.current?.key == track.key -> s
+                else -> s.queue.indexOfFirst { it.key == track.key }.let { i -> if (i >= 0) s.copy(index = i) else s.copy(queue = listOf(track), index = 0) }
+            }
+            base.copy(positionMs = positionMs, durationMs = durationMs.takeIf { it > 0 } ?: base.current?.durationMs ?: 0, isPlaying = playing, isBuffering = false)
+        }
+    }
+
     fun resume() {
         val s = _state.value
         val cur = s.current ?: return
+        remote?.let { r ->
+            if (loadedKey != cur.key) loadCurrent(s.positionMs, true) else r.send("play")
+            _state.update { it.copy(isPlaying = true) }
+            return
+        }
         // While loading, the engine still holds the previous media: play() would restart the old track.
         if (loadingKey != null) { pendingPlay = true; return }
         if (loadedKey != cur.key || engine.durationMs <= 0 && !s.isBuffering) loadCurrent(s.positionMs, true) else engine.play()
     }
 
     fun pause() {
+        remote?.let { it.send("pause"); _state.update { s -> s.copy(isPlaying = false) }; return }
         if (loadingKey != null) pendingPlay = false
         engine.pause()
     }
@@ -267,16 +302,22 @@ class PlayerController(
 
     fun previous() {
         val s = _state.value
-        if (engine.positionMs > 3000 || s.index <= 0) seekTo(0)
+        if ((if (remote != null) s.positionMs else engine.positionMs) > 3000 || s.index <= 0) seekTo(0)
         else { _state.update { it.copy(index = it.index - 1) }; loadCurrent(0, true) }
     }
 
     fun seekTo(ms: Long) {
+        remote?.let { it.send("seek", ms); _state.update { s -> s.copy(positionMs = ms) }; return }
         if (loadingKey != null) pendingStartMs = ms else engine.seekTo(ms)
         _state.update { it.copy(positionMs = ms) }
     }
 
-    fun seekBy(deltaMs: Long) = seekTo((engine.positionMs + deltaMs).coerceIn(0, engine.durationMs.coerceAtLeast(0)))
+    fun seekBy(deltaMs: Long) {
+        val st = _state.value
+        val pos = if (remote != null) st.positionMs else engine.positionMs
+        val dur = if (remote != null) st.durationMs else engine.durationMs
+        seekTo((pos + deltaMs).coerceIn(0, dur.coerceAtLeast(0)))
+    }
 
     fun toggleShuffle() {
         _state.update { s ->
@@ -299,6 +340,7 @@ class PlayerController(
     }
 
     fun setVolume(v: Float) {
+        remote?.let { it.send("vol", vol = v); return }
         engine.setVolume(v)
         settings.update { it.copy(volume = v) }
     }
@@ -517,6 +559,14 @@ class PlayerController(
 
     private fun loadCurrent(startMs: Long, playWhenReady: Boolean, startAt: (() -> Long)? = null) {
         val track = _state.value.current ?: return
+        remote?.let { r ->
+            val s = _state.value
+            val from = (s.index - 50).coerceAtLeast(0)
+            r.load(s.queue.subList(from, minOf(s.queue.size, from + 200)), s.index - from, startMs, playWhenReady, s.queueTitle)
+            loadedKey = track.key
+            _state.update { it.copy(positionMs = startMs, durationMs = track.durationMs, isPlaying = playWhenReady, isBuffering = false, error = null) }
+            return
+        }
         loadJob?.cancel()
         retried = false
         val gen = ++loadGen

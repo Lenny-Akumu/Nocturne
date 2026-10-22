@@ -312,7 +312,28 @@ fun YourDevicesSection() {
     val player by graph.player.state.collectAsState()
     val now = rememberNow()
     if (peers.isEmpty()) return
+    val connectedTo by sync.connectedTo.collectAsState()
+    val settings by graph.settings.state.collectAsState()
     OptionGroup(t("Your devices"), icon = Icons.Rounded.Devices) {
+        connectedTo?.let { id ->
+            Column(Modifier.optionRow(54.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(t("Controlling %s from here", sync.nameOf(id)), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { sync.disconnect(takeOver = true) }) { Text(t("Play here")) }
+                    TextButton(onClick = { sync.disconnect(takeOver = false) }) { Text(t("Disconnect")) }
+                }
+            }
+        }
+        Row(
+            Modifier.optionRow(54.dp).fillMaxWidth().clickable { graph.settings.update { it.copy(stayConnected = !it.stayConnected) } }.padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(t("Remember connection"), style = MaterialTheme.typography.bodyLarge)
+                Text(t("After “Play on…”, this device stays a remote: switch tracks here, they play there"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            app.nocturne.ui.kit.Switch(settings.stayConnected, { v -> graph.settings.update { it.copy(stayConnected = v) } })
+        }
         peers.sortedByDescending { it.online(now) }.forEach { p -> key(p.info.id) {
             val online = p.online(now)
             val s = p.state

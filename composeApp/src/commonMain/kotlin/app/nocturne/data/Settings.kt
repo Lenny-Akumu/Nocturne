@@ -149,6 +149,9 @@ data class Settings(
     val syncPlaylists: Boolean = true,
     val syncHistory: Boolean = true,
     val remoteControl: Boolean = true,
+    /** Keep controlling the device we played on (Spotify Connect style). */
+    val stayConnected: Boolean = false,
+    val connectedDevice: String? = null,
 )
 
 class SettingsStore {

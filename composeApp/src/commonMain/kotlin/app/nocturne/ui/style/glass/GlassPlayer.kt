@@ -144,7 +144,8 @@ internal fun GlassPlayerLayout(onCollapse: () -> Unit, pane: Pane, onPane: (Pane
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             GlassCircle(Icons.Rounded.KeyboardArrowDown, t("Collapse"), onCollapse, Modifier.glassAppear(), tint = tint)
             Box(Modifier.weight(1f).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-                if (state.instrumental) Text(t("Instrumental version"), style = MaterialTheme.typography.labelSmall, color = cs.primary, maxLines = 1)
+                val label = state.remoteName?.let { t("Playing on %s", it) } ?: t("Instrumental version").takeIf { state.instrumental }
+                if (label != null) Text(label, style = MaterialTheme.typography.labelSmall, color = cs.primary, maxLines = 1)
             }
             val castDevice by graph.cast.device.collectAsState()
             GlassSurface(Modifier.glassAppear(40).height(44.dp), RoundedCornerShape(50), tint) {

@@ -649,5 +649,8 @@ internal object Es {
         "Line" to "Línea",
         "Dot" to "Punto",
         "Spectrum" to "Espectro",
+        "Controlling %s from here" to "Controlas %s desde aquí",
+        "Remember connection" to "Recordar conexión",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Tras «Reproducir en…», este dispositivo sigue como mando: cambias canciones aquí y suenan allí",
     )
 }

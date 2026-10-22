@@ -649,5 +649,8 @@ internal object Ja {
         "Line" to "ライン",
         "Dot" to "ドット",
         "Spectrum" to "スペクトラム",
+        "Controlling %s from here" to "ここから%sを操作中",
+        "Remember connection" to "接続を記憶",
+        "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "「…で再生」の後もこのデバイスがリモコンになります：ここで曲を切り替えるとあちらで再生",
     )
 }

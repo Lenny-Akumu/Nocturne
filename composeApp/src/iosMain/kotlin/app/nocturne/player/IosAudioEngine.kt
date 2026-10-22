@@ -157,6 +157,7 @@ class IosAudioEngine : AudioEngine {
         val item = AVPlayerItem(asset = asset)
         // pitch follows speed (like ExoPlayer / VLC here) and rate changes glide without re-buffering
         item.audioTimePitchAlgorithm = AVAudioTimePitchAlgorithmVarispeed
+        if (!url.startsWith("http") || !(".m3u8" in url || "/manifest/" in url || source?.isHls == true)) IosFx.attach(item, asset)
         player.replaceCurrentItemWithPlayerItem(item)
         val center = NSNotificationCenter.defaultCenter
         observers = listOf(
@@ -254,6 +255,15 @@ class IosAudioEngine : AudioEngine {
         if (pendingSeekMs != null || !ready) pendingSeekMs = positionMs else seekNow(positionMs)
         updateNowPlaying()
     }
+
+    override val fx: Set<AudioFx> = AudioFx.entries.toSet()
+
+    override fun setEqualizer(enabled: Boolean, gains: List<Float>) = IosFx.setEq(enabled, gains)
+
+    override fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) =
+        IosFx.setEffects(normalize, spatial, eightD, vocalRemover)
+
+    override fun levels(): FloatArray? = IosFx.levels()
 
     override fun setVolume(volume: Float) {
         player.volume = volume.coerceIn(0f, 1f)

@@ -103,7 +103,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
     }
 
     LaunchedEffect(s.query, s.source) {
-        if (s.query.isBlank() || s.query == s.submitted || s.query.startsWith("http")) { liveTracks = emptyList(); return@LaunchedEffect }
+        if (s.query.isBlank() || s.query == s.submitted || linkIn(s.query) != null) { liveTracks = emptyList(); return@LaunchedEffect }
         delay(400)
         val provider = s.source?.let { graph.provider(it) } ?: graph.youtube
         liveTracks = runCatching { provider.search(s.query, SearchFilter.SONGS) }.getOrDefault(emptyList())
@@ -136,20 +136,23 @@ fun SearchScreen(contentPadding: PaddingValues) {
         s.error = null
         s.results = null
         try {
-            if (q.startsWith("http") || q.startsWith("spotify:")) {
-                val entry = graph.openUrl(q)
+            val link = linkIn(q)
+            val entry = link?.let { u -> runCatching { graph.openUrl(u) }.getOrNull() }
+            val query = if (link != null && entry == null) graph.linkQuery(link) else q
+            if (entry != null) {
                 when (entry) {
                     is MediaEntry.Collection -> { graph.navigator.push(Screen.Collection(entry.ref)); s.results = emptyList() }
-                    is MediaEntry.Song -> s.results = listOf(entry)
-                    null -> s.error = t("This link isn't supported")
+                    else -> s.results = listOf(entry)
                 }
+            } else if (query == null) {
+                s.error = t("This link isn't supported")
             } else {
                 val target = s.source
                 val providers = if (target == null) graph.enabledProviders() else listOf(graph.provider(target))
                 val errs = mutableListOf<String>()
                 val lists = coroutineScope {
                     providers.map { p ->
-                        async { runCatching { p.search(q, s.filter) }.getOrElse { errs += "${p.source.label}: ${it.message}"; emptyList() } }
+                        async { runCatching { p.search(query, s.filter) }.getOrElse { errs += "${p.source.label}: ${it.message}"; emptyList() } }
                     }.awaitAll()
                 }
                 var merged = interleave(lists)
@@ -325,4 +328,11 @@ private fun SuggestionRow(icon: androidx.compose.ui.graphics.vector.ImageVector,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 4.dp),
     )
+}
+
+private val linkRegex = Regex("""(https?://\S+|spotify:[a-z]+:[A-Za-z0-9]+|(?:open\.spotify\.com|music\.youtube\.com|youtu\.be|soundcloud\.com|music\.apple\.com|deezer\.com)/\S+)""")
+
+// First link in the pasted text (share sheets often add "Listen to … on Spotify:" around it).
+private fun linkIn(text: String): String? = linkRegex.find(text.trim())?.value?.trimEnd('.', ',', ')', '"')?.let {
+    if (it.startsWith("http") || it.startsWith("spotify:")) it else "https://$it"
 }

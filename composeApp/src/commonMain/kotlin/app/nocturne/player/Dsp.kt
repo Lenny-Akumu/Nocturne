@@ -1,5 +1,6 @@
 package app.nocturne.player
 
+import kotlin.concurrent.Volatile
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -9,6 +10,7 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlin.time.TimeSource
 
 /** Stereo float DSP chain (interleaved L/R, -1..1): EQ → vocal remover → spatial → 8D → normalize → limiter → volume. */
 class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
@@ -85,7 +87,7 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
         val want8d = if (eightD) 1f else 0f
         val wantNorm = if (normalize) 1f else 0f
         val wantVol = volume.coerceIn(0f, 2f)
-        analyzer.begin(System.nanoTime())
+        analyzer.begin(dspNanos())
         var i = 0
         for (n in 0 until frames) {
             if (eqBlock-- <= 0) {
@@ -305,7 +307,7 @@ class Analyzer(private val rate: Int) {
     }
 
     /** Latest snapshot due by now (0..1 per band); zeros once stale, null before any audio. */
-    fun levels(now: Long = System.nanoTime()): FloatArray? {
+    fun levels(now: Long = dspNanos()): FloatArray? {
         val h = head
         if (h < 0) return null
         for (k in 0 until RING) {
@@ -324,3 +326,7 @@ class Analyzer(private val rate: Int) {
         private val SILENT = FloatArray(5)
     }
 }
+
+private val dspClock = TimeSource.Monotonic.markNow()
+
+internal fun dspNanos(): Long = dspClock.elapsedNow().inWholeNanoseconds
