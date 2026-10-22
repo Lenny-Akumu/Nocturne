@@ -187,6 +187,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding()) {
         val wide = maxWidth > 760.dp && maxWidth > maxHeight
         val short = maxHeight < 560.dp
+        val tall = maxHeight > 680.dp
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 TransportButton(Icons.Rounded.KeyboardArrowDown, "Collapse", onCollapse, iconSize = 30.dp)
@@ -238,7 +239,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                     }
                 }
                 // Phone: transport and actions in two rounded cards, lifted well off the bottom edge for thumbs.
-                Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp, bottom = if (maxHeight > 680.dp) 76.dp else 28.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp, bottom = if (tall) 76.dp else 28.dp)) {
                     Controls(cards = true)
                     BottomActions(pane, { pane = if (pane == it) Pane.ARTWORK else it }, hideArtworkToggle = false, card = true)
                 }
