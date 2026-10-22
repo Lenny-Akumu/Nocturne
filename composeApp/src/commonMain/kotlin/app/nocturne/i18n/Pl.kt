@@ -639,5 +639,10 @@ internal object Pl {
         "Show less" to "Pokaż mniej",
         "Video" to "Wideo",
         "EQ" to "EQ",
+        "Profile picture" to "Zdjęcie profilowe",
+        "Your own image" to "Twój własny obraz",
+        "From your connected account" to "Z połączonego konta",
+        "Reset" to "Resetuj",
+        "Change" to "Zmień",
     )
 }

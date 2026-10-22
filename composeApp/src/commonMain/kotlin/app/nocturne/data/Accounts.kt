@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 data class Accounts(
     val youtubeCookie: String = "",
     val youtubeName: String? = null,
+    val youtubeAvatar: String? = null,
     val soundcloudToken: String = "",
     val soundcloudUserId: Long? = null,
     val soundcloudName: String? = null,

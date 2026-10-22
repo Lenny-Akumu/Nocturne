@@ -639,5 +639,10 @@ internal object Zh {
         "Show less" to "收起",
         "Video" to "视频",
         "EQ" to "均衡器",
+        "Profile picture" to "头像",
+        "Your own image" to "你自己的图片",
+        "From your connected account" to "来自已连接的账号",
+        "Reset" to "重置",
+        "Change" to "更改",
     )
 }

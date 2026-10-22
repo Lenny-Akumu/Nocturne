@@ -645,5 +645,10 @@ internal object Uk {
         "Show less" to "Показати менше",
         "Video" to "Відео",
         "EQ" to "EQ",
+        "Profile picture" to "Фото профілю",
+        "Your own image" to "Твоє зображення",
+        "From your connected account" to "З підключеного акаунта",
+        "Reset" to "Скинути",
+        "Change" to "Змінити",
     )
 }

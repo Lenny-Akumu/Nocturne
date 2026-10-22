@@ -639,5 +639,10 @@ internal object Fr {
         "Show less" to "Afficher moins",
         "Video" to "Vidéo",
         "EQ" to "EQ",
+        "Profile picture" to "Photo de profil",
+        "Your own image" to "Ta propre image",
+        "From your connected account" to "Depuis ton compte connecté",
+        "Reset" to "Réinitialiser",
+        "Change" to "Changer",
     )
 }

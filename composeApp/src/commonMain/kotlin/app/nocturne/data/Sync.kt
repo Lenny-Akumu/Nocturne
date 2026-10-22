@@ -105,6 +105,7 @@ object Sync {
             cur.copy(
                 youtubeCookie = a.youtubeCookie.ifBlank { cur.youtubeCookie },
                 youtubeName = if (a.youtubeSignedIn) a.youtubeName else cur.youtubeName,
+                youtubeAvatar = if (a.youtubeSignedIn) a.youtubeAvatar ?: cur.youtubeAvatar else cur.youtubeAvatar,
                 soundcloudToken = a.soundcloudToken.ifBlank { cur.soundcloudToken },
                 soundcloudUserId = if (a.soundcloudSignedIn) a.soundcloudUserId else cur.soundcloudUserId,
                 soundcloudName = if (a.soundcloudSignedIn) a.soundcloudName else cur.soundcloudName,

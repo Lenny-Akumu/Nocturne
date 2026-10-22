@@ -639,5 +639,10 @@ internal object Ko {
         "Show less" to "간략히 보기",
         "Video" to "동영상",
         "EQ" to "EQ",
+        "Profile picture" to "프로필 사진",
+        "Your own image" to "내 이미지",
+        "From your connected account" to "연결된 계정에서",
+        "Reset" to "초기화",
+        "Change" to "변경",
     )
 }

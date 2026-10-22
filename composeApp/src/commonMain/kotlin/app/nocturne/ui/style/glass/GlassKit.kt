@@ -209,10 +209,6 @@ fun GlassAvatar(onClick: () -> Unit, modifier: Modifier = Modifier) {
             .combinedClickable(interactionSource = src, indication = null, role = Role.Button, onClickLabel = "Settings", onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            Modifier.size(38.dp).clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFFE2D4FF), Color(0xFF9B6BFF), Color(0xFF4B2A9E)))),
-            contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Rounded.Person, "Settings", Modifier.size(22.dp), tint = Color(0xFF1A1033)) }
+        app.nocturne.ui.components.ProfileAvatar(38.dp, gradient = true)
     }
 }

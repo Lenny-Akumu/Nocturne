@@ -107,6 +107,7 @@ class AppGraph(val engine: AudioEngine) {
         scope.launch {
             settings.state.distinctUntilChangedBy { it.uiLanguage }.drop(1).collect { app.nocturne.i18n.I18n.apply(it.uiLanguage) }
         }
+        scope.launch { kotlinx.coroutines.delay(3000); refreshYouTubeAvatar() }
         scope.launch {
             kotlinx.coroutines.delay(4000)
             while (true) {
@@ -157,8 +158,15 @@ class AppGraph(val engine: AudioEngine) {
         val clean = cookie.trim().removePrefix("Cookie:").trim()
         if (!clean.contains("SAPISID")) throw SourceUnavailableException(app.nocturne.i18n.t("These cookies don't contain SAPISID — sign in on music.youtube.com first"))
         accounts.update { it.copy(youtubeCookie = clean) }
-        val name = runCatching { innerTube.accountName() }.getOrNull()
-        accounts.update { it.copy(youtubeName = name ?: app.nocturne.i18n.t("YouTube Music user")) }
+        val (name, photo) = runCatching { innerTube.accountInfo() }.getOrDefault(null to null)
+        accounts.update { it.copy(youtubeName = name ?: app.nocturne.i18n.t("YouTube Music user"), youtubeAvatar = photo) }
+    }
+
+    // older sign-ins never stored the photo
+    suspend fun refreshYouTubeAvatar() {
+        if (!accounts.value.youtubeSignedIn || accounts.value.youtubeAvatar != null) return
+        val photo = runCatching { innerTube.accountInfo().second }.getOrNull() ?: return
+        accounts.update { it.copy(youtubeAvatar = photo) }
     }
 
     private var recommendationCache: Pair<Long, List<Track>>? = null
@@ -222,7 +230,7 @@ class AppGraph(val engine: AudioEngine) {
         scope.launch { runCatching { provider(track.source).rate(track, Rating.DISLIKE) } }
     }
 
-    fun signOutYouTube() = accounts.update { it.copy(youtubeCookie = "", youtubeName = null) }
+    fun signOutYouTube() = accounts.update { it.copy(youtubeCookie = "", youtubeName = null, youtubeAvatar = null) }
 
     fun provider(source: Source): MusicProvider = allProviders.getValue(source)
 

@@ -639,5 +639,10 @@ internal object Ja {
         "Show less" to "表示を減らす",
         "Video" to "ビデオ",
         "EQ" to "EQ",
+        "Profile picture" to "プロフィール画像",
+        "Your own image" to "自分の画像",
+        "From your connected account" to "接続したアカウントから",
+        "Reset" to "リセット",
+        "Change" to "変更",
     )
 }

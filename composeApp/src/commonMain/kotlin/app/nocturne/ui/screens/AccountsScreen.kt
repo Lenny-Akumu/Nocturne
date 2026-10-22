@@ -1,6 +1,7 @@
 package app.nocturne.ui.screens
 
 import app.nocturne.i18n.t
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -107,6 +108,7 @@ fun AccountsSettings() {
             modifier = Modifier.padding(horizontal = 8.dp),
         )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 8.dp)) }
+        ProfilePhotoCard()
         app.nocturne.ui.PairingCard()
 
         AccountCard(
@@ -361,3 +363,25 @@ private fun AccountCard(
 }
 
 private val SPOTIFY_REDIRECTS = listOf("nocturne://spotify-callback", "http://127.0.0.1:43821/callback")
+
+@Composable
+private fun ProfilePhotoCard() {
+    val own by app.nocturne.data.ProfilePhoto.state.collectAsState()
+    val pick = app.nocturne.ui.rememberImagePicker { app.nocturne.data.ProfilePhoto.set(it) }
+    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+        Row(Modifier.padding(18.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            app.nocturne.ui.components.ProfileAvatar(52.dp, Modifier.clickable { pick() })
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(t("Profile picture"), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    t(if (own != null) "Your own image" else "From your connected account"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (own != null) TextButton(onClick = { app.nocturne.data.ProfilePhoto.clear() }) { Text(t("Reset")) }
+            TextButton(onClick = pick) { Text(t("Change")) }
+        }
+    }
+}

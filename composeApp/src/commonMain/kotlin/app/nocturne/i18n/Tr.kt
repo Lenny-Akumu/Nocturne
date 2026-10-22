@@ -639,5 +639,10 @@ internal object Tr {
         "Show less" to "Daha az göster",
         "Video" to "Video",
         "EQ" to "EQ",
+        "Profile picture" to "Profil fotoğrafı",
+        "Your own image" to "Kendi görselin",
+        "From your connected account" to "Bağlı hesabından",
+        "Reset" to "Sıfırla",
+        "Change" to "Değiştir",
     )
 }

@@ -114,10 +114,14 @@ class InnerTube(
         call(endpoint) { mapOf("target" to JsonObject(mapOf("videoId" to primitive(videoId)))) }
     }
 
-    suspend fun accountName(): String? {
-        val raw = call("account/account_menu")
-        val root = json.parseToJsonElement(raw)
-        return root.findAll("accountName").firstOrNull().runsText()
+    suspend fun accountName(): String? = accountInfo().first
+
+    // name + profile photo from the account menu
+    suspend fun accountInfo(): Pair<String?, String?> {
+        val root = json.parseToJsonElement(call("account/account_menu"))
+        val name = root.findAll("accountName").firstOrNull().runsText()
+        val photo = root.findAll("accountPhoto").firstOrNull().path("thumbnails").arr?.lastOrNull().path("url").str
+        return name to photo
     }
 
     suspend fun libraryCollections(browseId: String): List<CollectionRef> =

@@ -130,7 +130,6 @@ fun MaterialSearchBar(modifier: Modifier = Modifier) {
     val graph = AppGraph.instance
     val nav = graph.navigator
     val cs = MaterialTheme.colorScheme
-    val acc by graph.accounts.state.collectAsState()
     Row(
         modifier.fillMaxWidth().height(56.dp).clip(CircleShape).background(cs.surfaceContainerHigh)
             .clickable { nav.selectTab(Screen.Search) }.padding(start = 18.dp, end = 4.dp),
@@ -140,23 +139,10 @@ fun MaterialSearchBar(modifier: Modifier = Modifier) {
         Spacer(Modifier.width(14.dp))
         Text(t("Search songs, artists"), style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         ExpressiveIconButton(onClick = { nav.push(Screen.Settings) }) {
-            val avatar = acc.spotifyAvatar ?: acc.soundcloudAvatar
-            val name = acc.spotifyName ?: acc.soundcloudName
-            when {
-                avatar != null -> Artwork(avatar, Modifier.size(34.dp), CircleShape, Icons.Rounded.Person)
-                !name.isNullOrBlank() -> Box(Modifier.size(34.dp).clip(CircleShape).background(cs.primaryContainer), contentAlignment = Alignment.Center) {
-                    Text(initials(name), style = MaterialTheme.typography.labelLarge, color = cs.onPrimaryContainer)
-                }
-                else -> Box(Modifier.size(34.dp).clip(CircleShape).background(cs.primaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Person, t("Settings"), Modifier.size(20.dp), tint = cs.onPrimaryContainer)
-                }
-            }
+            app.nocturne.ui.components.ProfileAvatar(34.dp)
         }
     }
 }
-
-private fun initials(name: String): String =
-    name.split(' ', '_', '.').filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }.ifEmpty { "?" }
 
 // Floating pill mini player: round artwork, title/artists, next, and play/pause inside a progress ring.
 // Swipe sideways to skip, down to stop, up (or tap) to expand.

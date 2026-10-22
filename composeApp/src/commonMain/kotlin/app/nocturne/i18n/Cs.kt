@@ -639,5 +639,10 @@ internal object Cs {
         "Show less" to "Zobrazit méně",
         "Video" to "Video",
         "EQ" to "EQ",
+        "Profile picture" to "Profilový obrázek",
+        "Your own image" to "Vlastní obrázek",
+        "From your connected account" to "Z připojeného účtu",
+        "Reset" to "Obnovit",
+        "Change" to "Změnit",
     )
 }

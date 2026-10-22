@@ -639,5 +639,10 @@ internal object De {
         "Show less" to "Weniger anzeigen",
         "Video" to "Video",
         "EQ" to "EQ",
+        "Profile picture" to "Profilbild",
+        "Your own image" to "Eigenes Bild",
+        "From your connected account" to "Vom verbundenen Konto",
+        "Reset" to "Zurücksetzen",
+        "Change" to "Ändern",
     )
 }
