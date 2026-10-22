@@ -60,7 +60,10 @@ import app.nocturne.ui.kit.FilterChip
 import app.nocturne.ui.kit.ModalBottomSheet
 import app.nocturne.ui.kit.TextButton
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
@@ -82,12 +85,25 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
+    suspend fun commentsPageOf(token: String) = api.commentsPage(token)
+
     fun load(reset: Boolean, block: suspend () -> CommentsPage) {
         job?.cancel()
         loading = true
         error = null
         job = scope.launch {
-            val r = runCatching { block() }
+            val r = runCatching {
+                withContext(Dispatchers.Default) {
+                    withTimeout(25_000) {
+                        val first = block()
+                        // first screen gets ~30, then pages of ~20 as you hit the bottom
+                        if (reset && first.comments.size < 30 && first.next != null) {
+                            runCatching { commentsPageOf(first.next) }.getOrNull()
+                                ?.let { first.copy(comments = first.comments + it.comments, next = it.next) } ?: first
+                        } else first
+                    }
+                }
+            }
             ensureActive()
             r.onSuccess { p ->
                 if (reset) { comments.clear(); list.scrollToItem(0) }
@@ -105,7 +121,7 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
     LaunchedEffect(list) {
         snapshotFlow { Triple(list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0, comments.size, next) }
             .collect { (last, size, token) ->
-                if (token != null && size > 0 && !loading && error == null && last >= size - 4) load(false) { api.commentsPage(token) }
+                if (token != null && size > 0 && !loading && error == null && last >= size - 2) load(false) { api.commentsPage(token) }
             }
     }
 
