@@ -21,6 +21,7 @@ import platform.AVFoundation.AVMediaTypeAudio
 import platform.AVFoundation.AVMutableAudioMix
 import platform.AVFoundation.AVMutableAudioMixInputParameters
 import platform.AVFoundation.AVPlayerItem
+import platform.AVFoundation.setAudioMix
 import platform.AVFoundation.tracksWithMediaType
 import platform.CoreAudioTypes.AudioBufferList
 import platform.CoreAudioTypes.AudioStreamBasicDescription
@@ -112,10 +113,10 @@ internal object IosFx {
                 val track = asset.tracksWithMediaType(AVMediaTypeAudio).firstOrNull() as? AVAssetTrack ?: return@dispatch_async
                 val tap = createTap() ?: return@dispatch_async
                 val params = AVMutableAudioMixInputParameters.audioMixInputParametersWithTrack(track)
-                params.audioTapProcessor = tap
+                params.setAudioTapProcessor(tap)
                 val mix = AVMutableAudioMix()
-                mix.inputParameters = listOf(params)
-                item.audioMix = mix
+                mix.setInputParameters(listOf(params))
+                item.setAudioMix(mix)
             }
         }
     }
