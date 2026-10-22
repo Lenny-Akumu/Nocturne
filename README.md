@@ -86,7 +86,7 @@ Material You 3 на Android · Mica / Acrylic на Windows 11 · одна код
 
 - **YouTube Music** — «Sign in with Google» (Android) або вставка cookies з браузера (Windows).
 - **SoundCloud** — вхід у вбудованому браузері (Android) або вставка `oauth_token`.
-- **Spotify** — створи застосунок на [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), додай Redirect URI `nocturne://spotify-callback` (Android) і `http://127.0.0.1:8898/callback` (Windows), встав **Client ID** в Nocturne і натисни «Sign in with Spotify». Client Secret не потрібен.
+- **Spotify** — створи застосунок на [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), додай Redirect URI `nocturne://spotify-callback` (Android, iOS) і `http://127.0.0.1:43821/callback` (Windows), у «User Management» додай email свого акаунта Spotify, встав **Client ID** у Налаштування → Акаунти → Spotify (або в `BuildInfo.SPOTIFY_CLIENT_ID`) і натисни «Continue with Spotify». Вхід через PKCE — Client Secret не потрібен.
 
 ---
 

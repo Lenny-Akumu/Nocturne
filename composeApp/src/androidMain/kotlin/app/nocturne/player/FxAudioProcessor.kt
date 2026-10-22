@@ -6,53 +6,39 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
+/** Runs the shared [Dsp] (normalize, spatial, 8D, vocal remover) on 16-bit stereo PCM. */
 @UnstableApi
 class FxAudioProcessor : BaseAudioProcessor() {
+    @Volatile var normalize = false
+    @Volatile var spatial = false
     @Volatile var eightD = false
     @Volatile var vocalRemover = false
-    private var frames = 0L
-    private var rate = 44100
+    private var dsp: Dsp? = null
+    private var floats = FloatArray(0)
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount != 2) return AudioProcessor.AudioFormat.NOT_SET
-        rate = inputAudioFormat.sampleRate
+        if (dsp?.rate != inputAudioFormat.sampleRate) dsp = Dsp(inputAudioFormat.sampleRate)
         return inputAudioFormat
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
-        val size = inputBuffer.remaining()
+        val size = inputBuffer.remaining() and 3.inv()
         if (size == 0) return
-        val out = replaceOutputBuffer(size)
-        val pan = eightD
-        val karaoke = vocalRemover
+        val d = dsp ?: return
+        d.normalize = normalize; d.spatial = spatial; d.eightD = eightD; d.vocalRemover = vocalRemover
+        val n = size / 2
+        if (floats.size < n) floats = FloatArray(n)
         val src = inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        while (src.remaining() >= 4) {
-            var l = src.short.toFloat()
-            var r = src.short.toFloat()
-            if (karaoke) {
-                val side = (l - r) * 0.9f
-                l = side
-                r = side
-            }
-            if (pan) {
-                val t = frames.toDouble() / rate
-                val angle = ((sin(2 * PI * t / 9.0) + 1) * PI / 4).toFloat()
-                val m = (l + r) * 0.5f
-                l = m * cos(angle) * 1.35f
-                r = m * sin(angle) * 1.35f
-            }
-            out.putShort(l.coerceIn(-32768f, 32767f).toInt().toShort())
-            out.putShort(r.coerceIn(-32768f, 32767f).toInt().toShort())
-            frames++
-        }
+        for (i in 0 until n) floats[i] = src.short / 32768f
+        d.process(floats, n / 2)
+        val out = replaceOutputBuffer(size)
+        for (i in 0 until n) out.putShort((floats[i] * 32767f).toInt().toShort())
         out.flip()
     }
 
     override fun onReset() {
-        frames = 0
+        dsp = null
     }
 }

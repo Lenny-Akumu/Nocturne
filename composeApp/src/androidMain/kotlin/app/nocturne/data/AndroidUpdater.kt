@@ -18,7 +18,7 @@ actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress:
             Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${ctx.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
-        error("Allow Nocturne to install apps, then tap Update again")
+        error(app.nocturne.i18n.t("Allow Nocturne to install apps, then tap Update again"))
     }
     val file = File(File(ctx.cacheDir, "updates"), fileName)
     withContext(Dispatchers.IO) { downloadFile(url, file, onProgress) }
@@ -37,7 +37,7 @@ private fun manager(): android.app.NotificationManager? {
     val ctx = AndroidContext.app
     val nm = ctx.getSystemService(android.app.NotificationManager::class.java) ?: return null
     if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CHANNEL) == null) {
-        nm.createNotificationChannel(android.app.NotificationChannel(CHANNEL, "App updates", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(android.app.NotificationChannel(CHANNEL, app.nocturne.i18n.t("App updates"), android.app.NotificationManager.IMPORTANCE_DEFAULT))
     }
     return nm
 }
@@ -52,8 +52,8 @@ actual fun notifyUpdateAvailable(version: String, notes: String) {
     val nm = manager() ?: return
     val n = androidx.core.app.NotificationCompat.Builder(AndroidContext.app, CHANNEL)
         .setSmallIcon(android.R.drawable.stat_sys_download_done)
-        .setContentTitle("Nocturne $version is available")
-        .setContentText("Tap to update")
+        .setContentTitle(app.nocturne.i18n.t("Nocturne %s is available", version))
+        .setContentText(app.nocturne.i18n.t("Tap to update"))
         .setContentIntent(openApp())
         .setAutoCancel(true)
         .build()
@@ -68,7 +68,7 @@ actual fun notifyUpdateProgress(version: String, progress: Float?) {
     }
     val n = androidx.core.app.NotificationCompat.Builder(AndroidContext.app, CHANNEL)
         .setSmallIcon(android.R.drawable.stat_sys_download)
-        .setContentTitle("Downloading Nocturne $version")
+        .setContentTitle(app.nocturne.i18n.t("Downloading Nocturne %s", version))
         .setContentText("${(progress * 100).toInt()}%")
         .setProgress(100, (progress * 100).toInt(), false)
         .setOngoing(true)
@@ -82,7 +82,7 @@ actual fun notifyRelease(title: String, text: String) {
     val ctx = AndroidContext.app
     val nm = ctx.getSystemService(android.app.NotificationManager::class.java) ?: return
     if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel("releases") == null) {
-        nm.createNotificationChannel(android.app.NotificationChannel("releases", "New releases", android.app.NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(android.app.NotificationChannel("releases", app.nocturne.i18n.t("New releases"), android.app.NotificationManager.IMPORTANCE_DEFAULT))
     }
     val n = androidx.core.app.NotificationCompat.Builder(ctx, "releases")
         .setSmallIcon(android.R.drawable.ic_media_play)

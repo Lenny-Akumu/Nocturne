@@ -97,6 +97,7 @@ import app.nocturne.model.formatDuration
 import app.nocturne.ui.kit.CircularProgressIndicator
 import app.nocturne.ui.kit.LocalDesignStyle
 import app.nocturne.ui.kit.Slider
+import app.nocturne.ui.liquidGlass
 import app.nocturne.ui.theme.LocalDarkTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -189,7 +190,7 @@ private fun FluentTooltip(text: String?, hovered: Boolean) {
     val shape = RoundedCornerShape(4.dp)
     Popup(popupPositionProvider = remember(gap) { AbovePosition(gap) }) {
         Text(
-            text,
+            app.nocturne.i18n.t(text),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
             color = cs.onSurface,
             modifier = Modifier.padding(4.dp).shadow(6.dp, shape).background(cs.surfaceContainerHigh, shape)
@@ -429,4 +430,20 @@ fun PlayerSeekBar(positionMs: Long, durationMs: Long, progress: Float, onSeek: (
 fun PlayerVolumeSlider(value: Float, onValueChange: (Float) -> Unit, modifier: Modifier = Modifier, colors: SliderColors = SliderDefaults.colors()) {
     if (LocalDesignStyle.current == DesignStyle.GLASS) GlassBar(value, onValueChange, {}, modifier)
     else Slider(value = value, onValueChange = onValueChange, modifier = modifier, colors = colors)
+}
+
+// Rounded card grouping full-player controls: liquidGlass (Glass), Fluent layer card (Windows), tonal surface (Material).
+@Composable
+fun PlayerCard(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val dark = LocalDarkTheme.current
+    val m = when (LocalDesignStyle.current) {
+        DesignStyle.GLASS -> modifier.liquidGlass(RoundedCornerShape(28.dp), elevation = 6.dp)
+        DesignStyle.WINDOWS -> RoundedCornerShape(8.dp).let {
+            modifier.clip(it).background(if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.7f))
+                .border(1.dp, cs.onSurface.copy(alpha = if (dark) 0.08f else 0.06f), it)
+        }
+        DesignStyle.MATERIAL -> modifier.clip(RoundedCornerShape(28.dp)).background(cs.surfaceContainerHighest.copy(alpha = 0.55f))
+    }
+    Box(m, contentAlignment = Alignment.Center, content = content)
 }

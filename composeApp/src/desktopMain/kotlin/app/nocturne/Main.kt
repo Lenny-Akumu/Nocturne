@@ -60,12 +60,17 @@ private fun smokeTest(output: File) {
         org.jetbrains.skia.Surface.makeRasterN32Premul(16, 16).close()
         log("skia ok")
         val engine = VlcAudioEngine()
-        log("vlc available=${engine.available} bundled=${VlcAudioEngine.bundledDir() != null}")
+        log("vlc available=${engine.available} bundled=${VlcAudioEngine.bundledDir() != null} dsp=${engine.dspActive}")
         if (isWindows && !engine.available) error("bundled VLC failed to load")
         Class.forName("javafx.scene.web.WebView")
         log("javafx ok")
         javax.swing.SwingUtilities.invokeAndWait { AppGraph.init(engine) }
         log("graph ok")
+        // Listen-together relays through the packaged runtime (TLS, engine); informational only.
+        runCatching {
+            kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeoutOrNull(40_000) { AppGraph.instance.party.runRelayChecks() } }
+                ?.forEach { log("relay $it") } ?: log("relay check timed out")
+        }.onFailure { log("relay check failed: $it") }
     }.onFailure { log("FAILED\n" + it.stackTraceToString()) }.isSuccess
     if (ok) log("SMOKE OK")
     Runtime.getRuntime().halt(if (ok) 0 else 1)

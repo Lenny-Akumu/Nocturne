@@ -35,34 +35,45 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.abs
 import kotlin.random.Random
 
+/** Host's version (speed), EQ and effects; guests play with these while in the session. */
+@Serializable
+data class PartyAudio(
+    val speed: Float = 1f, val eq: Boolean = false, val gains: List<Float> = emptyList(),
+    val normalize: Boolean = false, val spatial: Boolean = false, val eightD: Boolean = false, val vocal: Boolean = false,
+)
+
 /** Host playback snapshot. [seq] grows on every real change so guests can drop stale / out-of-order states. */
 @Serializable
-data class PartyState(val track: Track? = null, val positionMs: Long = 0, val playing: Boolean = false, val sentAt: Long = 0, val seq: Long = 0)
+data class PartyState(
+    val track: Track? = null, val positionMs: Long = 0, val playing: Boolean = false, val sentAt: Long = 0, val seq: Long = 0,
+    val audio: PartyAudio? = null,
+)
 
 /** Compact online payload: just what a guest needs to load and sync the track (no account data). */
 @Serializable
 private data class Wire(
     val s: Source? = null, val i: String? = null, val t: String = "", val a: List<String> = emptyList(),
     val w: String? = null, val u: String? = null, val d: Long = 0,
-    val p: Long = 0, val g: Boolean = false, val q: Long = 0, val at: Long = 0,
+    val p: Long = 0, val g: Boolean = false, val q: Long = 0, val at: Long = 0, val x: PartyAudio? = null,
 ) {
     fun toState() = PartyState(
         if (s != null && i != null) Track(i, s, t, a.map { ArtistRef(it) }, durationMs = d, artworkUrl = w, url = u) else null,
-        p, g, at, q,
+        p, g, at, q, x,
     )
 
     companion object {
         fun of(st: PartyState) = st.track.let { tr ->
-            Wire(tr?.source, tr?.id, tr?.title.orEmpty(), tr?.artists?.map { it.name }.orEmpty(), tr?.artworkUrl, tr?.url, tr?.durationMs ?: 0, st.positionMs, st.playing, st.seq, st.sentAt)
+            Wire(tr?.source, tr?.id, tr?.title.orEmpty(), tr?.artists?.map { it.name }.orEmpty(), tr?.artworkUrl, tr?.url, tr?.durationMs ?: 0, st.positionMs, st.playing, st.seq, st.sentAt, st.audio)
         }
     }
 }
 
 /** Online relays, tried in this fixed order by host and guest alike. ntfy.sh is only the last fallback. */
-private enum class Relay(val url: String) {
+internal enum class Relay(val url: String) {
     EMQX("wss://broker.emqx.io:8084/mqtt"),
     HIVEMQ("wss://broker.hivemq.com:8884/mqtt"),
     MOSQUITTO("wss://test.mosquitto.org:8081"),
+    ECLIPSE("wss://mqtt.eclipseprojects.io:443/mqtt"), // port 443: passes networks that block 8081/8084/8884
     NTFY("https://ntfy.sh/"),
 }
 
@@ -90,6 +101,7 @@ object PartyLinks {
     }
 
     fun handle(url: String): Boolean {
+        if (app.nocturne.sync.DeviceLinks.handle(url)) return true
         val code = codeOf(url) ?: return false
         pending.value = code
         return true
@@ -106,6 +118,14 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     val joined: StateFlow<String?> = _joined.asStateFlow()
     private val _status = MutableStateFlow<String?>(null)
     val status: StateFlow<String?> = _status.asStateFlow()
+    /** Per-relay state of the current session, one line each (copyable). */
+    private val _details = MutableStateFlow("")
+    val details: StateFlow<String> = _details.asStateFlow()
+    private val _checks = MutableStateFlow<List<RelayCheck>?>(null)
+    /** Last "Check connection" result. */
+    val checks: StateFlow<List<RelayCheck>?> = _checks.asStateFlow()
+    private val _checking = MutableStateFlow(false)
+    val checking: StateFlow<Boolean> = _checking.asStateFlow()
     private val _code = MutableStateFlow<String?>(null)
     val code: StateFlow<String?> = _code.asStateFlow()
     private val _showInDiscord = MutableStateFlow(false)
@@ -158,8 +178,20 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private fun resetRelays(): Int {
         relayOk.clear()
         relayErr.clear()
+        _details.value = ""
         return ++relayGen
     }
+
+    /** Round-trips test messages through every relay; results land in [checks]. */
+    fun checkConnection() {
+        if (_checking.value) return
+        _checking.value = true
+        scope.launch {
+            try { _checks.value = runRelayChecks() } finally { _checking.value = false }
+        }
+    }
+
+    suspend fun runRelayChecks(): List<RelayCheck> = checkRelays(graph.http, wsHttp)
 
     private fun relayUp(gen: Int, r: Relay) {
         if (gen != relayGen) return
@@ -171,18 +203,25 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private fun relayDown(gen: Int, r: Relay, e: Throwable) {
         if (gen != relayGen) return
         relayOk -= r
-        relayErr[r] = (e.message ?: e::class.simpleName ?: "error").lineSequence().first().take(70)
+        relayErr[r] = describe(e).take(300)
         updateStatus()
     }
 
     // Errors show only once every relay has failed.
     private fun updateStatus() {
+        _details.value = Relay.entries.joinToString("\n") { r ->
+            "${r.name.lowercase()}: " + when (r) {
+                in relayOk -> "connected"
+                in relayErr -> relayErr[r]
+                else -> "connecting…"
+            } + " — ${r.url}"
+        }
         val guest = _joined.value != null
         _status.value = when {
             relayOk.isNotEmpty() -> if (guest && latest == null) "Waiting for the host…" else null
             relayErr.size < Relay.entries.size -> _status.value
             else -> {
-                val why = relayErr.entries.joinToString("; ") { "${it.key.name.lowercase()}: ${it.value}" }
+                val why = relayErr.entries.joinToString("; ") { "${it.key.name.lowercase()}: ${it.value.take(70)}" }
                 if (guest) t("Connection problem (%s) — retrying…", why)
                 else t("Online relay unavailable (%s) — friends on your Wi-Fi can still join", why)
             }
@@ -208,7 +247,8 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
 
     private fun snapshot(): PartyState {
         val p = graph.player.state.value
-        return PartyState(p.current, p.positionMs, p.isPlaying, nowMillis(), seq)
+        val a = graph.settings.value.let { PartyAudio(it.playbackSpeed, it.eqEnabled, it.eqGains, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover) }
+        return PartyState(p.current, p.positionMs, p.isPlaying, nowMillis(), seq, a)
     }
 
     fun host() {
@@ -235,8 +275,10 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
             while (isActive) {
                 var now = snapshot()
                 val prev = last
-                val drift = if (prev != null && prev.playing) abs(now.positionMs - (prev.positionMs + (now.sentAt - prev.sentAt))) else 0L
+                val speed = now.audio?.speed ?: 1f
+                val drift = if (prev != null && prev.playing) abs(now.positionMs - (prev.positionMs + ((now.sentAt - prev.sentAt) * speed).toLong())) else 0L
                 val changed = prev == null || prev.track?.key != now.track?.key || prev.playing != now.playing || drift > 2500 ||
+                    prev.audio != now.audio ||
                     (!now.playing && abs(now.positionMs - prev.positionMs) > 1500)
                 if (changed && prev != null) seq++
                 now = now.copy(seq = seq)
@@ -427,12 +469,15 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         if (!s.playing) return s.positionMs
         val since = nowMillis() - r.receivedAt
         val transit = r.receivedAt - s.sentAt
-        return s.positionMs + since + if (s.sentAt > 0 && transit in -1_000..40_000) transit.coerceAtLeast(0) else 300L
+        val wall = since + if (s.sentAt > 0 && transit in -1_000..40_000) transit.coerceAtLeast(0) else 300L
+        return s.positionMs + (wall * (s.audio?.speed ?: 1f)).toLong() // track time runs at the host's speed
     }
 
     private fun apply(r: Remote) {
         val remote = r.state
         val p = graph.player
+        // Older hosts send no audio: keep our own settings then.
+        p.partyAudio = remote.audio
         val local = p.state.value
         val now = nowMillis()
         val track = remote.track ?: run { if (local.isPlaying) p.pause(); return }
@@ -466,6 +511,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         joinJob?.cancel()
         joinJob = null
         latest = null
+        graph.player.partyAudio = null
         if (_joined.value != null && _code.value == null) resetRelays()
         _joined.value = null
         if (_code.value == null) _status.value = null

@@ -59,6 +59,10 @@ import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.Airplay
 import androidx.compose.material.icons.automirrored.rounded.VolumeMute
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import app.nocturne.ui.components.trackMenuOpen
 import app.nocturne.data.DesignStyle
 import app.nocturne.ui.kit.LocalDesignStyle
 import app.nocturne.ui.kit.AlertDialog
@@ -154,6 +158,18 @@ fun FullPlayer(onCollapse: () -> Unit) {
     }
 }
 
+// Sheets and dialogs opened from the player; the video hides while any of them is up.
+private class Overlays {
+    var audio by mutableStateOf(false)
+    var sleep by mutableStateOf(false)
+    var connect by mutableStateOf(false)
+    var carMode by mutableStateOf(false)
+    var comments by mutableStateOf(false)
+    val any: Boolean get() = audio || sleep || connect || carMode || comments
+}
+
+private val LocalOverlays = staticCompositionLocalOf { Overlays() }
+
 @Composable
 private fun PlayerContent(onCollapse: () -> Unit) {
     val graph = AppGraph.instance
@@ -161,7 +177,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     val settings by graph.settings.state.collectAsState()
     val track = state.current ?: return
     var pane by remember { mutableStateOf(Pane.ARTWORK) }
-    var sleepDialog by remember { mutableStateOf(false) }
+    val overlays = remember { Overlays() }
     var noLyrics by remember(track.key) { mutableStateOf(false) }
     LaunchedEffect(track.key, settings.showLyrics) {
         if (settings.showLyrics) noLyrics = runCatching { graph.lyrics.lyrics(track).isEmpty }.getOrDefault(true)
@@ -169,6 +185,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     LaunchedEffect(noLyrics) { if (noLyrics && pane == Pane.LYRICS) pane = Pane.QUEUE }
     val menu = LocalTrackMenu.current
 
+    CompositionLocalProvider(LocalOverlays provides overlays) {
     BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding()) {
         val wide = maxWidth > 760.dp && maxWidth > maxHeight
         val short = maxHeight < 560.dp
@@ -179,13 +196,9 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                     Text(t("PLAYING FROM"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(state.queueTitle ?: track.album ?: track.source.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                var carMode by remember { mutableStateOf(false) }
-                var connect by remember { mutableStateOf(false) }
                 val castDevice by graph.cast.device.collectAsState()
-                if (carMode) CarModeDialog { carMode = false }
-                if (connect) ConnectSheet(onDismiss = { connect = false }, onCarMode = { carMode = true })
                 TransportButton(
-                    if (castDevice != null) Icons.Rounded.CastConnected else Icons.Rounded.Devices, "Devices", { connect = true },
+                    if (castDevice != null) Icons.Rounded.CastConnected else Icons.Rounded.Devices, "Devices", { overlays.connect = true },
                     tint = if (castDevice != null) MaterialTheme.colorScheme.primary else LocalContentColor.current, glassIcon = Icons.Rounded.Airplay,
                 )
                 TransportButton(Icons.Rounded.MoreVert, "More", { menu(track, TrackMenuContext()) })
@@ -208,12 +221,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                             Controls()
                             Spacer(Modifier.weight(1f))
                         }
-                        BottomActions(
-                            shown,
-                            { p -> pane = if (short && pane == p) Pane.ARTWORK else p },
-                            { sleepDialog = true },
-                            hideArtworkToggle = !short,
-                        )
+                        BottomActions(shown, { p -> pane = if (short && pane == p) Pane.ARTWORK else p }, hideArtworkToggle = !short)
                     }
                 }
             } else {
@@ -225,15 +233,21 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                         else PaneContent(p)
                     }
                 }
-                Column(Modifier.padding(horizontal = 24.dp)) {
-                    Controls()
-                    BottomActions(pane, { pane = if (pane == it) Pane.ARTWORK else it }, { sleepDialog = true }, hideArtworkToggle = false)
+                // Phone: transport and actions in two rounded cards, lifted off the bottom edge for thumbs.
+                Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp)) {
+                    Controls(cards = true)
+                    BottomActions(pane, { pane = if (pane == it) Pane.ARTWORK else it }, hideArtworkToggle = false, card = true)
                 }
             }
         }
     }
+    }
 
-    if (sleepDialog) SleepTimerDialog { sleepDialog = false }
+    if (overlays.carMode) CarModeDialog { overlays.carMode = false }
+    if (overlays.connect) ConnectSheet(onDismiss = { overlays.connect = false }, onCarMode = { overlays.carMode = true })
+    if (overlays.sleep) SleepTimerDialog { overlays.sleep = false }
+    if (overlays.audio) AudioSheet { overlays.audio = false }
+    if (overlays.comments) CommentsSheet(track) { overlays.comments = false }
 }
 
 @Composable
@@ -257,6 +271,9 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
         value = null // drop the previous track's video right away, or its frames linger over the new track
         value = if (settings.showVideo) runCatching { graph.provider(track.source).videoStream(track) }.getOrNull() else null
     }
+    // Render (and keep a decoder) only while the expanded player is on screen with no sheet over it.
+    val overlays = LocalOverlays.current
+    val onScreen = graph.navigator.playerExpanded && !overlays.any && !trackMenuOpen
     val full = video != null && settings.videoFullWidth
     val ratio by animateFloatAsState(if (full) 16f / 9f else 1f, label = "ratio")
     fun setFull(v: Boolean) { if (v != settings.videoFullWidth) graph.settings.update { it.copy(videoFullWidth = v) } }
@@ -315,7 +332,7 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
             .clip(RoundedCornerShape(24.dp)),
     ) {
         Artwork(track.artworkUrl, Modifier.fillMaxSize(), RoundedCornerShape(24.dp))
-        video?.let { url ->
+        video?.takeIf { onScreen }?.let { url ->
             if (full) Box(Modifier.fillMaxSize().background(Color.Black))
             VideoSurface(url, state.positionMs, state.isPlaying, settings.playbackSpeed, Modifier.fillMaxSize(), fit = full)
         }
@@ -323,15 +340,16 @@ private fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap
 }
 
 @Composable
-private fun Controls(compact: Boolean = false) {
+private fun Controls(compact: Boolean = false, cards: Boolean = false) {
     val graph = AppGraph.instance
     val state by graph.player.state.collectAsState()
     val library by graph.library.state.collectAsState()
     val settings by graph.settings.state.collectAsState()
     val track = state.current ?: return
     val cs = MaterialTheme.colorScheme
+    val inset = if (cards) Modifier.padding(horizontal = 8.dp) else Modifier
 
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = if (compact) 6.dp else 16.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = inset.padding(top = if (compact) 6.dp else 16.dp)) {
         Column(Modifier.weight(1f)) {
             Text(track.title, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.basicMarquee())
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -359,9 +377,18 @@ private fun Controls(compact: Boolean = false) {
         )
     }
 
-    PlayerSeekBar(state.positionMs, state.durationMs, state.progress, { graph.player.seekTo(it) }, compact = compact)
+    PlayerSeekBar(state.positionMs, state.durationMs, state.progress, { graph.player.seekTo(it) }, inset, compact = compact)
 
-    Row(Modifier.fillMaxWidth().padding(vertical = if (compact) 2.dp else 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    if (cards) PlayerCard(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+        TransportRow(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), compact)
+    } else TransportRow(Modifier.fillMaxWidth().padding(vertical = if (compact) 2.dp else 12.dp), compact)
+}
+
+@Composable
+private fun TransportRow(modifier: Modifier, compact: Boolean) {
+    val graph = AppGraph.instance
+    val state by graph.player.state.collectAsState()
+    Row(modifier, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         ToggleGlyph(state.shuffle, { graph.player.toggleShuffle() }, Icons.Rounded.Shuffle, "Shuffle")
         TransportButton(Icons.Rounded.SkipPrevious, "Previous", graph.player::previous, size = 56.dp, iconSize = 38.dp, glassIcon = Icons.Rounded.FastRewind)
         PlayPauseButton(state.isPlaying, graph.player::toggle, buffering = state.isBuffering, hero = true, compact = compact)
@@ -373,34 +400,34 @@ private fun Controls(compact: Boolean = false) {
     }
 }
 
+// Action buttons; [card] = phone layout's rounded container. Volume only on desktop (phones use hardware keys).
 @Composable
-private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Unit, hideArtworkToggle: Boolean) {
-    val graph = AppGraph.instance
-    val settings by graph.settings.state.collectAsState()
-    val state by graph.player.state.collectAsState()
-    val cs = MaterialTheme.colorScheme
-    var audioSheet by remember { mutableStateOf(false) }
-    if (audioSheet) AudioSheet { audioSheet = false }
+private fun BottomActions(pane: Pane, onPane: (Pane) -> Unit, hideArtworkToggle: Boolean, card: Boolean = false) {
+    val desktop = app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP
     var volumeOpen by remember { mutableStateOf(false) }
     var touched by remember { mutableStateOf(0) }
     LaunchedEffect(volumeOpen, touched) {
         if (volumeOpen) { delay(3500); volumeOpen = false }
     }
-    AnimatedContent(volumeOpen, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "actions") { open ->
-        if (open) VolumeRow(onTouch = { touched++ }, onClose = { volumeOpen = false })
-        else ActionsRow(pane, onPane, onSleep, hideArtworkToggle, onAudio = { audioSheet = true }, onVolume = { volumeOpen = true })
+    val row = if (card) Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp) else Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp)
+    val body: @Composable () -> Unit = {
+        AnimatedContent(volumeOpen && desktop, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "actions") { open ->
+            if (open) VolumeRow(row, onTouch = { touched++ }, onClose = { volumeOpen = false })
+            else ActionsRow(row, pane, onPane, hideArtworkToggle, onVolume = if (desktop) ({ volumeOpen = true }) else null)
+        }
     }
+    if (card) PlayerCard(Modifier.fillMaxWidth().padding(top = 12.dp)) { body() } else body()
 }
 
 @Composable
-private fun VolumeRow(onTouch: () -> Unit, onClose: () -> Unit) {
+private fun VolumeRow(modifier: Modifier, onTouch: () -> Unit, onClose: () -> Unit) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val cs = MaterialTheme.colorScheme
     var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
     // Glass: Apple-style bar between a quiet and a loud speaker.
     val glass = LocalDesignStyle.current == DesignStyle.GLASS
-    Row(Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp, start = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         TransportButton(
             if (vol <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else if (glass) Icons.AutoMirrored.Rounded.VolumeMute else Icons.AutoMirrored.Rounded.VolumeUp, "Mute",
             { vol = if (vol > 0.01f) 0f else 0.6f; graph.player.setVolume(vol); onTouch() },
@@ -419,13 +446,14 @@ private fun VolumeRow(onTouch: () -> Unit, onClose: () -> Unit) {
 }
 
 @Composable
-private fun ActionsRow(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Unit, hideArtworkToggle: Boolean, onAudio: () -> Unit, onVolume: () -> Unit) {
+private fun ActionsRow(modifier: Modifier, pane: Pane, onPane: (Pane) -> Unit, hideArtworkToggle: Boolean, onVolume: (() -> Unit)?) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val state by graph.player.state.collectAsState()
+    val overlays = LocalOverlays.current
     val cs = MaterialTheme.colorScheme
-    Row(Modifier.fillMaxWidth().height(48.dp).padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        ToggleGlyph(
+    Row(modifier, horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        if (onVolume != null) ToggleGlyph(
             false, onVolume,
             if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, "Volume",
             modifier = Modifier.pointerInput(Unit) {
@@ -449,12 +477,15 @@ private fun ActionsRow(pane: Pane, onPane: (Pane) -> Unit, onSleep: () -> Unit, 
                 if (settings.showVideo) "Show artwork" else "Show video",
             )
         }
-        ToggleGlyph(settings.eqEnabled || settings.playbackSpeed != 1f, onAudio, Icons.Rounded.GraphicEq, "Equalizer and speed")
+        ToggleGlyph(settings.eqEnabled || settings.playbackSpeed != 1f, { overlays.audio = true }, Icons.Rounded.GraphicEq, "Equalizer and speed")
+        if (current?.source == app.nocturne.model.Source.YOUTUBE_MUSIC) {
+            ToggleGlyph(overlays.comments, { overlays.comments = true }, Icons.Rounded.ChatBubbleOutline, "Comments")
+        }
         if (settings.showLyrics) {
             ToggleGlyph(pane == Pane.LYRICS || (hideArtworkToggle && pane == Pane.ARTWORK), { onPane(Pane.LYRICS) }, Icons.Rounded.Lyrics, "Lyrics")
         }
         val sleeping = state.sleepAtMs != null || state.sleepAfterTrack
-        ToggleGlyph(sleeping, onSleep, Icons.Rounded.Bedtime, "Sleep timer")
+        ToggleGlyph(sleeping, { overlays.sleep = true }, Icons.Rounded.Bedtime, "Sleep timer")
         state.sleepAtMs?.let {
             val left = ((it - nowMillis()) / 60_000).coerceAtLeast(0) + 1
             Text("${left}m", style = MaterialTheme.typography.labelMedium, color = cs.primary)

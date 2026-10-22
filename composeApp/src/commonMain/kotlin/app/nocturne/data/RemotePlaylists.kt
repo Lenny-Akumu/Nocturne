@@ -136,7 +136,7 @@ class RemotePlaylists(
     }
 
     fun create(source: Source, name: String, tracks: List<Track>) = scope.launch {
-        val title = name.trim().ifBlank { "My playlist" }
+        val title = name.trim().ifBlank { t("My playlist") }
         runCatching {
             val matched = matchAll(source, tracks)
             val ref = provider(source).createPlaylist(title, matched)

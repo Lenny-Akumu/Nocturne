@@ -103,7 +103,7 @@ object DiscordRpc {
                 }
                 if (art != null && icon != null) {
                     put("small_image", icon)
-                    (if (p.isPlaying) line(s.discordSmallText) else "Paused")?.let { put("small_text", it) }
+                    (if (p.isPlaying) line(s.discordSmallText) else app.nocturne.i18n.t("Paused"))?.let { put("small_text", it) }
                 }
             }
             val url = track.shareUrl()

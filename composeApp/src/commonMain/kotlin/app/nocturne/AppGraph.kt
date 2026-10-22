@@ -95,6 +95,7 @@ class AppGraph(val engine: AudioEngine) {
     }
     val cast = app.nocturne.cast.CastSession(this, scope)
     val party = app.nocturne.party.Party(this, scope)
+    val sync = app.nocturne.sync.DeviceSync(this, scope)
     val downloads = app.nocturne.data.Downloads(scope) { t -> provider(t.source).stream(t, settings.value.downloadQuality) }.also { d ->
         player.localOverride = { t -> d.uriFor(t) }
     }
@@ -154,13 +155,16 @@ class AppGraph(val engine: AudioEngine) {
 
     suspend fun signInYouTube(cookie: String) {
         val clean = cookie.trim().removePrefix("Cookie:").trim()
-        if (!clean.contains("SAPISID")) throw SourceUnavailableException("These cookies don't contain SAPISID — sign in on music.youtube.com first")
+        if (!clean.contains("SAPISID")) throw SourceUnavailableException(app.nocturne.i18n.t("These cookies don't contain SAPISID — sign in on music.youtube.com first"))
         accounts.update { it.copy(youtubeCookie = clean) }
         val name = runCatching { innerTube.accountName() }.getOrNull()
-        accounts.update { it.copy(youtubeName = name ?: "YouTube Music user") }
+        accounts.update { it.copy(youtubeName = name ?: app.nocturne.i18n.t("YouTube Music user")) }
     }
 
     private var recommendationCache: Pair<Long, List<Track>>? = null
+
+    /** History or likes changed (e.g. merged from another device). */
+    fun invalidateRecommendations() { recommendationCache = null }
 
     suspend fun recommendations(force: Boolean = false): List<Track> {
         recommendationCache?.let { (at, list) -> if (!force && nowMillis() - at < 30 * 60_000 && list.isNotEmpty()) return list }

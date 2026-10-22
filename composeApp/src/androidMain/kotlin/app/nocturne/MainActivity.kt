@@ -38,10 +38,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        AppGraph.instance.sync.foreground.value = true
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, PlaybackService::class.java))).buildAsync()
     }
 
     override fun onStop() {
+        AppGraph.instance.sync.foreground.value = false
         controller?.let { MediaController.releaseFuture(it) }
         controller = null
         super.onStop()
@@ -53,12 +55,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.data?.scheme == "nocturne" && intent.data?.host == "join") {
+        if (intent?.data?.scheme == "nocturne" && intent.data?.host in setOf("join", "pair")) {
             intent.dataString?.let { app.nocturne.party.PartyLinks.handle(it) }
             return
         }
         if (intent?.data?.scheme == "nocturne") {
-            intent.dataString?.let { AuthRedirect.pending?.complete(it) }
+            intent.dataString?.let { url ->
+                // No waiting sign-in (process was killed while in the browser): finish it here.
+                if (AuthRedirect.pending?.complete(url) != true && intent.data?.host == "spotify-callback") {
+                    val graph = AppGraph.instance
+                    graph.scope.launch { runCatching { graph.spotify.completeSignIn(url) }.onFailure { e -> e.message?.let(graph::toast) } }
+                }
+            }
             return
         }
         val text = when (intent?.action) {

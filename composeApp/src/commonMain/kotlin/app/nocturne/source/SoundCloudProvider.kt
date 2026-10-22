@@ -60,10 +60,10 @@ class SoundCloudProvider(
             accounts.update { a -> a.copy(soundcloudToken = "") }
             throw it
         }
-        accounts.update { it.copy(soundcloudUserId = me.path("id").num, soundcloudName = me.path("username").str ?: "SoundCloud user") }
+        accounts.update { it.copy(soundcloudUserId = me.path("id").num, soundcloudName = me.path("username").str ?: "SoundCloud user", soundcloudAvatar = me.path("avatar_url").str) }
     }
 
-    fun signOut() = accounts.update { it.copy(soundcloudToken = "", soundcloudUserId = null, soundcloudName = null) }
+    fun signOut() = accounts.update { it.copy(soundcloudToken = "", soundcloudUserId = null, soundcloudName = null, soundcloudAvatar = null) }
 
     override suspend fun library(): AccountLibrary? {
         val id = accounts.value.soundcloudUserId ?: return null
@@ -191,7 +191,7 @@ class SoundCloudProvider(
     }
 
     override suspend fun collection(ref: CollectionRef): CollectionPage = when {
-        ref.id == LikesRef.id -> likedTracks().let { CollectionPage(LikesRef.copy(subtitle = "${it.size} songs", artworkUrl = it.firstOrNull()?.artworkUrl), it) }
+        ref.id == LikesRef.id -> likedTracks().let { CollectionPage(LikesRef.copy(subtitle = app.nocturne.i18n.t("%s songs", it.size), artworkUrl = it.firstOrNull()?.artworkUrl), it) }
         ref.type == CollectionType.ARTIST -> newPipe.channel(source, ref.id, ref)
         else -> newPipe.playlist(source, ref.id, ref)
     }

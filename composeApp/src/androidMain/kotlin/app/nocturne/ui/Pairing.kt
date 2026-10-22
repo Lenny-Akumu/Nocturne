@@ -38,7 +38,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-private suspend fun scanQr(context: Context): String? = suspendCancellableCoroutine { cont ->
+internal suspend fun scanQr(context: Context): String? = suspendCancellableCoroutine { cont ->
     val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
     GmsBarcodeScanning.getClient(context, options).startScan()
         .addOnSuccessListener { if (cont.isActive) cont.resume(it.rawValue) }
@@ -74,14 +74,27 @@ actual fun PairingCard() {
             else FilledTonalButton(onClick = {
                 scope.launch {
                     status = null
-                    val text = runCatching { scanQr(context) }.getOrElse { status = false to (it.message ?: "Scanner unavailable"); return@launch } ?: return@launch
-                    val target = Sync.parse(text) ?: run { status = false to t("This isn't a Nocturne QR code"); return@launch }
+                    val text = runCatching { scanQr(context) }.getOrElse { status = false to (it.message ?: t("Scanner unavailable")); return@launch } ?: return@launch
+                    val joined = graph.sync.joinLink(text) // newer PCs also pair for device sync
+                    val target = Sync.parse(text) ?: run {
+                        status = if (joined) true to t("Paired. Your devices will appear in a moment.") else false to t("This isn't a Nocturne QR code")
+                        return@launch
+                    }
                     busy = true
                     status = runCatching { Sync.send(graph, target) }
-                        .fold({ true to t("Sent! Your PC is signed in now.") }, { false to (it.message ?: "Failed") })
+                        .fold({ true to t("Sent! Your PC is signed in now.") }, { false to (it.message ?: t("Failed")) })
                     busy = false
                 }
             }) { Text(t("Scan QR code")) }
         }
+    }
+}
+
+@Composable
+actual fun rememberQrScanner(): (suspend () -> String?)? {
+    val context = LocalContext.current
+    return remember(context) {
+        val scan: suspend () -> String? = { scanQr(context) }
+        scan
     }
 }

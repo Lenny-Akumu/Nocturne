@@ -116,7 +116,7 @@ actual fun ShortcutSettings() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        captured?.let { Hotkeys.label(it) } ?: "Press a key combination…",
+                        captured?.let { Hotkeys.label(it) } ?: t("Press a key combination…"),
                         style = MaterialTheme.typography.titleLarge,
                     )
                 }

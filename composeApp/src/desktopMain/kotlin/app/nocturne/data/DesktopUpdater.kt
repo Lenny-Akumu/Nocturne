@@ -40,7 +40,7 @@ private object Tray {
 }
 
 actual fun notifyUpdateAvailable(version: String, notes: String) {
-    runCatching { Tray.show("Nocturne $version is available", "Open Nocturne and click Update to install it.") }
+    runCatching { Tray.show(app.nocturne.i18n.t("Nocturne %s is available", version), app.nocturne.i18n.t("Open Nocturne and click Update to install it.")) }
 }
 
 actual fun notifyUpdateProgress(version: String, progress: Float?) = Unit

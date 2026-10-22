@@ -97,7 +97,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
 
     fun playFromSearch(track: app.nocturne.model.Track, list: List<app.nocturne.model.Track>, index: Int) {
         graph.library.addSearchPlay(track)
-        if (settings.autoplayRadio) graph.player.startRadio(track) else graph.player.play(list, index, "Search")
+        if (settings.autoplayRadio) graph.player.startRadio(track) else graph.player.play(list, index, t("Search"))
     }
 
     LaunchedEffect(s.query, s.source) {
@@ -139,7 +139,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
                 when (entry) {
                     is MediaEntry.Collection -> { graph.navigator.push(Screen.Collection(entry.ref)); s.results = emptyList() }
                     is MediaEntry.Song -> s.results = listOf(entry)
-                    null -> s.error = "This link isn't supported"
+                    null -> s.error = t("This link isn't supported")
                 }
             } else {
                 val target = s.source
@@ -157,7 +157,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
             }
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            s.error = e.message ?: "Search failed"
+            s.error = e.message ?: t("Search failed")
         }
         s.loading = false
     }
@@ -229,7 +229,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
             typing || (s.submitted == null && s.query.isBlank()) -> {
                 LazyColumn(contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding())) {
                     if (s.query.startsWith("http")) {
-                        item { SuggestionRow(Icons.Rounded.Link, "Open link") { submit() } }
+                        item { SuggestionRow(Icons.Rounded.Link, t("Open link")) { submit() } }
                     }
                     if (typing) {
                         items(suggestions) { q -> SuggestionRow(Icons.Rounded.Search, q) { submit(q) } }

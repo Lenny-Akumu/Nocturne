@@ -34,8 +34,8 @@ class ReleaseWatcher(private val graph: AppGraph) {
         }
         FileStore.write(FILE, json.encodeToString(serializer, seen))
         when {
-            fresh.size == 1 -> notifyRelease("New from ${fresh[0].first}", fresh[0].second)
-            fresh.size > 1 -> notifyRelease("${fresh.size} new releases", fresh.joinToString(", ") { "${it.first} — ${it.second}" })
+            fresh.size == 1 -> notifyRelease(app.nocturne.i18n.t("New from %s", fresh[0].first), fresh[0].second)
+            fresh.size > 1 -> notifyRelease(app.nocturne.i18n.t("%s new releases", fresh.size), fresh.joinToString(", ") { "${it.first} — ${it.second}" })
         }
     }
 

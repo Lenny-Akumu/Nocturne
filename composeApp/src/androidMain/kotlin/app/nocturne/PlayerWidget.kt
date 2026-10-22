@@ -122,7 +122,7 @@ object Widgets {
         tile ?: return
         tile.state = if (s.isPlaying) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.label = s.current?.title ?: "Nocturne"
-        if (Build.VERSION.SDK_INT >= 29) tile.subtitle = if (s.isPlaying) "Playing" else "Paused"
+        if (Build.VERSION.SDK_INT >= 29) tile.subtitle = app.nocturne.i18n.t(if (s.isPlaying) "Now playing" else "Paused")
         tile.updateTile()
     }
 }

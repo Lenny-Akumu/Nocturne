@@ -133,12 +133,21 @@ class PlayerController(
         loadCurrent(startAt(), playing, startAt)
     }
 
+    // Device handoff: loads [tracks] at [index], starting at [startMs].
+    fun playQueue(tracks: List<Track>, index: Int, startMs: Long, playWhenReady: Boolean, title: String? = null) {
+        if (tracks.isEmpty()) return
+        originalOrder = tracks
+        synced = false
+        _state.update { it.copy(queue = tracks, index = index.coerceIn(0, tracks.lastIndex), shuffle = false, queueTitle = title, error = null) }
+        loadCurrent(startMs.coerceAtLeast(0), playWhenReady)
+    }
+
     /** True while the current track's stream is still being resolved (engine still holds no / the previous media). */
     val isLoading: Boolean get() = loadingKey != null
     val isLoaded: Boolean get() = loadedKey != null && loadedKey == _state.value.current?.key
 
     fun startRadio(track: Track) {
-        play(listOf(track), title = "Radio • ${track.title}")
+        play(listOf(track), title = app.nocturne.i18n.t("Radio • %s", track.title))
         fetchRadio(track, replace = true)
     }
 
@@ -253,11 +262,26 @@ class PlayerController(
 
     val audioFx: Set<AudioFx> get() = engine.fx
 
+    /** Live EQ while dragging, without persisting settings. */
+    fun previewEqualizer(gains: List<Float>) { if (partyAudio == null) engine.setEqualizer(true, gains) }
+
+    /** Listen-together guest: the host's version / EQ / effects replace ours until set back to null. */
+    var partyAudio: app.nocturne.party.PartyAudio? = null
+        set(v) {
+            if (field == v) return
+            field = v
+            applyAudioSettings()
+        }
+
     fun applyAudioSettings() {
-        engine.setSkipSilence(settings.value.skipSilence)
-        engine.setPlaybackSpeed(settings.value.playbackSpeed)
-        engine.setEqualizer(settings.value.eqEnabled, settings.value.eqGains)
-        settings.value.let { engine.setEffects(it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover) }
+        val s = settings.value
+        val a = partyAudio
+        engine.setSkipSilence(s.skipSilence)
+        engine.setPlaybackSpeed(a?.speed ?: s.playbackSpeed)
+        if (a != null) engine.setEqualizer(a.eq, a.gains.takeIf { it.size == s.eqGains.size } ?: s.eqGains)
+        else engine.setEqualizer(s.eqEnabled, s.eqGains)
+        if (a != null) engine.setEffects(a.normalize, a.spatial, a.eightD, a.vocal)
+        else engine.setEffects(s.normalizeVolume, s.spatialAudio, s.eightD, s.vocalRemover)
     }
 
     fun setSleepTimer(minutes: Int?) {
@@ -363,7 +387,7 @@ class PlayerController(
         if (!fresh) streamCache[key]?.takeIf { nowMillis() - it.at < STREAM_TTL }?.let { return it.stream }
         val pending = inFlight[key]?.takeIf { !fresh && it.isActive }
             ?: scope.async(Dispatchers.Default) {
-                val provider = providers[track.source] ?: error("${track.source.label} is disabled")
+                val provider = providers[track.source] ?: error(app.nocturne.i18n.t("%s is disabled", track.source.label))
                 provider.stream(track, settings.value.audioQuality)
             }.also { inFlight[key] = it }
         return try {
@@ -418,7 +442,7 @@ class PlayerController(
                 throw e
             } catch (e: Throwable) {
                 if (gen == loadGen) loadingKey = null
-                _state.update { it.copy(isBuffering = false, error = "Can't play “${track.title}”: ${e.message ?: e::class.simpleName}") }
+                _state.update { it.copy(isBuffering = false, error = app.nocturne.i18n.t("Can't play “%s”: %s", track.title, e.message ?: e::class.simpleName)) }
                 delay(1500)
                 if (_state.value.current?.key == track.key && _state.value.index < _state.value.queue.lastIndex) next()
             }
@@ -450,7 +474,7 @@ class PlayerController(
                     engine.load(resolve(track, fresh = true), track, pos, true)
                 }.onSuccess { return@launch }
             }
-            _state.update { it.copy(isBuffering = false, isPlaying = false, error = "Playback error: ${error.message}") }
+            _state.update { it.copy(isBuffering = false, isPlaying = false, error = app.nocturne.i18n.t("Playback error: %s", error.message)) }
         }
     }
 

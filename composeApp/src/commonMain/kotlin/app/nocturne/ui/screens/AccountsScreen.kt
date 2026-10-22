@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Download
 import app.nocturne.ui.kit.AlertDialog
 import app.nocturne.ui.kit.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,9 +49,12 @@ import app.nocturne.BuildInfo
 import app.nocturne.model.Source
 import app.nocturne.ui.WebLoginDialog
 import app.nocturne.ui.clearWebLogins
+import app.nocturne.ui.components.Artwork
 import app.nocturne.ui.components.SourceBadge
 import app.nocturne.ui.components.brandColor
 import app.nocturne.ui.supportsWebLogin
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private const val GOOGLE_LOGIN =
@@ -71,19 +75,28 @@ fun AccountsSettings() {
     var web by remember { mutableStateOf<WebLogin?>(null) }
     var paste by remember { mutableStateOf<Source?>(null) }
     var spotifyDev by remember { mutableStateOf(false) }
-    var importOpen by remember { mutableStateOf(false) }
+    var importFor by remember { mutableStateOf<Source?>(null) }
     var scHelp by remember { mutableStateOf(false) }
-    var importStatus by remember { mutableStateOf<String?>(null) }
+    var job by remember { mutableStateOf<Job?>(null) }
 
     fun run(source: Source, block: suspend () -> Unit) {
         busy = source
         error = null
-        scope.launch {
-            runCatching { block() }.onFailure { error = it.message ?: "Sign-in failed" }
-            invalidateHomeCache()
-            busy = null
+        job?.cancel()
+        job = scope.launch {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = e.message ?: t("Sign-in failed")
+            } finally {
+                invalidateHomeCache()
+                if (busy == source) busy = null
+            }
         }
     }
+    val cancel = { job?.cancel(); busy = null }
 
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
@@ -97,11 +110,13 @@ fun AccountsSettings() {
 
         AccountCard(
             source = Source.YOUTUBE_MUSIC,
-            signedInAs = acc.youtubeName.takeIf { acc.youtubeSignedIn },
+            signedInAs = acc.youtubeName.takeIf { acc.youtubeSignedIn } ?: t("Google account").takeIf { acc.youtubeSignedIn },
             busy = busy == Source.YOUTUBE_MUSIC,
             hint = "Use your Google account",
             onSignOut = { graph.signOutYouTube(); clearWebLogins(); invalidateHomeCache() },
             onOther = { paste = Source.YOUTUBE_MUSIC },
+            onImport = { importFor = Source.YOUTUBE_MUSIC },
+            onCancel = cancel,
         ) {
             ProviderButton("Continue with Google", Color.White, Color(0xFF1F1F1F), mark = "G") {
                 if (supportsWebLogin) web = WebLogin.YOUTUBE else paste = Source.YOUTUBE_MUSIC
@@ -112,28 +127,34 @@ fun AccountsSettings() {
         AccountCard(
             source = Source.SPOTIFY,
             signedInAs = acc.spotifyName.takeIf { acc.spotifySignedIn },
+            avatar = acc.spotifyAvatar,
             busy = busy == Source.SPOTIFY,
             hint = "Log in with Spotify, Google, Facebook or Apple on the next screen",
+            busyHint = "Finish signing in in your browser. If Spotify shows “Invalid redirect URI”, open Spotify app settings below.",
             onSignOut = { graph.spotify.signOut(); invalidateHomeCache() },
             onOther = { spotifyDev = !spotifyDev },
-            otherLabel = "Set up Spotify app",
+            otherLabel = "Spotify app settings (advanced)",
+            onImport = { importFor = Source.SPOTIFY },
+            onCancel = cancel,
         ) {
             ProviderButton("Continue with Spotify", Source.SPOTIFY.brandColor, Color.Black) {
                 if (spotifyClientId.isBlank()) spotifyDev = true
                 else run(Source.SPOTIFY) { graph.spotify.signIn() }
             }
         }
-        app.nocturne.ui.kit.OutlinedButton(onClick = { importOpen = true }, modifier = Modifier.fillMaxWidth()) {
+        if (!acc.spotifySignedIn) app.nocturne.ui.kit.OutlinedButton(onClick = { importFor = Source.SPOTIFY }, modifier = Modifier.fillMaxWidth()) {
             Text(t("Import a Spotify playlist or album by link"))
         }
-        importStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 8.dp)) }
         AccountCard(
             source = Source.SOUNDCLOUD,
             signedInAs = acc.soundcloudName.takeIf { acc.soundcloudSignedIn },
+            avatar = acc.soundcloudAvatar,
             busy = busy == Source.SOUNDCLOUD,
             hint = "Google, Facebook, Apple or email on the next screen",
             onSignOut = { graph.soundcloud.signOut(); clearWebLogins(); invalidateHomeCache() },
             onOther = { paste = Source.SOUNDCLOUD },
+            onImport = { importFor = Source.SOUNDCLOUD },
+            onCancel = cancel,
         ) {
             ProviderButton("Continue to SoundCloud", Source.SOUNDCLOUD.brandColor, Color.White) {
                 if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) scHelp = true
@@ -177,14 +198,19 @@ fun AccountsSettings() {
                     Step(1, "Open the Spotify dashboard and create an app (any name, select “Web API”).")
                     TextButton(onClick = { uri.openUri("https://developer.spotify.com/dashboard/create") }) { Text(t("Open Spotify dashboard")) }
                     Step(2, "In “Redirect URIs” add both of these:")
-                    listOf("nocturne://spotify-callback", "http://127.0.0.1:8898/callback").forEach { r ->
+                    SPOTIFY_REDIRECTS.forEach { r ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(r, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                             IconButton(onClick = { clipboard.setText(AnnotatedString(r)) }) { Icon(Icons.Rounded.ContentCopy, "Copy") }
                         }
                     }
-                    Step(3, "Copy the app's Client ID and paste it here:")
-                    OutlinedTextField(clientId, { clientId = it.trim() }, label = { Text(t("Client ID")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Step(3, "In “User Management” add the email of your Spotify account (needed while the app is in development mode).")
+                    Step(4, "Copy the app's Client ID and paste it here:")
+                    OutlinedTextField(
+                        clientId, { clientId = it.trim() }, label = { Text(t("Client ID")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        placeholder = { if (BuildInfo.SPOTIFY_CLIENT_ID.isNotBlank()) Text(t("Built-in app")) },
+                    )
+                    Text(t("No client secret is needed — Nocturne uses Spotify's secure PKCE sign-in."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(t("Then you sign in on Spotify's own page — with Google, Facebook, Apple or email."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
@@ -193,7 +219,7 @@ fun AccountsSettings() {
                     graph.settings.update { it.copy(spotifyClientId = clientId) }
                     spotifyDev = false
                     run(Source.SPOTIFY) { graph.spotify.signIn() }
-                }, enabled = clientId.length >= 16) { Text(t("Continue with Spotify")) }
+                }, enabled = clientId.length >= 16 || (clientId.isEmpty() && BuildInfo.SPOTIFY_CLIENT_ID.isNotBlank())) { Text(t("Continue with Spotify")) }
             },
             dismissButton = { TextButton(onClick = { spotifyDev = false }) { Text(t("Cancel")) } },
         )
@@ -220,41 +246,7 @@ fun AccountsSettings() {
         )
     }
 
-    if (importOpen) {
-        var link by remember { mutableStateOf("") }
-        var working by remember { mutableStateOf(false) }
-        var importError by remember { mutableStateOf<String?>(null) }
-        AlertDialog(
-            onDismissRequest = { if (!working) importOpen = false },
-            icon = { SourceBadge(Source.SPOTIFY, size = 32.dp) },
-            title = { Text(t("Import from Spotify")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(t("Paste a link to a public playlist or album. It's saved to your library as a playlist — no Spotify account needed."), style = MaterialTheme.typography.bodyMedium)
-                    Text(t("Liked Songs: in Spotify select all liked songs (Ctrl+A), add them to a new playlist and paste its link here."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(link, { link = it.trim() }, singleLine = true, placeholder = { Text("https://open.spotify.com/playlist/…") }, modifier = Modifier.fillMaxWidth())
-                    importError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                }
-            },
-            confirmButton = {
-                TextButton(enabled = link.contains("spotify") && !working, onClick = {
-                    working = true
-                    importError = null
-                    scope.launch {
-                        runCatching { graph.spotify.importLink(link) }
-                            .onSuccess { (name, tracks) ->
-                                graph.library.createPlaylist(name, tracks)
-                                importStatus = t("Imported “%s” — %s songs", name, tracks.size)
-                                importOpen = false
-                            }
-                            .onFailure { importError = it.message ?: "Import failed" }
-                        working = false
-                    }
-                }) { if (working) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(t("Import")) }
-            },
-            dismissButton = { TextButton(onClick = { importOpen = false }, enabled = !working) { Text(t("Cancel")) } },
-        )
-    }
+    importFor?.let { ImportDialog(it) { importFor = null } }
 
     paste?.let { source ->
         var text by remember { mutableStateOf("") }
@@ -265,8 +257,8 @@ fun AccountsSettings() {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        if (yt) "Open music.youtube.com in your browser while signed in, press F12 → Network, reload, click any request to music.youtube.com and copy the whole “Cookie” request header."
-                        else "Open soundcloud.com while signed in, press F12 → Application → Cookies → soundcloud.com and copy the value of “oauth_token”.",
+                        t(if (yt) "Open music.youtube.com in your browser while signed in, press F12 → Network, reload, click any request to music.youtube.com and copy the whole “Cookie” request header."
+                        else "Open soundcloud.com while signed in, press F12 → Application → Cookies → soundcloud.com and copy the value of “oauth_token”."),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(text, { text = it }, minLines = 3, maxLines = 6, modifier = Modifier.fillMaxWidth())
@@ -316,28 +308,55 @@ private fun AccountCard(
     onSignOut: () -> Unit,
     onOther: () -> Unit,
     otherLabel: String = "Other ways to sign in",
+    avatar: String? = null,
+    busyHint: String? = null,
+    onImport: (() -> Unit)? = null,
+    onCancel: (() -> Unit)? = null,
     signIn: @Composable () -> Unit,
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
         Column(Modifier.padding(18.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SourceBadge(source, size = 36.dp)
+                if (avatar != null && signedInAs != null) Box(Modifier.size(40.dp)) {
+                    Artwork(avatar, Modifier.size(40.dp), CircleShape)
+                    SourceBadge(source, size = 16.dp, modifier = Modifier.align(Alignment.BottomEnd))
+                } else SourceBadge(source, size = 36.dp)
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(source.label, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        signedInAs?.let { t("Signed in as %s", it) } ?: t(hint),
+                        signedInAs?.let { t("Signed in as %s", it) } ?: t(if (busy) "Connecting…" else hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (signedInAs != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (busy) Box(Modifier.size(28.dp)) { CircularProgressIndicator(strokeWidth = 2.dp) }
-                else if (signedInAs != null) IconButton(onClick = onSignOut) { Icon(Icons.AutoMirrored.Rounded.Logout, "Sign out") }
             }
-            if (signedInAs == null && !busy) {
-                signIn()
-                TextButton(onClick = onOther, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t(otherLabel)) }
+            when {
+                signedInAs != null -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (onImport != null) app.nocturne.ui.kit.OutlinedButton(onClick = onImport, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(t("Import"))
+                    }
+                    TextButton(onClick = onSignOut) {
+                        Icon(Icons.AutoMirrored.Rounded.Logout, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(t("Disconnect"))
+                    }
+                }
+                busy -> {
+                    busyHint?.let { Text(t(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    if (onCancel != null) TextButton(onClick = onCancel, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t("Cancel")) }
+                    TextButton(onClick = onOther, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t(otherLabel)) }
+                }
+                else -> {
+                    signIn()
+                    TextButton(onClick = onOther, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text(t(otherLabel)) }
+                }
             }
         }
     }
 }
+
+private val SPOTIFY_REDIRECTS = listOf("nocturne://spotify-callback", "http://127.0.0.1:43821/callback")

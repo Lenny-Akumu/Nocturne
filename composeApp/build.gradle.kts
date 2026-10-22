@@ -48,6 +48,9 @@ kotlin {
 
     sourceSets {
         val desktopMain by getting
+        val desktopTest by getting {
+            dependencies { implementation(kotlin("test")) }
+        }
 
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -186,5 +189,13 @@ compose.desktop {
                 upgradeUuid = "6f1d2a4e-8c3b-4f7a-9e21-5b0c7d3e9a14"
             }
         }
+    }
+}
+
+// Test stdout (e.g. RelayTest's per-relay results) goes to the CI log.
+tasks.withType<Test>().configureEach {
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }

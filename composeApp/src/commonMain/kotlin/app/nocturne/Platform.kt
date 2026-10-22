@@ -28,3 +28,6 @@ expect fun systemLocale(): Pair<String, String>
 expect fun aesEncrypt(key: ByteArray, plain: ByteArray): ByteArray
 
 expect fun aesDecrypt(key: ByteArray, data: ByteArray): ByteArray
+
+/** Default name shown to the user's other devices. */
+expect fun deviceName(): String

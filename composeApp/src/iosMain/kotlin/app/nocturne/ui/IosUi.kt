@@ -104,3 +104,7 @@ actual fun clearWebLogins() {
 
 @Composable
 actual fun PairingCard() = Unit
+
+// iPhone pairs by scanning the QR with the Camera app (nocturne://pair link).
+@Composable
+actual fun rememberQrScanner(): (suspend () -> String?)? = null

@@ -87,8 +87,8 @@ fun LibraryScreen(contentPadding: PaddingValues) {
         val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)
         when (tab) {
             LibraryTab.ONLINE -> OnlineLibrary(bottom)
-            LibraryTab.SONGS -> TrackList(library.liked, "Liked songs", bottom, Icons.Rounded.FavoriteBorder, "No liked songs yet", "Tap the heart in the player to save songs here.")
-            LibraryTab.HISTORY -> TrackList(library.history.map { it.track }, "History", bottom, Icons.Rounded.History, "Nothing played yet", null,
+            LibraryTab.SONGS -> TrackList(library.liked, t("Liked songs"), bottom, Icons.Rounded.FavoriteBorder, "No liked songs yet", "Tap the heart in the player to save songs here.")
+            LibraryTab.HISTORY -> TrackList(library.history.map { it.track }, t("History"), bottom, Icons.Rounded.History, "Nothing played yet", null,
                 action = { if (library.history.isNotEmpty()) IconButton(onClick = { graph.library.clearHistory() }) { Icon(Icons.Rounded.Delete, "Clear history") } })
             LibraryTab.STATS -> StatsView(bottom)
             LibraryTab.LOCAL -> LocalMusic(bottom)
@@ -98,7 +98,7 @@ fun LibraryScreen(contentPadding: PaddingValues) {
                     "Use “Download” in a song's menu or on an album or playlist to listen offline.")
             }
             LibraryTab.PLAYLISTS -> {
-                val refs = listOf(LikedRef.copy(subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl)) +
+                val refs = listOf(LikedRef.copy(title = t("Liked songs"), subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl)) +
                     library.playlists.map { it.ref } + library.saved.filter { it.type == CollectionType.PLAYLIST }
                 CollectionGrid(refs, bottom)
             }

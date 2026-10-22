@@ -138,6 +138,12 @@ data class Settings(
 
     val pauseHistory: Boolean = false,
     val pauseSearchHistory: Boolean = false,
+
+    val deviceName: String = "",
+    val syncLikes: Boolean = true,
+    val syncPlaylists: Boolean = true,
+    val syncHistory: Boolean = true,
+    val remoteControl: Boolean = true,
 )
 
 class SettingsStore {

@@ -17,8 +17,9 @@ import app.nocturne.player.AudioFx
 import androidx.compose.foundation.clickable
 import app.nocturne.i18n.t
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,7 +44,11 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -150,7 +155,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
                                     else it.copy(eqPreset = name, eqGains = gains, eqEnabled = true)
                                 }
                             },
-                            label = { Text(name) },
+                            label = { Text(if (name == "Custom") t("Custom") else name) },
                         )
                     }
                 }
@@ -158,6 +163,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
                 EqGraph(
                     gains = settings.eqGains.takeIf { it.size == Eq.bands.size } ?: List(Eq.bands.size) { 0f },
                     modifier = Modifier.fillMaxWidth().height(200.dp).alpha(if (settings.eqEnabled) 1f else 0.45f),
+                    onPreview = { gains -> graph.player.previewEqualizer(gains) },
                 ) { gains -> graph.settings.update { it.copy(eqGains = gains, eqPreset = "Custom", eqEnabled = true) } }
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     Eq.bands.forEach { hz ->
@@ -171,34 +177,43 @@ fun AudioSheet(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun EqGraph(gains: List<Float>, modifier: Modifier, onChange: (List<Float>) -> Unit) {
+private fun EqGraph(gains: List<Float>, modifier: Modifier, onPreview: (List<Float>) -> Unit, onChange: (List<Float>) -> Unit) {
     val color = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.outlineVariant
-    var local by remember(gains) { androidx.compose.runtime.mutableStateOf(gains) }
-    var dragIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    // Local values are only read while drawing, so a drag redraws the canvas without recomposing the sheet.
+    val local = remember { mutableStateListOf<Float>().apply { addAll(gains) } }
+    var dragIndex by remember { mutableIntStateOf(-1) }
+    val preview by rememberUpdatedState(onPreview)
+    val commit by rememberUpdatedState(onChange)
+    LaunchedEffect(gains) {
+        if (dragIndex < 0 && local.toList() != gains) { local.clear(); local.addAll(gains) }
+    }
 
-    fun columnX(i: Int, width: Float) = width * (i + 0.5f) / gains.size
+    fun columnX(i: Int, width: Float) = width * (i + 0.5f) / local.size
     fun gainFromY(y: Float, height: Float) = ((0.5f - y / height) * 2 * Eq.MAX_DB).coerceIn(-Eq.MAX_DB, Eq.MAX_DB).let { (it * 10).roundToInt() / 10f }
 
     Canvas(
-        modifier
-            .pointerInput(Unit) {
-                detectTapGestures { o ->
-                    val i = ((o.x / size.width) * gains.size).toInt().coerceIn(0, gains.lastIndex)
-                    local = local.toMutableList().also { it[i] = gainFromY(o.y, size.height.toFloat()) }
-                    onChange(local)
+        modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                if (local.isEmpty()) return@awaitEachGesture
+                val i = ((down.position.x / size.width) * local.size).toInt().coerceIn(0, local.lastIndex)
+                var sent = 0L
+                fun set(y: Float) {
+                    local[i] = gainFromY(y, size.height.toFloat())
+                    val now = app.nocturne.nowMillis()
+                    if (now - sent >= 30) { sent = now; preview(local.toList()) } // engine at most every ~30 ms
                 }
+                dragIndex = i
+                down.consume()
+                set(down.position.y)
+                drag(down.id) { change -> change.consume(); set(change.position.y) }
+                dragIndex = -1
+                commit(local.toList()) // persist once, on release
             }
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { o -> dragIndex = ((o.x / size.width) * gains.size).toInt().coerceIn(0, gains.lastIndex) },
-                    onDragEnd = { dragIndex = -1; onChange(local) },
-                    onDragCancel = { dragIndex = -1 },
-                ) { change, _ ->
-                    if (dragIndex >= 0) local = local.toMutableList().also { it[dragIndex] = gainFromY(change.position.y, size.height.toFloat()) }
-                }
-            },
+        },
     ) {
+        if (local.isEmpty()) return@Canvas
         val h = size.height
         val points = local.mapIndexed { i, g -> Offset(columnX(i, size.width), h * (0.5f - g / (2 * Eq.MAX_DB))) }
         for (p in points) drawLine(grid, Offset(p.x, 0f), Offset(p.x, h), strokeWidth = 2f)

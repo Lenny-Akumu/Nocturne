@@ -71,6 +71,7 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+            app.nocturne.ui.YourDevicesSection()
             Header(Icons.Rounded.Cast, "Play on a device")
             if (device != null) {
                 Text(t("Playing on %s", device!!.name), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyLarge)
@@ -162,10 +163,38 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
                     OutlinedButton(onClick = { party.join(address) }, enabled = address.count { it.isLetterOrDigit() } >= 8) { Text(t("Join")) }
                 }
             }
+            RelayDiagnostics(party)
 
             Spacer(Modifier.height(18.dp))
             Header(Icons.Rounded.DirectionsCar, "Car mode")
             OutlinedButton(onClick = { onDismiss(); onCarMode() }) { Text(t("Open car mode")) }
+        }
+    }
+}
+
+// Per-relay state of the session plus an on-demand round-trip check; selectable and copyable for bug reports.
+@Composable
+private fun RelayDiagnostics(party: app.nocturne.party.Party) {
+    val details by party.details.collectAsState()
+    val checks by party.checks.collectAsState()
+    val checking by party.checking.collectAsState()
+    val clipboard = LocalClipboardManager.current
+    var open by remember { mutableStateOf(false) }
+    val text = listOfNotNull(
+        details.takeIf { it.isNotBlank() },
+        checks?.let { c -> t("Connection check:") + "\n" + c.joinToString("\n") },
+    ).joinToString("\n\n")
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+        TextButton(onClick = { open = !open }) { Text(t(if (open) "Hide details" else "Connection details")) }
+        TextButton(onClick = { open = true; party.checkConnection() }, enabled = !checking) { Text(t("Check connection")) }
+        if (checking) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+    }
+    if (open && text.isNotBlank()) {
+        Row(verticalAlignment = Alignment.Top) {
+            androidx.compose.foundation.text.selection.SelectionContainer(Modifier.weight(1f)) {
+                Text(text, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = { clipboard.setText(AnnotatedString(text)) }) { Icon(Icons.Rounded.ContentCopy, t("Copy")) }
         }
     }
 }

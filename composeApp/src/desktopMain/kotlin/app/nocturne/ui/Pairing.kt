@@ -48,6 +48,7 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.first
 import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
@@ -66,7 +67,7 @@ private class PairServer {
         }
         start()
     }
-    val code = Sync.qr(lanAddresses(), server.address.port, key)
+    val code = Sync.qr(lanAddresses(), server.address.port, key, AppGraph.instance.sync.inviteSecret())
 
     suspend fun await(): SyncBundle = result.await()
     fun stop() = server.stop(0)
@@ -118,6 +119,11 @@ private fun PairDialog(onDone: (String) -> Unit, onDismiss: () -> Unit) {
         invalidateHomeCache()
         onDone(t("Synced with your phone"))
     }
+    // Phones that can't reach the PC over Wi-Fi still pair for device sync.
+    LaunchedEffect(Unit) {
+        val d = graph.sync.paired.first()
+        onDone(t("%s joined your devices", d.name))
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(t("Scan with your phone")) },
@@ -125,7 +131,7 @@ private fun PairDialog(onDone: (String) -> Unit, onDismiss: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 server.fold(
                     { s -> QrImage(s.code, Modifier.size(260.dp)) },
-                    { Text(it.message ?: "Couldn't start pairing", color = MaterialTheme.colorScheme.error) },
+                    { Text(it.message ?: t("Couldn't start pairing"), color = MaterialTheme.colorScheme.error) },
                 )
                 Text(
                     t("On your phone open Nocturne → Settings → Accounts → Scan QR code. Both devices must be on the same Wi-Fi. If Windows asks, allow Nocturne on private networks."),
@@ -151,3 +157,6 @@ private fun QrImage(text: String, modifier: Modifier) {
         }
     }
 }
+
+@Composable
+actual fun rememberQrScanner(): (suspend () -> String?)? = null

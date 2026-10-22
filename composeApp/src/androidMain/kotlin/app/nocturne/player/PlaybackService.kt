@@ -23,7 +23,7 @@ object AutoBrowse {
     fun root(): MediaItem = folder("root", "Nocturne")
 
     fun children(parent: String): List<MediaItem> = when (parent) {
-        "root" -> folders.map { (id, title) -> folder(id, title) }
+        "root" -> folders.map { (id, title) -> folder(id, app.nocturne.i18n.t(title)) }
         else -> tracks(parent).mapIndexed { i, t -> item(parent, i, t) }
     }
 
@@ -47,7 +47,7 @@ object AutoBrowse {
         val (_, parent, pos) = id.split("|").let { Triple(it[0], it.getOrElse(1) { "" }, it.getOrElse(2) { "0" }.toIntOrNull() ?: 0) }
         val list = tracks(parent)
         if (list.isEmpty()) return true
-        AppGraph.instance.player.play(list, pos.coerceIn(0, list.lastIndex), folders.firstOrNull { it.first == parent }?.second)
+        AppGraph.instance.player.play(list, pos.coerceIn(0, list.lastIndex), folders.firstOrNull { it.first == parent }?.second?.let { app.nocturne.i18n.t(it) })
         return true
     }
 

@@ -76,6 +76,31 @@ class InnerTube(
     suspend fun request(endpoint: String, body: Map<String, JsonElement>): JsonElement =
         json.parseToJsonElement(call(endpoint) { body })
 
+    // youtube.com WEB client `next`: the only one that carries the comments section.
+    suspend fun webNext(body: Map<String, JsonElement>): JsonElement {
+        val (hl, gl) = locale()
+        val ctx = buildJsonObject {
+            putJsonObject("context") {
+                putJsonObject("client") {
+                    put("clientName", "WEB")
+                    put("clientVersion", WEB_VERSION)
+                    put("hl", hl)
+                    put("gl", gl)
+                }
+            }
+        }
+        val raw = http.post("https://www.youtube.com/youtubei/v1/next?prettyPrint=false") {
+            contentType(ContentType.Application.Json)
+            header("Origin", "https://www.youtube.com")
+            header("Referer", "https://www.youtube.com/")
+            header("User-Agent", USER_AGENT)
+            header("X-YouTube-Client-Name", "1")
+            header("X-YouTube-Client-Version", WEB_VERSION)
+            setBody(JsonObject(ctx + body).toString())
+        }.bodyAsText()
+        return json.parseToJsonElement(raw)
+    }
+
     private fun entries(root: JsonElement): List<MediaEntry> =
         (root.findAll("musicTwoRowItemRenderer").mapNotNull { parseTwoRow(it) } +
             root.findAll("musicResponsiveListItemRenderer").mapNotNull { parseListItem(it) ?: parseListCollection(it) })
@@ -360,6 +385,7 @@ class InnerTube(
         private const val ORIGIN = "https://music.youtube.com"
         private const val CLIENT_NAME = "WEB_REMIX"
         private const val CLIENT_VERSION = "1.20250929.03.00"
+        private const val WEB_VERSION = "2.20261015.01.00"
         const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
     }

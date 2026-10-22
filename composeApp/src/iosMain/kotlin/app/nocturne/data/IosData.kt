@@ -95,7 +95,7 @@ private fun notify(heading: String, text: String) {
 
 actual fun notifyRelease(title: String, text: String) = notify(title, text)
 
-actual fun notifyUpdateAvailable(version: String, notes: String) = notify("Nocturne $version is available", "Open Nocturne to get the new version.")
+actual fun notifyUpdateAvailable(version: String, notes: String) = notify(app.nocturne.i18n.t("Nocturne %s is available", version), app.nocturne.i18n.t("Open Nocturne to get the new version."))
 
 actual fun notifyUpdateProgress(version: String, progress: Float?) = Unit
 

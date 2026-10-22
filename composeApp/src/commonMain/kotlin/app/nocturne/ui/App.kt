@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
@@ -131,6 +132,7 @@ fun App(backdrop: Boolean = false) {
                         // Opened by a nocturne://join link.
                         val partySheet by graph.party.sheet.collectAsState()
                         if (partySheet) app.nocturne.ui.player.ConnectSheet(onDismiss = { graph.party.sheet.value = false }, onCarMode = { graph.navigator.playerExpanded = true })
+                        PairLinkDialog()
                     }
                 }
             }
@@ -171,6 +173,8 @@ private fun AppScaffold() {
                 }
             } }
             MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = true, modifier = Modifier.align(Alignment.BottomCenter).padding(start = 80.dp).navigationBarsPadding())
+            // Only while nothing plays here, so it never overlaps the mini player.
+            RemoteStrip(Modifier.align(Alignment.BottomCenter).padding(start = 80.dp, bottom = 12.dp).navigationBarsPadding().widthIn(max = 560.dp))
         } else {
             val glass = LocalGlass.current != null
             val bottomPad = if (hasPlayer) 160.dp else 90.dp
@@ -183,10 +187,12 @@ private fun AppScaffold() {
             }
             if (glass) {
                 Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(bottom = 6.dp)) {
+                    RemoteStrip()
                     MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
                     GlassTabBar(nav)
                 }
             } else Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                RemoteStrip()
                 MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (backdrop) 0.7f else 0.97f)) {
                     tabs.forEach { tab ->

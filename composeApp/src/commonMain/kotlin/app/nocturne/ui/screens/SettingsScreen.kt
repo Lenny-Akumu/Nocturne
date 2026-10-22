@@ -45,6 +45,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.SettingsRemote
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Contrast
@@ -133,6 +136,7 @@ expect fun ShortcutSettings()
 
 enum class SettingsCategory(val title: String, val summary: String, val icon: ImageVector) {
     ACCOUNTS("Accounts", "YouTube Music, Spotify, SoundCloud sign-in", Icons.Rounded.AccountCircle),
+    DEVICES("Devices & sync", "Your phone, PC and iPhone in sync", Icons.Rounded.Devices),
     APPEARANCE("Appearance", "Theme, colors, player style", Icons.Rounded.Palette),
     CONTENT("Content & sources", "YouTube Music, Spotify, SoundCloud, region", Icons.Rounded.Public),
     PLAYER("Player & audio", "Quality, autoplay, queue", Icons.Rounded.PlayCircle),
@@ -140,7 +144,7 @@ enum class SettingsCategory(val title: String, val summary: String, val icon: Im
     FLOATING("Floating player", "Always-on-top mini player", Icons.Rounded.PictureInPicture),
     SHORTCUTS("Keyboard shortcuts", "Customize hotkeys", Icons.Rounded.Keyboard),
     DISCORD("Discord", "Rich Presence — show what you're listening to", Icons.Rounded.SportsEsports),
-    SPOTIFY("Spotify", "API credentials", Icons.Rounded.Key),
+    SPOTIFY("Spotify", "Spotify app (advanced)", Icons.Rounded.Key),
     STORAGE("Storage", "Cache and data", Icons.Rounded.Storage),
     PRIVACY("Privacy", "History and search", Icons.Rounded.Security),
     ABOUT("About", "Version and info", Icons.Rounded.Info),
@@ -158,7 +162,7 @@ fun SettingsScreen(contentPadding: PaddingValues) {
         val desktopOnly = setOf(SettingsCategory.SHORTCUTS, SettingsCategory.DISCORD, SettingsCategory.FLOATING)
         val visible = SettingsCategory.entries.filter { it !in desktopOnly || platformKind == PlatformKind.DESKTOP }
         val groups = listOf(
-            visible.filter { it in listOf(SettingsCategory.ACCOUNTS, SettingsCategory.APPEARANCE, SettingsCategory.CONTENT, SettingsCategory.PLAYER, SettingsCategory.LYRICS) },
+            visible.filter { it in listOf(SettingsCategory.ACCOUNTS, SettingsCategory.DEVICES, SettingsCategory.APPEARANCE, SettingsCategory.CONTENT, SettingsCategory.PLAYER, SettingsCategory.LYRICS) },
             visible.filter { it in desktopOnly },
             visible.filter { it in listOf(SettingsCategory.SPOTIFY, SettingsCategory.STORAGE, SettingsCategory.PRIVACY, SettingsCategory.ABOUT) },
         ).filter { it.isNotEmpty() }
@@ -211,6 +215,16 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
             val body: @Composable () -> Unit = {
                 when (category) {
                     SettingsCategory.ACCOUNTS -> AccountsSettings()
+                    SettingsCategory.DEVICES -> {
+                        app.nocturne.ui.DevicesSettings()
+                        Header("This device")
+                        TextPref("Device name", app.nocturne.deviceName(), Icons.Rounded.Devices, s.deviceName) { v -> set { it.copy(deviceName = v.trim().take(40)) } }
+                        Toggle("Allow remote control", "Your other devices can play, pause and take over playback here", Icons.Rounded.SettingsRemote, s.remoteControl) { v -> set { it.copy(remoteControl = v) } }
+                        Header("Sync")
+                        Toggle("Liked songs", null, Icons.Rounded.FavoriteBorder, s.syncLikes) { v -> set { it.copy(syncLikes = v) } }
+                        Toggle("Playlists and saved albums", null, Icons.Rounded.LibraryMusic, s.syncPlaylists) { v -> set { it.copy(syncPlaylists = v) } }
+                        Toggle("Listening history and stats", "Recommendations learn from every device", Icons.Rounded.History, s.syncHistory) { v -> set { it.copy(syncHistory = v) } }
+                    }
                     SettingsCategory.SHORTCUTS -> ShortcutSettings()
                     SettingsCategory.FLOATING -> {
                         Toggle("Floating mini player", "Small always-on-top player on your screen", Icons.Rounded.PictureInPicture, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
@@ -353,19 +367,19 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     }
                     SettingsCategory.SPOTIFY -> {
                         Text(
-                            t("Spotify search, albums, playlists and artists use the official Web API. Create a free app at developer.spotify.com, then paste its Client ID and Secret here. Audio is matched and streamed from YouTube Music."),
+                            t("Spotify uses the official Web API. Sign in under Accounts — Nocturne uses Spotify's PKCE sign-in, so only a Client ID is needed. To use your own Spotify app, create one at developer.spotify.com, add the redirect URIs nocturne://spotify-callback and http://127.0.0.1:43821/callback, and paste its Client ID here. Audio is matched and streamed from YouTube Music."),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                         )
                         TextPref("Client ID", null, Icons.Rounded.Key, s.spotifyClientId) { v -> set { it.copy(spotifyClientId = v.trim()) } }
-                        TextPref("Client secret", null, Icons.Rounded.Security, s.spotifyClientSecret, secret = true) { v -> set { it.copy(spotifyClientSecret = v.trim()) } }
+                        TextPref("Client secret (optional, search without sign-in)", null, Icons.Rounded.Security, s.spotifyClientSecret, secret = true) { v -> set { it.copy(spotifyClientSecret = v.trim()) } }
                         val uri = LocalUriHandler.current
                         Action("Open Spotify developer dashboard", null, Icons.AutoMirrored.Rounded.OpenInNew) { uri.openUri("https://developer.spotify.com/dashboard") }
                     }
                     SettingsCategory.STORAGE -> {
                         if (!desktop) {
-                            SliderPref("Audio cache", "${s.cacheSizeMb} MB (applies after restart)", s.cacheSizeMb.toFloat(), 128f..4096f, 30) { v -> set { it.copy(cacheSizeMb = (v / 128).toInt() * 128) } }
+                            SliderPref("Audio cache", t("%s MB (applies after restart)", s.cacheSizeMb), s.cacheSizeMb.toFloat(), 128f..4096f, 30) { v -> set { it.copy(cacheSizeMb = (v / 128).toInt() * 128) } }
                         }
                         val ctx = coil3.compose.LocalPlatformContext.current
                         val cacheScope = androidx.compose.runtime.rememberCoroutineScope()
@@ -400,7 +414,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Toggle("Pause listening history", null, Icons.Rounded.History, s.pauseHistory) { v -> set { it.copy(pauseHistory = v) } }
                         Toggle("Pause search history", null, Icons.Rounded.Search, s.pauseSearchHistory) { v -> set { it.copy(pauseSearchHistory = v) } }
                         val lib by graph.library.state.collectAsState()
-                        Action("Reset “Not interested”", "${lib.notInterested.size} hidden songs", Icons.Rounded.Restore) { graph.library.clearNotInterested() }
+                        Action("Reset “Not interested”", t("%s hidden songs", lib.notInterested.size), Icons.Rounded.Restore) { graph.library.clearNotInterested() }
                     }
                     SettingsCategory.ABOUT -> {
                         val uri = LocalUriHandler.current
@@ -418,7 +432,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             checkResult = "Checking…"
                             scope.launch {
                                 checkResult = runCatching { graph.updater.check(manual = true) }
-                                    .fold({ if (it == null) "You're on the latest version" else "Version ${it.version} is available" }, { "Check failed: ${it.message}" })
+                                    .fold({ if (it == null) "You're on the latest version" else t("Version %s is available", it.version) }, { t("Check failed: %s", it.message) })
                             }
                         }
                         Toggle("Check for updates automatically", null, Icons.Rounded.Restore, s.autoCheckUpdates) { v -> set { it.copy(autoCheckUpdates = v) } }
@@ -437,7 +451,7 @@ private fun sourceSummary(src: Source, s: Settings) = when (src) {
     Source.YOUTUBE_MUSIC -> "Home feed, search, radio and streaming"
     Source.SOUNDCLOUD -> "Tracks, sets and artists"
     Source.LOCAL -> "Music stored on this device"
-    Source.SPOTIFY -> if (s.spotifyClientId.isBlank()) "Needs API credentials (Settings → Spotify)" else "Catalog via Web API, audio via YouTube Music"
+    Source.SPOTIFY -> if (!AppGraph.instance.spotify.isConfigured) "Connect Spotify in Settings → Accounts" else "Catalog via Web API, audio via YouTube Music"
 }
 
 @Composable
@@ -512,6 +526,7 @@ private fun badgeColor(key: String) = IosBadgeColors[(key.hashCode() and 0x7ffff
 
 private fun categoryColor(c: SettingsCategory) = when (c) {
     SettingsCategory.ACCOUNTS -> Color(0xFF007AFF)
+    SettingsCategory.DEVICES -> Color(0xFF34C759)
     SettingsCategory.APPEARANCE -> Color(0xFF5856D6)
     SettingsCategory.CONTENT -> Color(0xFF34C759)
     SettingsCategory.PLAYER -> Color(0xFFFA2D48)
@@ -568,7 +583,7 @@ private fun TextPref(title: String, hint: String?, icon: ImageVector, value: Str
             title = { Text(t(title)) },
             text = {
                 OutlinedTextField(
-                    text, { text = it }, singleLine = true, placeholder = hint?.let { { Text(it) } },
+                    text, { text = it }, singleLine = true, placeholder = hint?.let { { Text(t(it)) } },
                     visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                     keyboardOptions = KeyboardOptions(keyboardType = if (secret) KeyboardType.Password else KeyboardType.Text),
                 )

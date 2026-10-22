@@ -146,10 +146,21 @@ jobs:
           foreach ($d in "gui","video_splitter","visualization","lua","services_discovery","control","spu","text_renderer","stream_out","mux","d3d9","d3d11","keystore") {
             Remove-Item -Recurse -Force "$dst\plugins\$d" -ErrorAction SilentlyContinue
           }
-          # Rebuild the plugin cache after pruning: effect toggles recreate the libVLC instance, a stale cache forces a full rescan.
+          # Rebuild the plugin cache after pruning, a stale cache forces a full rescan.
           if (Test-Path "$src\vlc-cache-gen.exe") { & "$src\vlc-cache-gen.exe" "$dst\plugins"; $global:LASTEXITCODE = 0 }
-          if (-not (Test-Path "$dst\plugins\audio_filter\libkaraoke_plugin.dll")) { Write-Host "warning: audio_filter plugins missing" }
+          if (-not (Test-Path "$dst\plugins\audio_output\libamem_plugin.dll")) { Write-Host "warning: amem audio output plugin missing" }
           "{0:N1} MB bundled" -f ((Get-ChildItem $dst -Recurse | Measure-Object Length -Sum).Sum / 1MB)
+      - name: Desktop unit tests (DSP)
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:desktopTest --continue 2>&1 | tee test.log
+      - name: Show test failures
+        if: failure()
+        shell: bash
+        run: |
+          grep -E 'FAILED|AssertionError|^e:' -A3 test.log | head -100
+          cat composeApp/build/test-results/desktopTest/*.xml 2>/dev/null | grep -A5 '<failure' | head -100
       - name: Build app image
         shell: bash
         run: |
@@ -310,3 +321,34 @@ jobs:
           name: Nocturne ${{ needs.meta.outputs.version }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
+
+  relay-test:
+    name: Listen-together relays (${{ matrix.os }})
+    # Informational: live public MQTT brokers + ntfy.sh; releases don't wait for it.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Relay round trip
+        shell: bash
+        env:
+          NOCTURNE_RELAY_TEST: "1"
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:desktopTest --tests "app.nocturne.party.RelayTest" 2>&1 | tee relay.log
+      - name: Relay results
+        if: always()
+        shell: bash
+        run: |
+          grep -h "RELAY " relay.log || true
+          cat composeApp/build/relay-report.txt 2>/dev/null || echo "no relay report"
+          grep -E '^e:|error:|What went wrong' -A3 relay.log | head -80 || true

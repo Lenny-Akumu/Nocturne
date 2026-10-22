@@ -59,7 +59,7 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
 
     private val fxProcessor = FxAudioProcessor()
 
-    override val fx = AudioFx.entries.filter { it != AudioFx.NORMALIZE || android.os.Build.VERSION.SDK_INT >= 28 }.toSet()
+    override val fx = AudioFx.entries.toSet()
 
     val exo: ExoPlayer = ExoPlayer.Builder(context)
         .setRenderersFactory(object : DefaultRenderersFactory(context) {
@@ -133,9 +133,6 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
                 equalizer?.release()
                 equalizer = null
                 applyEqualizer()
-                dynamics?.release(); dynamics = null
-                virtualizer?.release(); virtualizer = null
-                applyEffects()
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -220,44 +217,12 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
         }
     }
 
-    private var dynamics: android.media.audiofx.DynamicsProcessing? = null
-    @Suppress("DEPRECATION")
-    private var virtualizer: android.media.audiofx.Virtualizer? = null
-    private var fxNormalize = false
-    private var fxSpatial = false
-
+    // effects run in our own DSP (FxAudioProcessor) so they behave the same on every device
     override fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {
+        fxProcessor.normalize = normalize
+        fxProcessor.spatial = spatial
         fxProcessor.eightD = eightD
         fxProcessor.vocalRemover = vocalRemover
-        fxNormalize = normalize
-        fxSpatial = spatial
-        applyEffects()
-    }
-
-    @Suppress("DEPRECATION")
-    private fun applyEffects() {
-        val session = exo.audioSessionId
-        if (session == C.AUDIO_SESSION_ID_UNSET) return
-        runCatching {
-            if (fxNormalize && android.os.Build.VERSION.SDK_INT >= 28) {
-                val dp = dynamics ?: run {
-                    val cfg = android.media.audiofx.DynamicsProcessing.Config.Builder(
-                        android.media.audiofx.DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION, 2, false, 0, true, 1, false, 0, true,
-                    ).build()
-                    android.media.audiofx.DynamicsProcessing(0, session, cfg).also { dynamics = it }
-                }
-                dp.setMbcBandAllChannelsTo(0, android.media.audiofx.DynamicsProcessing.MbcBand(true, 20000f, 8f, 250f, 3f, -26f, 8f, -90f, 1f, 0f, 9f))
-                dp.setLimiterAllChannelsTo(android.media.audiofx.DynamicsProcessing.Limiter(true, true, 1, 1f, 60f, 10f, -1.5f, 0f))
-                dp.enabled = true
-            } else dynamics?.enabled = false
-        }
-        runCatching {
-            if (fxSpatial) {
-                val v = virtualizer ?: android.media.audiofx.Virtualizer(0, session).also { virtualizer = it }
-                v.setStrength(1000)
-                v.enabled = true
-            } else virtualizer?.enabled = false
-        }
     }
 
     override fun release() {

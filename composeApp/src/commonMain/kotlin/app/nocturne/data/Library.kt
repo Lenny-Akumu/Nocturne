@@ -20,7 +20,7 @@ data class LocalPlaylist(
     val createdAt: Long = 0,
 ) {
     val ref: CollectionRef
-        get() = CollectionRef(id, Source.YOUTUBE_MUSIC, CollectionType.LOCAL, name, "${tracks.size} songs", tracks.firstOrNull()?.artworkUrl)
+        get() = CollectionRef(id, Source.YOUTUBE_MUSIC, CollectionType.LOCAL, name, app.nocturne.i18n.t("%s songs", tracks.size), tracks.firstOrNull()?.artworkUrl)
 }
 
 @Serializable
@@ -101,9 +101,19 @@ class Library(private val settings: SettingsStore) {
             saved = (d.saved + other.saved).distinctBy { it.key },
             playlists = d.playlists.map { p -> other.playlists.firstOrNull { it.id == p.id }?.let { o -> p.copy(tracks = (p.tracks + o.tracks).distinctBy { it.key }) } ?: p } +
                 other.playlists.filter { o -> d.playlists.none { it.id == o.id } },
-            history = (d.history + other.history).distinctBy { it.track.key to it.playedAt }.sortedByDescending { it.playedAt }.take(500),
+            history = (d.history + other.history).sortedByDescending { it.playedAt }.distinctBy { it.track.key }.take(2000),
             notInterested = (d.notInterested + other.notInterested).distinctBy { it.key },
+            plays = (d.plays + other.plays).distinctBy { it.k to it.t }.sortedByDescending { it.t }.take(10_000),
         )
+    }
+
+    /** Device sync: replaces the data in one step; true when anything changed. */
+    fun applySync(block: (LibraryData) -> LibraryData): Boolean {
+        val before = _state.value
+        val after = block(before)
+        if (after == before) return false
+        mutate { after }
+        return true
     }
 
     fun isSaved(ref: CollectionRef) = _state.value.saved.any { it.key == ref.key }
@@ -114,7 +124,7 @@ class Library(private val settings: SettingsStore) {
     }
 
     fun createPlaylist(name: String, initial: List<Track> = emptyList()): LocalPlaylist {
-        val p = LocalPlaylist("local-${nowMillis()}", name.ifBlank { "My playlist" }, initial, nowMillis())
+        val p = LocalPlaylist("local-${nowMillis()}", name.ifBlank { app.nocturne.i18n.t("My playlist") }, initial, nowMillis())
         mutate { it.copy(playlists = listOf(p) + it.playlists) }
         return p
     }

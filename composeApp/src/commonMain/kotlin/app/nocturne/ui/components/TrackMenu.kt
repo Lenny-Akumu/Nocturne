@@ -72,6 +72,10 @@ data class TrackMenuContext(val playlistId: String? = null, val queueIndex: Int?
 
 val LocalTrackMenu = staticCompositionLocalOf<(Track, TrackMenuContext) -> Unit> { { _, _ -> } }
 
+// True while the track menu sheet is up (the full player hides its video under sheets).
+var trackMenuOpen by mutableStateOf(false)
+    private set
+
 fun Track.shareUrl(): String = url ?: when (source) {
     Source.YOUTUBE_MUSIC -> "https://music.youtube.com/watch?v=$id"
     Source.SPOTIFY -> "https://open.spotify.com/track/$id"
@@ -89,6 +93,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
     val clipboard = LocalClipboardManager.current
 
     CompositionLocalProvider(LocalTrackMenu provides { t, c -> target = t to c }) { content() }
+    LaunchedEffect(target != null) { trackMenuOpen = target != null }
 
     target?.let { (track, ctx) ->
         val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)

@@ -88,7 +88,7 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
             _state.value = UpdateState.Idle
         }.onFailure {
             runCatching { notifyUpdateProgress(info.version, null) }
-            _state.value = UpdateState.Failed(info, it.message ?: "Download failed")
+            _state.value = UpdateState.Failed(info, it.message ?: app.nocturne.i18n.t("Download failed"))
         }
     }
 

@@ -115,8 +115,8 @@ fun HomeScreen(contentPadding: PaddingValues) {
                 item {
                     SectionView(
                         Section("Recommended for you", recs.map { MediaEntry.Song(it) }, SectionLayout.QUICK_PICKS),
-                        subtitle = "Based on what you've been listening to",
-                    ) { list, i -> playTrack(list, i, "Recommended for you") }
+                        subtitle = t("Based on what you've been listening to"),
+                    ) { list, i -> playTrack(list, i, t("Recommended for you")) }
                 }
             }
             item { SmartMixes { list, title -> playTrack(list, 0, title) } }
@@ -124,7 +124,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
             if (mostPlayed.size >= 4) {
                 item {
                     SectionView(Section("Your top tracks", mostPlayed.map { MediaEntry.Song(it) })) { list, i ->
-                        if (list.size == 1) playTrack(mostPlayed, mostPlayed.indexOfFirst { it.key == list[0].key }, "Your top tracks")
+                        if (list.size == 1) playTrack(mostPlayed, mostPlayed.indexOfFirst { it.key == list[0].key }, t("Your top tracks"))
                         else playTrack(list, i)
                     }
                 }
@@ -154,8 +154,8 @@ fun HomeScreen(contentPadding: PaddingValues) {
                     if (section.items.isNotEmpty()) item {
                         SectionView(section) { list, i ->
                             val songs = section.items.filterIsInstance<MediaEntry.Song>().map { it.track }
-                            if (list.size == 1 && songs.size > 1) playTrack(songs, songs.indexOfFirst { it.key == list[0].key }, section.title)
-                            else playTrack(list, i, section.title)
+                            if (list.size == 1 && songs.size > 1) playTrack(songs, songs.indexOfFirst { it.key == list[0].key }, t(section.title))
+                            else playTrack(list, i, t(section.title))
                         }
                     }
                 }
@@ -164,7 +164,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
                 item {
                     SectionView(Section("Listen again", library.history.take(20).map { MediaEntry.Song(it.track) })) { list, _ ->
                         val all = library.history.take(20).map { it.track }
-                        playTrack(all, all.indexOfFirst { it.key == list[0].key }.coerceAtLeast(0), "Listen again")
+                        playTrack(all, all.indexOfFirst { it.key == list[0].key }.coerceAtLeast(0), t("Listen again"))
                     }
                 }
             }
@@ -193,10 +193,10 @@ private fun playTrack(list: List<app.nocturne.model.Track>, index: Int, title: S
 private fun greeting(): String {
     val hour = remember { app.nocturne.currentHour() }
     return when (hour) {
-        in 5..11 -> "Good morning"
-        in 12..17 -> "Good afternoon"
-        in 18..22 -> "Good evening"
-        else -> "Good night"
+        in 5..11 -> t("Good morning")
+        in 12..17 -> t("Good afternoon")
+        in 18..22 -> t("Good evening")
+        else -> t("Good night")
     }
 }
 

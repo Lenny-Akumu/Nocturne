@@ -97,15 +97,21 @@ actual suspend fun authorizeInBrowser(url: String): String = withContext(Dispatc
     val result = CompletableDeferred<String>()
     val session = ASWebAuthenticationSession(NSURL.URLWithString(url)!!, "nocturne") { callback, error ->
         val u = callback?.absoluteString
-        if (u != null) result.complete(u) else result.completeExceptionally(IllegalStateException(error?.localizedDescription ?: "Sign-in cancelled"))
+        // code 1 = ASWebAuthenticationSessionErrorCodeCanceledLogin
+        if (u != null) result.complete(u)
+        else result.completeExceptionally(IllegalStateException(if (error == null || error.code == 1L) app.nocturne.i18n.t("Sign-in was cancelled") else error.localizedDescription))
     }
     session.presentationContextProvider = anchor
     session.prefersEphemeralWebBrowserSession = false
     authSession = session
-    session.start()
+    if (!session.start()) {
+        authSession = null
+        throw IllegalStateException(app.nocturne.i18n.t("Couldn't open the sign-in page"))
+    }
     try {
         result.await()
     } finally {
+        if (!result.isCompleted) session.cancel()
         authSession = null
     }
 }
@@ -118,3 +124,5 @@ actual fun systemLocale(): Pair<String, String> {
 actual fun aesEncrypt(key: ByteArray, plain: ByteArray): ByteArray = throw UnsupportedOperationException("Not available on iPhone yet")
 
 actual fun aesDecrypt(key: ByteArray, data: ByteArray): ByteArray = throw UnsupportedOperationException("Not available on iPhone yet")
+
+actual fun deviceName(): String = platform.UIKit.UIDevice.currentDevice.name.ifBlank { "iPhone" }

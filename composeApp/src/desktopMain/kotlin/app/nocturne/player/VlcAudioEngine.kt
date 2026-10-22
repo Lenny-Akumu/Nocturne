@@ -5,10 +5,15 @@ import app.nocturne.model.Track
 import app.nocturne.source.InnerTube
 import java.io.File
 import com.sun.jna.NativeLibrary
+import com.sun.jna.Pointer
+import javax.sound.sampled.AudioFormat
+import javax.sound.sampled.AudioSystem
+import javax.sound.sampled.SourceDataLine
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
+import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter
 
 class VlcAudioEngine : AudioEngine {
     private val nativeOk: Boolean = runCatching {
@@ -23,11 +28,13 @@ class VlcAudioEngine : AudioEngine {
         true
     }.getOrDefault(false)
 
-    // libVLC 3 builds the audio filter chain from instance args only (per-media ":audio-filter" is ignored),
-    // so toggling an effect swaps in a fresh instance and resumes at the same position.
+    // libVLC decodes (and applies rate) and hands us PCM; effects run in our own Dsp, output goes to a Java Sound line.
     @Volatile private var factory: MediaPlayerFactory? = null
     @Volatile private var player: MediaPlayer? = null
-    private var filters = emptyList<String>()
+    private val dsp = Dsp(RATE)
+    private val sink = Sink()
+    @Volatile var dspActive = false
+        private set
     private var listener: EngineListener? = null
     @Volatile private var volume = 100
     @Volatile private var time = 0L
@@ -38,14 +45,14 @@ class VlcAudioEngine : AudioEngine {
     val available: Boolean get() = player != null
     val mediaFactory: MediaPlayerFactory? get() = factory
 
-    override val fx = setOf(AudioFx.NORMALIZE, AudioFx.SPATIAL, AudioFx.VOCAL_REMOVER, AudioFx.EQUALIZER)
+    override val fx: Set<AudioFx> get() = if (dspActive) AudioFx.entries.toSet() else emptySet()
 
     private val events = object : MediaPlayerEventAdapter() {
         override fun playing(mediaPlayer: MediaPlayer) {
             if (mediaPlayer !== player) return
             playing = true
             mediaPlayer.submit {
-                mediaPlayer.audio().setVolume(volume)
+                if (!dspActive) mediaPlayer.audio().setVolume(volume)
                 if (speed != 1f) mediaPlayer.controls().setRate(speed)
             }
             listener?.onPlayingChanged(true)
@@ -92,21 +99,71 @@ class VlcAudioEngine : AudioEngine {
     }
 
     init {
-        if (nativeOk) open(emptyList())
+        if (nativeOk) {
+            val f = runCatching {
+                MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500", "--no-audio-time-stretch")
+            }.getOrNull()
+            val p = runCatching { f?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
+            if (p == null) runCatching { f?.release() }
+            else {
+                p.events().addMediaPlayerEventListener(events)
+                // only reroute audio when a Java Sound line is really available, else keep VLC's own output
+                if (sink.open()) dspActive = runCatching { p.audio().callback("S16N", RATE, 2, sink, true); true }.getOrDefault(false)
+                factory = f
+                player = p
+            }
+        }
     }
 
-    private fun open(chain: List<String>) {
-        val args = buildList {
-            addAll(listOf("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500", "--no-audio-time-stretch"))
-            if (chain.isNotEmpty()) add("--audio-filter=${chain.joinToString(":")}")
-            if ("normvol" in chain) addAll(listOf("--norm-buff-size=20", "--norm-max-level=1.5"))
+    /** Receives decoded S16 stereo from libVLC, runs [dsp] and writes to a ~120 ms Java Sound buffer. */
+    private inner class Sink : AudioCallbackAdapter() {
+        private val format = AudioFormat(RATE.toFloat(), 16, 2, true, false)
+        @Volatile private var line: SourceDataLine? = null
+        private var shorts = ShortArray(0)
+        private var floats = FloatArray(0)
+        private var bytes = ByteArray(0)
+
+        fun open(): Boolean = line != null || runCatching {
+            val l = AudioSystem.getSourceDataLine(format)
+            l.open(format, RATE / 8 * 4)
+            line = l
+        }.isSuccess
+
+        override fun play(mediaPlayer: MediaPlayer, samples: Pointer, sampleCount: Int, pts: Long) {
+            val n = sampleCount * 2
+            if (n <= 0) return
+            if (shorts.size < n) { shorts = ShortArray(n); floats = FloatArray(n); bytes = ByteArray(n * 2) }
+            samples.read(0, shorts, 0, n)
+            for (i in 0 until n) floats[i] = shorts[i] / 32768f
+            dsp.process(floats, sampleCount)
+            for (i in 0 until n) {
+                val v = (floats[i] * 32767f).toInt()
+                bytes[2 * i] = v.toByte()
+                bytes[2 * i + 1] = (v shr 8).toByte()
+            }
+            if (!open()) return
+            val l = line ?: return
+            runCatching {
+                if (!l.isRunning) l.start()
+                l.write(bytes, 0, n * 2)
+            }.onFailure { // device lost: reopen on the next buffer
+                runCatching { l.close() }
+                line = null
+            }
         }
-        val f = runCatching { MediaPlayerFactory(*args.toTypedArray()) }.getOrNull()
-        val p = runCatching { f?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
-        if (p == null) runCatching { f?.release() }
-        p?.events()?.addMediaPlayerEventListener(events)
-        factory = f.takeIf { p != null }
-        player = p
+
+        override fun pause(mediaPlayer: MediaPlayer, pts: Long) { runCatching { line?.stop() } }
+        override fun resume(mediaPlayer: MediaPlayer, pts: Long) { runCatching { line?.start() } }
+        override fun flush(mediaPlayer: MediaPlayer, pts: Long) = flush()
+        override fun drain(mediaPlayer: MediaPlayer) { runCatching { line?.drain() } }
+        override fun setVolume(volume: Float, mute: Boolean) = Unit // gain is applied by dsp
+
+        fun flush() {
+            runCatching { line?.flush() }
+            dsp.reset()
+        }
+
+        fun close() { runCatching { line?.close() }; line = null }
     }
 
     override val positionMs: Long get() = time
@@ -129,13 +186,13 @@ class VlcAudioEngine : AudioEngine {
         }
         time = startPositionMs
         length = track.durationMs
+        sink.flush()
         val options = buildList {
             add(":http-user-agent=${InnerTube.USER_AGENT}")
             if (startPositionMs > 0) add(":start-time=${startPositionMs / 1000.0}")
             add(":meta-title=${track.title}")
         }.toTypedArray()
         ended = false
-        lastLoad = stream to track
         async { if (playWhenReady) media().play(stream.url, *options) else media().startPaused(stream.url, *options) }
     }
 
@@ -145,8 +202,7 @@ class VlcAudioEngine : AudioEngine {
 
     override fun stop() {
         playing = false
-        lastLoad = null
-        async { controls().stop() }
+        async { controls().stop(); sink.flush() }
     }
 
     override fun seekTo(positionMs: Long) {
@@ -161,56 +217,24 @@ class VlcAudioEngine : AudioEngine {
         async { controls().setRate(this@VlcAudioEngine.speed) }
     }
 
-    private var eq: Pair<Boolean, List<Float>> = false to emptyList()
-
-    override fun setEqualizer(enabled: Boolean, gains: List<Float>) {
-        eq = enabled to gains
-        val f = factory ?: return
-        async {
-            if (!enabled) audio().setEqualizer(null)
-            else {
-                val bands = f.equalizer().bands()
-                val e = f.equalizer().newEqualizer()
-                e.setPreamp(12f)
-                bands.forEachIndexed { i, hz -> e.setAmp(i, Eq.gainAt(hz, gains).coerceIn(-20f, 20f)) }
-                audio().setEqualizer(e)
-            }
-        }
-    }
-
-    private var lastLoad: Pair<ResolvedStream, Track>? = null
+    override fun setEqualizer(enabled: Boolean, gains: List<Float>) = dsp.setEq(enabled, gains)
 
     override fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {
-        val chain = listOfNotNull("normvol".takeIf { normalize }, "stereo_widen".takeIf { spatial }, "karaoke".takeIf { vocalRemover })
-        if (chain == filters || !nativeOk) return
-        filters = chain
-        val oldPlayer = player
-        val oldFactory = factory
-        val wasPlaying = playing
-        val at = time
-        open(chain)
-        if (player == null) { // new chain failed: keep the old instance
-            factory = oldFactory
-            player = oldPlayer
-            return
-        }
-        Thread {
-            runCatching { oldPlayer?.controls()?.stop() }
-            runCatching { oldPlayer?.release() }
-            runCatching { oldFactory?.release() }
-        }.apply { isDaemon = true }.start()
-        setEqualizer(eq.first, eq.second)
-        val last = lastLoad
-        if (last != null && !ended) load(last.first, last.second, at, wasPlaying)
+        dsp.normalize = normalize
+        dsp.spatial = spatial
+        dsp.eightD = eightD
+        dsp.vocalRemover = vocalRemover
     }
 
     override fun setVolume(volume: Float) {
         this.volume = (volume * 100).toInt().coerceIn(0, 200)
-        async { audio().setVolume(this@VlcAudioEngine.volume) }
+        dsp.volume = volume.coerceIn(0f, 2f)
+        if (!dspActive) async { audio().setVolume(this@VlcAudioEngine.volume) }
     }
 
     companion object {
         @Volatile var systemVlc = false
+        const val RATE = 48000
 
         fun bundledDir(): File? = System.getProperty("compose.application.resources.dir")
             ?.let { File(it, "vlc") }
@@ -220,5 +244,6 @@ class VlcAudioEngine : AudioEngine {
     override fun release() {
         player?.release()
         factory?.release()
+        sink.close()
     }
 }

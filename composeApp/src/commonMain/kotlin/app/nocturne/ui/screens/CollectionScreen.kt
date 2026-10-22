@@ -62,6 +62,7 @@ import app.nocturne.ui.components.SectionView
 import app.nocturne.ui.components.SourceBadge
 import app.nocturne.ui.components.TrackMenuContext
 import app.nocturne.ui.components.TrackRow
+import app.nocturne.ui.components.displayTitle
 import app.nocturne.ui.components.fallbackIcon
 import app.nocturne.ui.components.shape
 
@@ -94,7 +95,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
             error = null
             runCatching { graph.provider(ref.source).collection(ref) }
                 .onSuccess { page = it; pageCache[ref.key] = it }
-                .onFailure { error = it.message ?: "Failed to load" }
+                .onFailure { error = it.message ?: t("Failed to load") }
         }
     }
 
@@ -120,11 +121,11 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                     header.type.fallbackIcon(),
                 )
                 Spacer(Modifier.height(18.dp))
-                Text(header.title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(header.displayTitle(), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                     if (!local) { SourceBadge(header.source, size = 16.dp); Spacer(Modifier.width(6.dp)) }
                     Text(
-                        listOfNotNull(header.subtitle, p?.tracks?.size?.takeIf { it > 0 && !local }?.let { "$it songs" }).joinToString(" • "),
+                        listOfNotNull(header.subtitle, p?.tracks?.size?.takeIf { it > 0 && !local }?.let { t("%s songs", it) }).joinToString(" • "),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -144,10 +145,10 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                         }
                     }
                     val tracks = p?.tracks.orEmpty()
-                    Button(onClick = { graph.player.play(tracks, 0, header.title) }, enabled = tracks.isNotEmpty(), modifier = Modifier.height(52.dp)) {
+                    Button(onClick = { graph.player.play(tracks, 0, header.displayTitle()) }, enabled = tracks.isNotEmpty(), modifier = Modifier.height(52.dp)) {
                         Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text(t("Play"))
                     }
-                    FilledTonalIconButton(onClick = { graph.player.play(tracks, tracks.indices.random(), header.title, shuffle = true) }, enabled = tracks.isNotEmpty()) {
+                    FilledTonalIconButton(onClick = { graph.player.play(tracks, tracks.indices.random(), header.displayTitle(), shuffle = true) }, enabled = tracks.isNotEmpty()) {
                         Icon(Icons.Rounded.Shuffle, "Shuffle")
                     }
                     if (header.source != app.nocturne.model.Source.LOCAL) {
@@ -181,7 +182,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                     Box(Modifier.padding(horizontal = 4.dp)) {
                         TrackRow(
                             p.tracks[i],
-                            onClick = { graph.player.play(p.tracks, i, header.title) },
+                            onClick = { graph.player.play(p.tracks, i, header.displayTitle()) },
                             index = if (header.type == CollectionType.ALBUM) i + 1 else null,
                             menuContext = TrackMenuContext(playlistId = if (local && ref.id != LikedRef.id) ref.id else null, remotePlaylist = if (editable) ref.copy(title = header.title) else null),
                         )

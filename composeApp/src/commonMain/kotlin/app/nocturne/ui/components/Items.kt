@@ -152,6 +152,11 @@ fun TrackRow(
     }
 }
 
+private val builtInCollectionIds = setOf("liked", "me:liked", "me:likes", "LM")
+
+/** Titles of built-in collections (Liked songs etc.) are ours, so translate them; everything else is user/API text. */
+fun CollectionRef.displayTitle(): String = if (id in builtInCollectionIds) t(title) else title
+
 @Composable
 fun CollectionCard(ref: CollectionRef, onClick: () -> Unit, modifier: Modifier = Modifier, width: androidx.compose.ui.unit.Dp? = 156.dp) {
     val settings by AppGraph.instance.settings.state.collectAsState()
@@ -167,7 +172,7 @@ fun CollectionCard(ref: CollectionRef, onClick: () -> Unit, modifier: Modifier =
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text(ref.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(ref.displayTitle(), style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         ref.subtitle?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -235,7 +240,7 @@ fun SectionView(section: Section, subtitle: String? = null, onPlay: (List<Track>
         } else null,
     )
     subtitle?.let {
-        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 18.dp, bottom = 6.dp))
+        Text(t(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 18.dp, bottom = 6.dp))
     }
     if (quick) {
         val songs = section.items.filterIsInstance<MediaEntry.Song>().map { it.track }

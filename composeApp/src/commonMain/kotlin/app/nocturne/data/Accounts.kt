@@ -19,6 +19,9 @@ data class Accounts(
     val spotifyRefreshToken: String = "",
     val spotifyExpiresAt: Long = 0,
     val spotifyName: String? = null,
+    val spotifyAvatar: String? = null,
+    val spotifyClientId: String = "", // the app the tokens were issued to (needed for refresh)
+    val soundcloudAvatar: String? = null,
 ) {
     val youtubeSignedIn get() = youtubeCookie.contains("SAPISID")
     val soundcloudSignedIn get() = soundcloudToken.isNotBlank()

@@ -4,6 +4,8 @@ import app.nocturne.AppGraph
 import app.nocturne.aesDecrypt
 import app.nocturne.aesEncrypt
 import app.nocturne.platformKind
+import app.nocturne.secureRandomBytes
+import app.nocturne.sync.ChaChaPoly
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.plugins.timeout
@@ -22,22 +24,35 @@ data class SyncBundle(
     val from: String = "",
 )
 
-data class PairTarget(val hosts: List<String>, val port: Int, val key: ByteArray)
+data class PairTarget(val hosts: List<String>, val port: Int, val key: ByteArray, val v: Int = 1)
 
 object Sync {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
 
-    fun qr(hosts: List<String>, port: Int, key: ByteArray): String =
-        "nocturne://pair?h=${hosts.joinToString(",")}&p=$port&k=${Base64.UrlSafe.encode(key).trimEnd('=')}"
+    /** [group]: device-sync secret, so scanning also pairs the devices. v=2 means the receiver opens ChaCha20-Poly1305 bundles. */
+    fun qr(hosts: List<String>, port: Int, key: ByteArray, group: String? = null): String =
+        "nocturne://pair?h=${hosts.joinToString(",")}&p=$port&k=${Base64.UrlSafe.encode(key).trimEnd('=')}" +
+            (group?.let { "&g=$it" } ?: "") + "&v=2"
+
+    private fun query(text: String): Map<String, String>? {
+        if (!text.trim().startsWith("nocturne://pair?")) return null
+        return text.trim().substringAfter('?').split('&').associate { it.substringBefore('=') to it.substringAfter('=', "") }
+    }
+
+    /** Device-sync group secret in a pairing link, or null. */
+    fun groupOf(text: String): String? {
+        val g = query(text)?.get("g")?.trim() ?: return null
+        val raw = runCatching { Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(g) }.getOrNull()
+        return g.takeIf { raw?.size == 32 }
+    }
 
     fun parse(text: String): PairTarget? {
-        if (!text.startsWith("nocturne://pair?")) return null
-        val q = text.substringAfter('?').split('&').associate { it.substringBefore('=') to it.substringAfter('=', "") }
+        val q = query(text) ?: return null
         val hosts = q["h"]?.split(',')?.filter { it.isNotBlank() }.orEmpty()
         val port = q["p"]?.toIntOrNull() ?: return null
         val key = runCatching { Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(q["k"].orEmpty()) }.getOrNull() ?: return null
         if (hosts.isEmpty() || key.size != 32) return null
-        return PairTarget(hosts, port, key)
+        return PairTarget(hosts, port, key, q["v"]?.toIntOrNull() ?: 1)
     }
 
     fun bundle(graph: AppGraph) = SyncBundle(
@@ -47,14 +62,25 @@ object Sync {
         from = platformKind.name,
     )
 
-    fun seal(key: ByteArray, bundle: SyncBundle): String =
-        Base64.encode(aesEncrypt(key, json.encodeToString(SyncBundle.serializer(), bundle).encodeToByteArray()))
+    // v2: "2." + base64(nonce || ChaCha20-Poly1305), works on every platform; v1: AES-GCM (JVM only).
+    fun seal(key: ByteArray, bundle: SyncBundle, v: Int = 2): String {
+        val plain = json.encodeToString(SyncBundle.serializer(), bundle).encodeToByteArray()
+        if (v < 2) return Base64.encode(aesEncrypt(key, plain))
+        val nonce = secureRandomBytes(ChaChaPoly.NONCE)
+        return "2." + Base64.encode(nonce + ChaChaPoly.seal(key, nonce, plain))
+    }
 
-    fun open(key: ByteArray, body: String): SyncBundle =
-        json.decodeFromString(SyncBundle.serializer(), aesDecrypt(key, Base64.decode(body.trim())).decodeToString())
+    fun open(key: ByteArray, body: String): SyncBundle {
+        val b = body.trim()
+        val plain = if (b.startsWith("2.")) {
+            val raw = Base64.decode(b.substring(2))
+            ChaChaPoly.open(key, raw.copyOfRange(0, ChaChaPoly.NONCE), raw.copyOfRange(ChaChaPoly.NONCE, raw.size)) ?: error("bad key")
+        } else aesDecrypt(key, Base64.decode(b))
+        return json.decodeFromString(SyncBundle.serializer(), plain.decodeToString())
+    }
 
     suspend fun send(graph: AppGraph, target: PairTarget) {
-        val body = seal(target.key, bundle(graph))
+        val body = seal(target.key, bundle(graph), target.v)
         var last: Throwable? = null
         for (host in target.hosts) {
             try {
