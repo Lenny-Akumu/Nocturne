@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -224,6 +225,9 @@ fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        // phones: nearly full width; desktop: a roomy fixed width instead of the narrow default
+        modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 640.dp),
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
         title = { Text(t(if (creating) "New playlist" else "Add to playlist")) },
         text = {
             if (creating) {
