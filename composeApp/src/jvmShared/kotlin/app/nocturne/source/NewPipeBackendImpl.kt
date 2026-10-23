@@ -169,7 +169,7 @@ class NewPipeBackendImpl : NewPipeBackend {
         else -> n.toString()
     }
 
-$a
+    private fun pick(streams: List<AudioStream>, quality: AudioQuality): AudioStream? {
         if (streams.isEmpty()) return null
         val sorted = streams.sortedBy { it.averageBitrate }
         return when (quality) {

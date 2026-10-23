@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.glass
 
+import app.nocturne.ui.components.EdgeArrows
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -235,7 +236,7 @@ private fun MixCarousel(mixes: List<Mix>, onPlay: (Mix) -> Unit) {
             LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(mixes.size, key = { mixes[it].title }) { i -> Box(Modifier.width(420.dp).height(196.dp)) { MixCard(mixes[i], onPlay) } }
             }
-            app.nocturne.ui.components.EdgeArrows(rowState)
+            EdgeArrows(rowState)
         } else MixPager(mixes, onPlay)
     }
 }
@@ -403,7 +404,7 @@ private fun Shelf(entries: List<MediaEntry>, onPlay: (Int) -> Unit) {
                 }
             }
         }
-        app.nocturne.ui.components.EdgeArrows(rowState)
+        EdgeArrows(rowState)
     }
 }
 

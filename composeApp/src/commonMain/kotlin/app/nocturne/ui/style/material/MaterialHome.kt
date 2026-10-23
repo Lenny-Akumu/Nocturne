@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.material
 
+import app.nocturne.ui.components.EdgeArrows
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -255,7 +256,7 @@ private fun WideHero(tracks: List<Track>, onPlay: (Int) -> Unit) {
                 Box(Modifier.width(300.dp).height(208.dp)) { HeroItem(tracks[i], large, { onPlay(i) }, { menu(tracks[i], TrackMenuContext()) }) }
             }
         }
-        app.nocturne.ui.components.EdgeArrows(rowState)
+        EdgeArrows(rowState)
     }
 }
 
@@ -361,7 +362,7 @@ private fun MixesRow(onPlay: (List<Track>, String) -> Unit) {
                 }
             }
         }
-        app.nocturne.ui.components.EdgeArrows(rowState)
+        EdgeArrows(rowState)
     }
 }
 
@@ -380,7 +381,7 @@ private fun Shelf(title: String, items: List<MediaEntry>, source: Source? = null
                 }
             }
         }
-        app.nocturne.ui.components.EdgeArrows(rowState)
+        EdgeArrows(rowState)
     }
 }
 
