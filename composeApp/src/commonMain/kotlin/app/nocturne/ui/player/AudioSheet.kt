@@ -53,6 +53,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -167,7 +169,8 @@ fun AudioSheet(onDismiss: () -> Unit) {
                 Spacer(Modifier.height(16.dp))
                 EqGraph(
                     gains = settings.eqGains.takeIf { it.size == Eq.bands.size } ?: List(Eq.bands.size) { 0f },
-                    modifier = Modifier.fillMaxWidth().height(200.dp).alpha(if (settings.eqEnabled) 1f else 0.45f),
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    dim = !settings.eqEnabled,
                     onPreview = { gains -> graph.player.previewEqualizer(gains) },
                 ) { gains -> graph.settings.update { it.copy(eqGains = gains, eqPreset = "Custom", eqEnabled = true) } }
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -182,9 +185,11 @@ fun AudioSheet(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun EqGraph(gains: List<Float>, modifier: Modifier, onPreview: (List<Float>) -> Unit, onChange: (List<Float>) -> Unit) {
-    val color = MaterialTheme.colorScheme.primary
-    val grid = MaterialTheme.colorScheme.outlineVariant
+private fun EqGraph(gains: List<Float>, modifier: Modifier, dim: Boolean = false, onPreview: (List<Float>) -> Unit, onChange: (List<Float>) -> Unit) {
+    // dim via colors, not a layer: an alpha layer + thin lines glitched into white blocks on some GPUs
+    val k = if (dim) 0.45f else 1f
+    val color = MaterialTheme.colorScheme.primary.let { it.copy(alpha = it.alpha * k) }
+    val grid = MaterialTheme.colorScheme.outlineVariant.let { it.copy(alpha = it.alpha * k) }
     // Local values are only read while drawing, so a drag redraws the canvas without recomposing the sheet.
     val local = remember { mutableStateListOf<Float>().apply { addAll(gains) } }
     var dragIndex by remember { mutableIntStateOf(-1) }
@@ -198,7 +203,7 @@ private fun EqGraph(gains: List<Float>, modifier: Modifier, onPreview: (List<Flo
     fun gainFromY(y: Float, height: Float) = ((0.5f - y / height) * 2 * Eq.MAX_DB).coerceIn(-Eq.MAX_DB, Eq.MAX_DB).let { (it * 10).roundToInt() / 10f }
 
     Canvas(
-        modifier.pointerInput(Unit) {
+        modifier.clipToBounds().pointerInput(Unit) {
             awaitEachGesture {
                 val down = awaitFirstDown()
                 if (local.isEmpty()) return@awaitEachGesture
@@ -221,8 +226,8 @@ private fun EqGraph(gains: List<Float>, modifier: Modifier, onPreview: (List<Flo
         if (local.isEmpty()) return@Canvas
         val h = size.height
         val points = local.mapIndexed { i, g -> Offset(columnX(i, size.width), h * (0.5f - g / (2 * Eq.MAX_DB))) }
-        for (p in points) drawLine(grid, Offset(p.x, 0f), Offset(p.x, h), strokeWidth = 2f)
-        drawLine(grid.copy(alpha = 0.5f), Offset(0f, h / 2), Offset(size.width, h / 2), strokeWidth = 1.5f)
+        for (p in points) drawRect(grid, Offset(p.x - 1f, 0f), Size(2f, h))
+        drawRect(grid.copy(alpha = grid.alpha * 0.5f), Offset(0f, h / 2 - 0.75f), Size(size.width, 1.5f))
         val line = Path().apply {
             moveTo(0f, points.first().y)
             lineTo(points.first().x, points.first().y)
