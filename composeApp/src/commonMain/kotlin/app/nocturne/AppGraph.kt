@@ -99,6 +99,7 @@ class AppGraph(val engine: AudioEngine) {
     val cast = app.nocturne.cast.CastSession(this, scope)
     val party = app.nocturne.party.Party(this, scope)
     val sync = app.nocturne.sync.DeviceSync(this, scope)
+    val dailyMixes = app.nocturne.data.DailyMixes(this)
     val downloads = app.nocturne.data.Downloads(scope) { t -> provider(t.source).stream(t, settings.value.downloadQuality) }.also { d ->
         player.localOverride = { t -> d.uriFor(t) }
     }
@@ -292,6 +293,7 @@ class AppGraph(val engine: AudioEngine) {
     companion object {
         lateinit var instance: AppGraph
             private set
+        val ready: Boolean get() = ::instance.isInitialized
 
         fun init(engine: AudioEngine): AppGraph {
             if (!::instance.isInitialized) instance = AppGraph(engine)

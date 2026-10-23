@@ -46,3 +46,36 @@ fun MainViewController(): UIViewController {
         Box(if (hz > 0) Modifier.fillMaxSize().preferredFrameRate(hz.toFloat()) else Modifier.fillMaxSize()) { App() }
     }
 }
+
+// ---- home screen widget (Swift side writes the App Group files and reloads WidgetKit) ----
+
+fun widgetState(): String {
+    val s = graph.player.state.value
+    val t = s.current
+    return kotlinx.serialization.json.buildJsonObject {
+        put("title", kotlinx.serialization.json.JsonPrimitive(t?.title ?: "Nocturne"))
+        put("artist", kotlinx.serialization.json.JsonPrimitive(t?.artistNames.orEmpty()))
+        put("playing", kotlinx.serialization.json.JsonPrimitive(s.isPlaying))
+        put("art", kotlinx.serialization.json.JsonPrimitive(t?.artworkUrl.orEmpty()))
+    }.toString()
+}
+
+fun observeWidget(onChange: () -> Unit) {
+    graph.scope.launch {
+        graph.player.state.collect { s ->
+            val key = Triple(s.current?.key, s.isPlaying, s.current?.artworkUrl)
+            if (key != lastWidget) { lastWidget = key; onChange() }
+        }
+    }
+}
+
+private var lastWidget: Any? = null
+
+fun widgetCommand(cmd: String) {
+    val p = graph.player
+    when (cmd) {
+        "toggle" -> p.toggle()
+        "next" -> p.next()
+        "prev" -> p.previous()
+    }
+}

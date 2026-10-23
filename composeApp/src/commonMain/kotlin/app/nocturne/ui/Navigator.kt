@@ -18,6 +18,8 @@ sealed interface Screen {
 class Navigator {
     private val tabs = listOf(Screen.Home, Screen.Search, Screen.Library)
     val stack = mutableStateListOf<Screen>(Screen.Home)
+    // screens left with back(), for mouse "forward" on desktop
+    private val ahead = mutableListOf<Screen>()
 
     var playerExpanded by mutableStateOf(false)
     var homeRefresh by mutableStateOf(0)
@@ -28,6 +30,7 @@ class Navigator {
 
     fun push(screen: Screen) {
         playerExpanded = false
+        ahead.clear()
         if (stack.last() != screen) stack.add(screen)
     }
 
@@ -36,6 +39,7 @@ class Navigator {
             if (tab == Screen.Home) homeRefresh++
             return
         }
+        ahead.clear()
         stack.clear()
         if (tab != Screen.Home) stack.add(Screen.Home)
         stack.add(tab)
@@ -51,7 +55,14 @@ class Navigator {
             return true
         }
         if (stack.size <= 1) return false
-        stack.removeAt(stack.lastIndex)
+        ahead.add(stack.removeAt(stack.lastIndex))
+        return true
+    }
+
+    fun forward(): Boolean {
+        val next = ahead.removeLastOrNull() ?: return false
+        playerExpanded = false
+        stack.add(next)
         return true
     }
 }

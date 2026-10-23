@@ -155,7 +155,9 @@ fun smartMixes(): List<Pair<String, List<app.nocturne.model.Track>>> {
     val night = remember(library.history.size) {
         library.history.filter { val h = ((it.playedAt / 3_600_000L) % 24); h >= 21 || h <= 4 }.map { it.track }.distinctBy { it.key }.take(40)
     }
-    return listOfNotNull(
+    val daily by graph.dailyMixes.state.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { graph.dailyMixes.refresh() }
+    return daily.map { it.title to it.tracks } + listOfNotNull(
         ("On repeat" to onRepeat).takeIf { onRepeat.size >= 4 },
         ("Long time no listen" to forgotten).takeIf { forgotten.size >= 4 },
         ("Liked mix" to likedMix).takeIf { likedMix.size >= 4 },

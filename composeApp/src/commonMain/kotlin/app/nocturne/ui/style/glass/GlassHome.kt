@@ -216,7 +216,9 @@ private fun rememberMixes(): List<Mix> {
         library.history.filter { val h = ((it.playedAt / 3_600_000L) % 24); h >= 21 || h <= 4 }.map { it.track }.distinctBy { it.key }.take(40)
     }
     val k = t("Your mixes")
-    return listOfNotNull(
+    val daily by graph.dailyMixes.state.collectAsState()
+    LaunchedEffect(Unit) { graph.dailyMixes.refresh() }
+    return daily.map { Mix(it.title, it.artists.joinToString(", "), it.tracks) } + listOfNotNull(
         Mix(t("On repeat"), k, onRepeat).takeIf { onRepeat.size >= 4 },
         Mix(t("Long time no listen"), k, forgotten).takeIf { forgotten.size >= 4 },
         Mix(t("Liked mix"), k, likedMix).takeIf { likedMix.size >= 4 },
@@ -226,6 +228,20 @@ private fun rememberMixes(): List<Mix> {
 
 @Composable
 private fun MixCarousel(mixes: List<Mix>, onPlay: (Mix) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth > 760.dp) Box(Modifier.padding(top = 14.dp)) {
+            // desktop: a row of fixed cards instead of one page stretched over the window
+            val rowState = rememberLazyListState()
+            LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(mixes.size, key = { mixes[it].title }) { i -> Box(Modifier.width(420.dp).height(196.dp)) { MixCard(mixes[i], onPlay) } }
+            }
+            app.nocturne.ui.components.EdgeArrows(rowState)
+        } else MixPager(mixes, onPlay)
+    }
+}
+
+@Composable
+private fun MixPager(mixes: List<Mix>, onPlay: (Mix) -> Unit) {
     val pager = rememberPagerState(pageCount = { mixes.size })
     Column(Modifier.padding(top = 14.dp)) {
         HorizontalPager(
@@ -369,21 +385,25 @@ private fun GridCell(track: Track, modifier: Modifier, onClick: () -> Unit) {
 @Composable
 private fun Shelf(entries: List<MediaEntry>, onPlay: (Int) -> Unit) {
     val nav = AppGraph.instance.navigator
-    LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(entries.size) { i ->
-            when (val e = entries[i]) {
-                is MediaEntry.Song -> ShelfCard(e.track.title, e.track.artistNames, track = e.track, onClick = { onPlay(i) }) {
-                    Artwork(e.track.artworkUrl, Modifier.fillMaxSize(), RoundedCornerShape(14.dp))
-                }
-                is MediaEntry.Collection -> {
-                    val artist = e.ref.type == CollectionType.ARTIST
-                    val shape = if (artist) CircleShape else RoundedCornerShape(14.dp)
-                    ShelfCard(e.ref.displayTitle(), e.ref.subtitle, centered = artist, onClick = { nav.push(Screen.Collection(e.ref)) }) {
-                        CollectionArtwork(e.ref, Modifier.fillMaxSize(), shape)
+    Box {
+        val rowState = rememberLazyListState()
+        LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(entries.size) { i ->
+                when (val e = entries[i]) {
+                    is MediaEntry.Song -> ShelfCard(e.track.title, e.track.artistNames, track = e.track, onClick = { onPlay(i) }) {
+                        Artwork(e.track.artworkUrl, Modifier.fillMaxSize(), RoundedCornerShape(14.dp))
+                    }
+                    is MediaEntry.Collection -> {
+                        val artist = e.ref.type == CollectionType.ARTIST
+                        val shape = if (artist) CircleShape else RoundedCornerShape(14.dp)
+                        ShelfCard(e.ref.displayTitle(), e.ref.subtitle, centered = artist, onClick = { nav.push(Screen.Collection(e.ref)) }) {
+                            CollectionArtwork(e.ref, Modifier.fillMaxSize(), shape)
+                        }
                     }
                 }
             }
         }
+        app.nocturne.ui.components.EdgeArrows(rowState)
     }
 }
 

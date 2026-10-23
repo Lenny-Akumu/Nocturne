@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -43,6 +44,32 @@ fun PagerArrows(state: LazyListState, modifier: Modifier = Modifier) {
             ) {
                 Icon(if (fwd) Icons.AutoMirrored.Rounded.KeyboardArrowRight else Icons.AutoMirrored.Rounded.KeyboardArrowLeft, null, Modifier.size(22.dp), tint = cs.onSurface)
             }
+        }
+    }
+}
+
+/** Desktop only: round prev/next buttons over the edges of a sideways row; wrap the row and this in a Box. */
+@Composable
+fun androidx.compose.foundation.layout.BoxScope.EdgeArrows(state: LazyListState) {
+    if (app.nocturne.platformKind != app.nocturne.PlatformKind.DESKTOP) return
+    val scope = rememberCoroutineScope()
+    val cs = MaterialTheme.colorScheme
+    fun step() = (state.layoutInfo.visibleItemsInfo.count { it.offset >= 0 && it.offset + it.size <= state.layoutInfo.viewportEndOffset } - 1).coerceAtLeast(1)
+    listOf(false, true).forEach { fwd ->
+        val enabled = if (fwd) state.canScrollForward else state.canScrollBackward
+        if (enabled) Box(
+            Modifier.align(if (fwd) Alignment.CenterEnd else Alignment.CenterStart)
+                .padding(horizontal = 6.dp).size(40.dp).clip(CircleShape)
+                .background(cs.surfaceContainerHighest.copy(alpha = 0.92f))
+                .clickable {
+                    scope.launch {
+                        val target = state.firstVisibleItemIndex + if (fwd) step() else -step()
+                        state.animateScrollToItem(target.coerceIn(0, (state.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)))
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(if (fwd) Icons.AutoMirrored.Rounded.KeyboardArrowRight else Icons.AutoMirrored.Rounded.KeyboardArrowLeft, null, Modifier.size(24.dp), tint = cs.onSurface)
         }
     }
 }

@@ -16,6 +16,7 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
+import coil3.request.transformations
 import coil3.toBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,10 @@ class PlayerWidget : AppWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action in setOf(ACTION_PLAY, ACTION_NEXT, ACTION_PREV) && !AppGraph.ready) {
+            context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        }
         val player = AppGraph.instance.player
         when (intent.action) {
             ACTION_PLAY -> player.toggle()
@@ -86,7 +91,8 @@ object Widgets {
 
     private suspend fun loadArt(context: Context, url: String?): Bitmap? {
         if (url == null) return null
-        val request = ImageRequest.Builder(context).data(url).size(256, 256).allowHardware(false).build()
+        val request = ImageRequest.Builder(context).data(url).size(256, 256).allowHardware(false)
+            .transformations(coil3.transform.RoundedCornersTransformation(36f)).build()
         val result = SingletonImageLoader.get(context).execute(request) as? SuccessResult ?: return null
         return runCatching { result.image.toBitmap() }.getOrNull()
     }
@@ -95,12 +101,23 @@ object Widgets {
         val manager = AppWidgetManager.getInstance(context)
         val ids = manager.getAppWidgetIds(ComponentName(context, PlayerWidget::class.java))
         if (ids.isEmpty()) return
-        val views = RemoteViews(context.packageName, R.layout.widget_player)
+        // Android 12+: the launcher picks the layout by the widget's size (one row vs. stretched taller)
+        val views = if (Build.VERSION.SDK_INT >= 31) RemoteViews(
+            mapOf(
+                android.util.SizeF(180f, 56f) to build(context, R.layout.widget_player, s, bitmap),
+                android.util.SizeF(180f, 140f) to build(context, R.layout.widget_player_large, s, bitmap),
+            ),
+        ) else build(context, R.layout.widget_player, s, bitmap)
+        manager.updateAppWidget(ids, views)
+    }
+
+    private fun build(context: Context, layout: Int, s: PlayerState, bitmap: Bitmap?): RemoteViews {
+        val views = RemoteViews(context.packageName, layout)
         views.setTextViewText(R.id.widget_title, s.current?.title ?: "Nocturne")
         views.setTextViewText(R.id.widget_artist, s.current?.artistNames.orEmpty())
         if (bitmap != null) views.setImageViewBitmap(R.id.widget_art, bitmap)
         else views.setImageViewResource(R.id.widget_art, R.drawable.ic_launcher_foreground)
-        views.setImageViewResource(R.id.widget_play, if (s.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
+        views.setImageViewResource(R.id.widget_play, if (s.isPlaying) R.drawable.ic_w_pause else R.drawable.ic_w_play)
         views.setOnClickPendingIntent(R.id.widget_play, action(context, PlayerWidget.ACTION_PLAY, 1))
         views.setOnClickPendingIntent(R.id.widget_next, action(context, PlayerWidget.ACTION_NEXT, 2))
         views.setOnClickPendingIntent(R.id.widget_prev, action(context, PlayerWidget.ACTION_PREV, 3))
@@ -109,7 +126,7 @@ object Widgets {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         views.setOnClickPendingIntent(R.id.widget_root, open)
-        manager.updateAppWidget(ids, views)
+        return views
     }
 
     private fun action(context: Context, action: String, code: Int): PendingIntent =

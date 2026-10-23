@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
@@ -155,6 +156,10 @@ private fun launchApp() {
                     else -> Unit
                 }
                 if (Hotkeys.capturing) return@Window false
+                if (e.isAltPressed && (e.key == Key.DirectionLeft || e.key == Key.DirectionRight)) {
+                    if (e.key == Key.DirectionLeft) graph.navigator.back() else graph.navigator.forward()
+                    return@Window true
+                }
                 if (e.isCtrlPressed) {
                     val step = when (e.key) {
                         Key.Equals, Key.Plus, Key.NumPadAdd -> 0.1f
@@ -173,6 +178,19 @@ private fun launchApp() {
             },
         ) {
             window.minimumSize = java.awt.Dimension(420, 600)
+            // mouse side buttons (X1 = back, X2 = forward), like a browser
+            androidx.compose.runtime.DisposableEffect(Unit) {
+                val listener = java.awt.event.AWTEventListener { ev ->
+                    val me = ev as? java.awt.event.MouseEvent ?: return@AWTEventListener
+                    if (me.id != java.awt.event.MouseEvent.MOUSE_PRESSED) return@AWTEventListener
+                    when (me.button) {
+                        4 -> javax.swing.SwingUtilities.invokeLater { graph.navigator.back() }
+                        5 -> javax.swing.SwingUtilities.invokeLater { graph.navigator.forward() }
+                    }
+                }
+                java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(listener, java.awt.AWTEvent.MOUSE_EVENT_MASK)
+                onDispose { java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(listener) }
+            }
             LaunchedEffect(settings.iconBackground, settings.iconPalette) {
                 val images = AppIcon.update(settings.iconBackground, settings.iconPalette)
                 images.takeIf { it.isNotEmpty() }?.let { window.iconImages = it }

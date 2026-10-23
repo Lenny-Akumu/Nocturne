@@ -238,6 +238,29 @@ private fun CompactRow(track: Track, modifier: Modifier, onClick: () -> Unit) {
 // dragging, so the artwork re-crops (parallax-like) as it grows or shrinks; snaps with a spring.
 @Composable
 private fun HeroCarousel(tracks: List<Track>, onPlay: (Int) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // wide window: the keyline carousel would stretch one card across the screen, so plain fixed-size cards
+        if (maxWidth > 760.dp) WideHero(tracks, onPlay) else KeylineHero(tracks, onPlay)
+    }
+}
+
+@Composable
+private fun WideHero(tracks: List<Track>, onPlay: (Int) -> Unit) {
+    val menu = LocalTrackMenu.current
+    val large = with(LocalDensity.current) { 300.dp.toPx() }
+    Box {
+        val rowState = rememberLazyListState()
+        LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(tracks.size, key = { tracks[it].key }) { i ->
+                Box(Modifier.width(300.dp).height(208.dp)) { HeroItem(tracks[i], large, { onPlay(i) }, { menu(tracks[i], TrackMenuContext()) }) }
+            }
+        }
+        app.nocturne.ui.components.EdgeArrows(rowState)
+    }
+}
+
+@Composable
+private fun KeylineHero(tracks: List<Track>, onPlay: (Int) -> Unit) {
     val scope = rememberCoroutineScope()
     var pos by remember { mutableFloatStateOf(0f) }
     var settle by remember { mutableStateOf<Job?>(null) }
@@ -317,24 +340,28 @@ private fun MixesRow(onPlay: (List<Track>, String) -> Unit) {
     if (mixes.isEmpty()) return
     val cs = MaterialTheme.colorScheme
     ShelfHeader(t("Your mixes"))
-    LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        items(mixes) { (title, tracks) ->
-            Column(
-                Modifier.width(100.dp).clip(RoundedCornerShape(20.dp)).combinedClickable(onClick = { onPlay(tracks, t(title)) }).padding(6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                val arts = tracks.mapNotNull { it.artworkUrl }.distinct().take(4)
-                Box(Modifier.size(84.dp).clip(CircleShape).background(cs.surfaceContainerHighest)) {
-                    if (arts.size >= 4) Column {
-                        Row { Artwork(arts[0], Modifier.size(42.dp), RoundedCornerShape(0.dp)); Artwork(arts[1], Modifier.size(42.dp), RoundedCornerShape(0.dp)) }
-                        Row { Artwork(arts[2], Modifier.size(42.dp), RoundedCornerShape(0.dp)); Artwork(arts[3], Modifier.size(42.dp), RoundedCornerShape(0.dp)) }
-                    } else Artwork(arts.firstOrNull(), Modifier.fillMaxSize(), CircleShape)
+    Box {
+        val rowState = rememberLazyListState()
+        LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            items(mixes) { (title, tracks) ->
+                Column(
+                    Modifier.width(100.dp).clip(RoundedCornerShape(20.dp)).combinedClickable(onClick = { onPlay(tracks, t(title)) }).padding(6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    val arts = tracks.mapNotNull { it.artworkUrl }.distinct().take(4)
+                    Box(Modifier.size(84.dp).clip(CircleShape).background(cs.surfaceContainerHighest)) {
+                        if (arts.size >= 4) Column {
+                            Row { Artwork(arts[0], Modifier.size(42.dp), RoundedCornerShape(0.dp)); Artwork(arts[1], Modifier.size(42.dp), RoundedCornerShape(0.dp)) }
+                            Row { Artwork(arts[2], Modifier.size(42.dp), RoundedCornerShape(0.dp)); Artwork(arts[3], Modifier.size(42.dp), RoundedCornerShape(0.dp)) }
+                        } else Artwork(arts.firstOrNull(), Modifier.fillMaxSize(), CircleShape)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(t(title), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                    Text(t("%s songs", tracks.size), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, maxLines = 1)
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(t(title), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-                Text(t("%s songs", tracks.size), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, maxLines = 1)
             }
         }
+        app.nocturne.ui.components.EdgeArrows(rowState)
     }
 }
 
@@ -343,13 +370,17 @@ private fun MixesRow(onPlay: (List<Track>, String) -> Unit) {
 private fun Shelf(title: String, items: List<MediaEntry>, source: Source? = null, onSong: (Track, Int) -> Unit) {
     val nav = AppGraph.instance.navigator
     ShelfHeader(title, source)
-    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(items.size) { i ->
-            when (val e = items[i]) {
-                is MediaEntry.Song -> SongTile(e.track) { onSong(e.track, i) }
-                is MediaEntry.Collection -> CollectionTile(e.ref) { nav.push(Screen.Collection(e.ref)) }
+    Box {
+        val rowState = rememberLazyListState()
+        LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(items.size) { i ->
+                when (val e = items[i]) {
+                    is MediaEntry.Song -> SongTile(e.track) { onSong(e.track, i) }
+                    is MediaEntry.Collection -> CollectionTile(e.ref) { nav.push(Screen.Collection(e.ref)) }
+                }
             }
         }
+        app.nocturne.ui.components.EdgeArrows(rowState)
     }
 }
 
