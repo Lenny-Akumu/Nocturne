@@ -111,6 +111,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
 
 private val BASE = DpSize(820.dp, 132.dp)
+private val BASE_VERTICAL = DpSize(72.dp, 560.dp)
 private val BTN = 40.dp
 
 @Composable
@@ -140,7 +141,8 @@ fun FloatingPlayerWindow() {
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
         LaunchedEffect(settings.iconBackground, settings.iconPalette) { app.nocturne.AppIcon.update(settings.iconBackground, settings.iconPalette).takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
-        LaunchedEffect(ax, ay, anchor, editing, scale) {
+        val base0 = if (settings.floatingVertical) BASE_VERTICAL else BASE
+        LaunchedEffect(ax, ay, anchor, editing, scale, base0) {
             val k = window.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
             val margin = 4
             fun place(w: Int, h: Int) {
@@ -149,7 +151,7 @@ fun FloatingPlayerWindow() {
             }
             snapshotFlow<IntSize?> { if (editing || busy.value) null else pillPx.value }.collectLatest { px ->
                 if (px == null) {
-                    place((BASE.width.value * scale).toInt(), (BASE.height.value * scale).toInt())
+                    place((base0.width.value * scale).toInt(), (base0.height.value * scale).toInt())
                     full = true
                     return@collectLatest
                 }
@@ -220,6 +222,7 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?, canOpen: Boolea
     val busy by remember { derivedStateOf { hoverState.value || progress.value > 0f } }
     LaunchedEffect(busy) { onBusy(busy) }
     val glass = settings.floatingStyle == 1
+    if (settings.floatingVertical) return VerticalPill(interactive, window, canOpen, hoverOn, hover, progress, glass)
     val accent by animateColorAsState(if (glass) Color.White else rememberArtworkSeed(track?.artworkUrl) ?: MaterialTheme.colorScheme.primary, tween(450), label = "accent")
     val shape = RoundedCornerShape(30.dp)
     val b = settings.floatingButtons
@@ -421,5 +424,99 @@ private fun PillBar(value: Float, color: Color, modifier: Modifier, live: Boolea
         drawLine(Color.White.copy(alpha = 0.2f), Offset(0f, y), Offset(size.width, y), h, StrokeCap.Round)
         drawLine(color, Offset(0f, y), Offset(size.width * shown, y), h, StrokeCap.Round)
         drawCircle(Color.White, 5.dp.toPx(), Offset(size.width * shown, y))
+    }
+}
+
+// Thin vertical bar: artwork with a progress ring, prev / play / next; hovering slides the extras out below.
+@Composable
+private fun VerticalPill(
+    interactive: Boolean,
+    window: java.awt.Window?,
+    canOpen: Boolean,
+    hoverOn: Boolean,
+    hover: MutableInteractionSource,
+    progress: State<Float>,
+    glass: Boolean,
+) {
+    val graph = AppGraph.instance
+    val state by graph.player.state.collectAsState()
+    val settings by graph.settings.state.collectAsState()
+    val library by graph.library.state.collectAsState()
+    val track = state.current
+    val b = settings.floatingButtons
+    val accent by animateColorAsState(if (glass) Color.White else rememberArtworkSeed(track?.artworkUrl) ?: MaterialTheme.colorScheme.primary, tween(450), label = "accent")
+    val shape = RoundedCornerShape(30.dp)
+    Box(
+        Modifier
+            .then(if (glass) Modifier else Modifier.shadow(14.dp, shape))
+            .clip(shape)
+            .background(if (glass) Color(0x8C1C1C22) else Color(0xCC0E0E12))
+            .hoverable(hover)
+            .pointerInput(window) {
+                val w = window ?: return@pointerInput
+                awaitPointerEventScope {
+                    while (true) {
+                        val e = awaitPointerEvent()
+                        if (e.type != PointerEventType.Press || !e.buttons.isTertiaryPressed) continue
+                        val start = java.awt.MouseInfo.getPointerInfo()?.location ?: continue
+                        val origin = w.location
+                        do {
+                            val m = awaitPointerEvent()
+                            val p = java.awt.MouseInfo.getPointerInfo()?.location ?: break
+                            w.setLocation(origin.x + p.x - start.x, origin.y + p.y - start.y)
+                        } while (m.buttons.isTertiaryPressed)
+                        val r = w.bounds
+                        val anchorNow = AppGraph.instance.settings.value.floatingAnchor
+                        val nx = when (anchorNow) { 0 -> r.x + 4; 2 -> r.x + r.width - 4; else -> r.x + r.width / 2 }
+                        AppGraph.instance.settings.update { it.copy(floatingX = nx, floatingY = r.y) }
+                    }
+                }
+            },
+    ) {
+        Layout(
+            content = {
+                Column(Modifier.layoutId("core").padding(vertical = 8.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(44.dp).clickable(enabled = interactive) { MainWindow.show() }, contentAlignment = Alignment.Center) {
+                        Crossfade(track?.artworkUrl, Modifier.size(36.dp), tween(350), label = "art") { url ->
+                            Artwork(url, Modifier.size(36.dp), CircleShape, Icons.Rounded.MusicNote)
+                        }
+                        // playback progress as a ring around the cover
+                        androidx.compose.foundation.Canvas(Modifier.size(44.dp)) {
+                            val sw = 2.5.dp.toPx()
+                            drawArc(Color.White.copy(alpha = 0.18f), 0f, 360f, false, style = androidx.compose.ui.graphics.drawscope.Stroke(sw))
+                            drawArc(accent, -90f, 360f * state.progress, false, style = androidx.compose.ui.graphics.drawscope.Stroke(sw, cap = StrokeCap.Round))
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    if ("prev" in b) PillButton(Icons.Rounded.SkipPrevious, Color.White, interactive, Icons.Rounded.FastRewind) { graph.player.previous() }
+                    PlayPauseButton(state.isPlaying, { graph.player.toggle() }, size = BTN, enabled = interactive, tint = accent, accent = accent)
+                    if ("next" in b) PillButton(Icons.Rounded.SkipNext, Color.White, interactive, Icons.Rounded.FastForward) { graph.player.next() }
+                }
+                Column(Modifier.layoutId("more").padding(bottom = 8.dp, start = 6.dp, end = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.padding(vertical = 4.dp).size(20.dp, 1.dp).background(Color.White.copy(alpha = 0.2f)))
+                    if (track != null && "like" in b) {
+                        val liked = library.liked.any { it.key == track.key }
+                        PillButton(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) accent else Color.White) { graph.toggleLike(track) }
+                    }
+                    if (track != null && "dislike" in b) PillButton(Icons.Rounded.ThumbDown, Color.White) { graph.notInterested(track) }
+                    if ("volume" in b) {
+                        PillButton(if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, Color.White) {
+                            graph.player.setVolume(if (settings.volume > 0.01f) 0f else 0.6f)
+                        }
+                    }
+                    if ("open" in b) PillButton(Icons.AutoMirrored.Rounded.OpenInNew, Color.White) { MainWindow.show() }
+                }
+            },
+        ) { ms, _ ->
+            val loose = Constraints()
+            val core = ms.first { it.layoutId == "core" }.measure(loose)
+            val more = ms.first { it.layoutId == "more" }.measure(loose)
+            val w = maxOf(core.width, more.width)
+            val p = if (canOpen) progress.value.coerceIn(0f, 1f) else 0f
+            layout(w, core.height + (more.height * p).roundToInt()) {
+                core.place((w - core.width) / 2, 0)
+                if (p > 0f) more.placeWithLayer((w - more.width) / 2, core.height) { alpha = p * p * (3 - 2 * p) }
+            }
+        }
     }
 }

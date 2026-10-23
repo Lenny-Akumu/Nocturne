@@ -652,5 +652,8 @@ internal object Pl {
         "Controlling %s from here" to "Sterujesz %s stąd",
         "Remember connection" to "Zapamiętaj połączenie",
         "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Po „Odtwórz na…” to urządzenie zostaje pilotem: zmieniasz utwory tutaj, grają tam",
+        "Orientation" to "Orientacja",
+        "Vertical" to "Pionowo",
+        "Horizontal" to "Poziomo",
     )
 }

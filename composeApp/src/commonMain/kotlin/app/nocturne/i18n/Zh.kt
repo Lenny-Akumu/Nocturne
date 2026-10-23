@@ -652,5 +652,8 @@ internal object Zh {
         "Controlling %s from here" to "正在从这里控制 %s",
         "Remember connection" to "记住连接",
         "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "“在…上播放”后，此设备仍作为遥控器：在这里切歌，在那边播放",
+        "Orientation" to "方向",
+        "Vertical" to "竖向",
+        "Horizontal" to "横向",
     )
 }

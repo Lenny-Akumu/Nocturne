@@ -652,5 +652,8 @@ internal object Ko {
         "Controlling %s from here" to "여기서 %s 제어 중",
         "Remember connection" to "연결 기억",
         "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "「…에서 재생」 후에도 이 기기가 리모컨으로 남아요: 여기서 곡을 바꾸면 저기서 재생",
+        "Orientation" to "방향",
+        "Vertical" to "세로",
+        "Horizontal" to "가로",
     )
 }

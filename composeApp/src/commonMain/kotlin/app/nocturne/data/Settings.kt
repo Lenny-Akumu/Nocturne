@@ -112,6 +112,8 @@ data class Settings(
     val floatingPlayer: Boolean = false,
     val floatingScale: Float = 1f,
     val floatingStyle: Int = 0,
+    /** Thin vertical bar instead of the horizontal pill. */
+    val floatingVertical: Boolean = false,
     val floatingAnchor: Int = 1,
     val floatingButtons: Set<String> = setOf("prev", "next", "like", "volume", "seek"),
     val floatingX: Int = -1,

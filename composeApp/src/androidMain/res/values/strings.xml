@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Now playing with controls. Stretch it taller for big artwork.</string>
+    <string name="widget_description">Now playing with controls. Resize it from 1×1 up to the full screen.</string>
+    <string name="widget_minimal_description">Just the song name and a play button.</string>
+    <string name="widget_cover_description">Full artwork with a small play button.</string>
+    <string name="widget_minimal_label">Nocturne · Minimal</string>
+    <string name="widget_cover_label">Nocturne · Cover</string>
 </resources>

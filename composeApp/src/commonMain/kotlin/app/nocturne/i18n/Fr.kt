@@ -652,5 +652,8 @@ internal object Fr {
         "Controlling %s from here" to "Tu contrôles %s d'ici",
         "Remember connection" to "Mémoriser la connexion",
         "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Après « Lire sur… », cet appareil reste une télécommande : change de titre ici, il joue là-bas",
+        "Orientation" to "Orientation",
+        "Vertical" to "Vertical",
+        "Horizontal" to "Horizontal",
     )
 }

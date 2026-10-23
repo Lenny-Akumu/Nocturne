@@ -231,7 +231,8 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Toggle("Floating mini player", "Small always-on-top player on your screen", Icons.Rounded.PictureInPicture, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
                         SliderPref("Size", "${(s.floatingScale * 100).roundToInt()}%", s.floatingScale, 0.7f..1.6f, 8) { v -> set { it.copy(floatingScale = (v * 10).roundToInt() / 10f) } }
                         Choice("Style", Icons.Rounded.Palette, s.floatingStyle, listOf(0, 1), { if (it == 0) "Artwork colors" else "Subtle glass" }) { v -> set { it.copy(floatingStyle = v) } }
-                        Choice("Expands to", Icons.Rounded.UnfoldMore, s.floatingAnchor, listOf(0, 1, 2), { when (it) { 0 -> "Right"; 2 -> "Left"; else -> "Both sides" } }) { v -> set { it.copy(floatingAnchor = v) } }
+                        Choice("Orientation", Icons.Rounded.UnfoldMore, s.floatingVertical, listOf(false, true), { if (it) "Vertical" else "Horizontal" }) { v -> set { it.copy(floatingVertical = v) } }
+                        if (!s.floatingVertical) Choice("Expands to", Icons.Rounded.UnfoldMore, s.floatingAnchor, listOf(0, 1, 2), { when (it) { 0 -> "Right"; 2 -> "Left"; else -> "Both sides" } }) { v -> set { it.copy(floatingAnchor = v) } }
                         Header("Position")
                         Action("Edit position", if (FloatingEdit.editing) "Drag the player, then press Done" else "Move the player anywhere on the screen", Icons.Rounded.OpenWith) {
                             set { it.copy(floatingPlayer = true) }

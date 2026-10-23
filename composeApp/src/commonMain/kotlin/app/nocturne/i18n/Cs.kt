@@ -652,5 +652,8 @@ internal object Cs {
         "Controlling %s from here" to "Ovládáš %s odsud",
         "Remember connection" to "Zapamatovat připojení",
         "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Po „Přehrát na…“ zůstane toto zařízení ovladačem: přepínáš skladby tady, hrají tam",
+        "Orientation" to "Orientace",
+        "Vertical" to "Svisle",
+        "Horizontal" to "Vodorovně",
     )
 }

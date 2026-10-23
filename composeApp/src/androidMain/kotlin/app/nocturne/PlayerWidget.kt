@@ -24,9 +24,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
 
-class PlayerWidget : AppWidgetProvider() {
+// Shared receiver logic; each subclass is one entry in the launcher's widget picker.
+abstract class NocturneWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        Widgets.refresh(context, AppGraph.instance.player.state.value, null)
+        if (AppGraph.ready) Widgets.refreshNow(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -34,11 +35,10 @@ class PlayerWidget : AppWidgetProvider() {
             context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return
         }
-        val player = AppGraph.instance.player
         when (intent.action) {
-            ACTION_PLAY -> player.toggle()
-            ACTION_NEXT -> player.next()
-            ACTION_PREV -> player.previous()
+            ACTION_PLAY -> AppGraph.instance.player.toggle()
+            ACTION_NEXT -> AppGraph.instance.player.next()
+            ACTION_PREV -> AppGraph.instance.player.previous()
             else -> super.onReceive(context, intent)
         }
     }
@@ -49,6 +49,10 @@ class PlayerWidget : AppWidgetProvider() {
         const val ACTION_PREV = "app.nocturne.widget.PREV"
     }
 }
+
+class PlayerWidget : NocturneWidget()
+class MinimalWidget : NocturneWidget()
+class CoverWidget : NocturneWidget()
 
 class PlayTileService : TileService() {
     override fun onStartListening() {
@@ -74,9 +78,13 @@ class PlayTileService : TileService() {
 
 object Widgets {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private var art: Pair<String?, Bitmap?> = null to null
+    var art: Pair<String?, Bitmap?> = null to null
+        private set
 
     fun start(context: Context) {
+        scope.launch {
+            AppGraph.instance.settings.state.distinctUntilChangedBy { it.designStyle }.collect { refreshNow(context) }
+        }
         scope.launch {
             AppGraph.instance.player.state
                 .distinctUntilChangedBy { Triple(it.current?.key, it.isPlaying, it.current?.artworkUrl) }
@@ -91,36 +99,69 @@ object Widgets {
 
     private suspend fun loadArt(context: Context, url: String?): Bitmap? {
         if (url == null) return null
-        val request = ImageRequest.Builder(context).data(url).size(256, 256).allowHardware(false)
+        val request = ImageRequest.Builder(context).data(url).size(384, 384).allowHardware(false)
             .transformations(coil3.transform.RoundedCornersTransformation(36f)).build()
         val result = SingletonImageLoader.get(context).execute(request) as? SuccessResult ?: return null
         return runCatching { result.image.toBitmap() }.getOrNull()
     }
 
+    fun refreshNow(context: Context) = refresh(context, AppGraph.instance.player.state.value, art.second)
+
+    // Layout per widget size (Android 12+ picks the biggest one that fits): 1×1 up to the whole screen.
+    private val variants = listOf(
+        PlayerWidget::class.java to listOf(
+            40f to 40f to R.layout.widget_tiny,
+            100f to 40f to R.layout.widget_small,
+            100f to 100f to R.layout.widget_square,
+            180f to 40f to R.layout.widget_player,
+            180f to 120f to R.layout.widget_player_large,
+            200f to 230f to R.layout.widget_huge,
+        ),
+        MinimalWidget::class.java to listOf(
+            40f to 40f to R.layout.widget_minimal_tiny,
+            120f to 40f to R.layout.widget_minimal,
+        ),
+        CoverWidget::class.java to listOf(
+            40f to 40f to R.layout.widget_tiny,
+            100f to 100f to R.layout.widget_square,
+        ),
+    )
+
     fun refresh(context: Context, s: PlayerState, bitmap: Bitmap?) {
         val manager = AppWidgetManager.getInstance(context)
-        val ids = manager.getAppWidgetIds(ComponentName(context, PlayerWidget::class.java))
-        if (ids.isEmpty()) return
-        // Android 12+: the launcher picks the layout by the widget's size (one row vs. stretched taller)
-        val views = if (Build.VERSION.SDK_INT >= 31) RemoteViews(
-            mapOf(
-                android.util.SizeF(180f, 56f) to build(context, R.layout.widget_player, s, bitmap),
-                android.util.SizeF(180f, 140f) to build(context, R.layout.widget_player_large, s, bitmap),
-            ),
-        ) else build(context, R.layout.widget_player, s, bitmap)
-        manager.updateAppWidget(ids, views)
+        for ((cls, sizes) in variants) {
+            val ids = manager.getAppWidgetIds(ComponentName(context, cls))
+            if (ids.isEmpty()) continue
+            val views = if (Build.VERSION.SDK_INT >= 31) RemoteViews(
+                sizes.associate { (size, layout) -> android.util.SizeF(size.first, size.second) to build(context, layout, s, bitmap) },
+            ) else build(context, sizes.first { it.second == R.layout.widget_player || it.second == R.layout.widget_minimal || it.second == R.layout.widget_square }.second, s, bitmap)
+            manager.updateAppWidget(ids, views)
+        }
+    }
+
+    // follows the app's design style: Material (system colors), Liquid Glass (frosted), Windows (acrylic)
+    private fun background(): Int = when (AppGraph.instance.settings.value.designStyle) {
+        app.nocturne.data.DesignStyle.GLASS -> R.drawable.widget_bg_glass
+        app.nocturne.data.DesignStyle.WINDOWS -> R.drawable.widget_bg_windows
+        else -> R.drawable.widget_bg
     }
 
     private fun build(context: Context, layout: Int, s: PlayerState, bitmap: Bitmap?): RemoteViews {
         val views = RemoteViews(context.packageName, layout)
+        views.setInt(R.id.widget_root, "setBackgroundResource", background())
+        val light = layout == R.layout.widget_minimal || layout == R.layout.widget_minimal_tiny
         views.setTextViewText(R.id.widget_title, s.current?.title ?: "Nocturne")
         views.setTextViewText(R.id.widget_artist, s.current?.artistNames.orEmpty())
         if (bitmap != null) views.setImageViewBitmap(R.id.widget_art, bitmap)
         else views.setImageViewResource(R.id.widget_art, R.drawable.ic_launcher_foreground)
-        views.setImageViewResource(R.id.widget_play, if (s.isPlaying) R.drawable.ic_w_pause else R.drawable.ic_w_play)
-        views.setOnClickPendingIntent(R.id.widget_play, action(context, PlayerWidget.ACTION_PLAY, 1))
-        views.setOnClickPendingIntent(R.id.widget_next, action(context, PlayerWidget.ACTION_NEXT, 2))
-        views.setOnClickPendingIntent(R.id.widget_prev, action(context, PlayerWidget.ACTION_PREV, 3))
+        views.setImageViewResource(
+            R.id.widget_play,
+            if (light) (if (s.isPlaying) R.drawable.ic_w_pause_light else R.drawable.ic_w_play_light)
+            else (if (s.isPlaying) R.drawable.ic_w_pause else R.drawable.ic_w_play),
+        )
+        views.setOnClickPendingIntent(R.id.widget_play, action(context, NocturneWidget.ACTION_PLAY, 1))
+        views.setOnClickPendingIntent(R.id.widget_next, action(context, NocturneWidget.ACTION_NEXT, 2))
+        views.setOnClickPendingIntent(R.id.widget_prev, action(context, NocturneWidget.ACTION_PREV, 3))
         val open = PendingIntent.getActivity(
             context, 4, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,

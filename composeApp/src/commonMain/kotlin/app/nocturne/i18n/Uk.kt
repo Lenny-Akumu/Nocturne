@@ -658,5 +658,8 @@ internal object Uk {
         "Controlling %s from here" to "Керуєш %s звідси",
         "Remember connection" to "Запам'ятати підключення",
         "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Після «Грати на…» цей пристрій лишається пультом: перемикаєш треки тут — грають там",
+        "Orientation" to "Орієнтація",
+        "Vertical" to "Вертикально",
+        "Horizontal" to "Горизонтально",
     )
 }

@@ -652,5 +652,8 @@ internal object De {
         "Controlling %s from here" to "Du steuerst %s von hier",
         "Remember connection" to "Verbindung merken",
         "After “Play on…”, this device stays a remote: switch tracks here, they play there" to "Nach „Abspielen auf…“ bleibt dieses Gerät Fernbedienung: hier Titel wechseln, dort spielen",
+        "Orientation" to "Ausrichtung",
+        "Vertical" to "Vertikal",
+        "Horizontal" to "Horizontal",
     )
 }

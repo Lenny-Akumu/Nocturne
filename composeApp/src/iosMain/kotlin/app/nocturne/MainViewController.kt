@@ -57,13 +57,14 @@ fun widgetState(): String {
         put("artist", kotlinx.serialization.json.JsonPrimitive(t?.artistNames.orEmpty()))
         put("playing", kotlinx.serialization.json.JsonPrimitive(s.isPlaying))
         put("art", kotlinx.serialization.json.JsonPrimitive(t?.artworkUrl.orEmpty()))
+        put("style", kotlinx.serialization.json.JsonPrimitive(graph.settings.value.designStyle.name))
     }.toString()
 }
 
 fun observeWidget(onChange: () -> Unit) {
     graph.scope.launch {
         graph.player.state.collect { s ->
-            val key = Triple(s.current?.key, s.isPlaying, s.current?.artworkUrl)
+            val key = listOf(s.current?.key, s.isPlaying, s.current?.artworkUrl, graph.settings.value.designStyle)
             if (key != lastWidget) { lastWidget = key; onChange() }
         }
     }
