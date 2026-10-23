@@ -52,6 +52,8 @@ interface NewPipeBackend {
     suspend fun charts(source: Source): List<Track>
     suspend fun soundcloudClientId(): String
     suspend fun videoStream(source: Source, url: String, maxHeight: Int): String?
+    /** YouTube comments through NewPipe where available; null = use our own parser. */
+    suspend fun comments(videoId: String, token: String?): CommentsPage? = null
 }
 
 expect fun createNewPipeBackend(): NewPipeBackend

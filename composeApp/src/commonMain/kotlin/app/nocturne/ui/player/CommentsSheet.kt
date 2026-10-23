@@ -85,7 +85,7 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    suspend fun commentsPageOf(token: String) = api.commentsPage(token)
+    suspend fun commentsPageOf(token: String) = AppGraph.instance.comments(videoId, token)
 
     fun load(reset: Boolean, block: suspend () -> CommentsPage) {
         job?.cancel()
@@ -117,11 +117,11 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
         }
     }
 
-    LaunchedEffect(attempt) { load(true) { api.comments(videoId) } }
+    LaunchedEffect(attempt) { load(true) { AppGraph.instance.comments(videoId) } }
     LaunchedEffect(list) {
         snapshotFlow { Triple(list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0, comments.size, next) }
             .collect { (last, size, token) ->
-                if (token != null && size > 0 && !loading && error == null && last >= size - 2) load(false) { api.commentsPage(token) }
+                if (token != null && size > 0 && !loading && error == null && last >= size - 2) load(false) { AppGraph.instance.comments(videoId, token) }
             }
     }
 
@@ -150,14 +150,15 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
                 when {
                     comments.isEmpty() && loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                     comments.isEmpty() && err is CommentsDisabledException -> MessageBox(Icons.Rounded.ChatBubbleOutline, "Comments are turned off")
-                    comments.isEmpty() && err != null -> MessageBox(Icons.Rounded.ErrorOutline, "Couldn't load comments", actionLabel = "Retry", onAction = { attempt++ })
+                    // the real reason, so a screenshot tells what broke
+                    comments.isEmpty() && err != null -> MessageBox(Icons.Rounded.ErrorOutline, "Couldn't load comments", message = (err.message ?: err::class.simpleName)?.take(160), actionLabel = "Retry", onAction = { attempt++ })
                     comments.isEmpty() -> MessageBox(Icons.Rounded.ChatBubbleOutline, "No comments yet")
                     else -> LazyColumn(Modifier.fillMaxSize(), state = list) {
                         items(comments, key = { it.id }) { CommentRow(it) }
                         if (loading || err != null) item(key = "footer") {
                             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                 if (loading) CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
-                                else TextButton(onClick = { next?.let { tk -> load(false) { api.commentsPage(tk) } } }) { Text(t("Retry")) }
+                                else TextButton(onClick = { next?.let { tk -> load(false) { AppGraph.instance.comments(videoId, tk) } } }) { Text(t("Retry")) }
                             }
                         }
                     }

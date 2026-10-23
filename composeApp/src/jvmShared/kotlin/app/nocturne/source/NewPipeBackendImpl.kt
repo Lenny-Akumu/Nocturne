@@ -25,6 +25,7 @@ import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs
+import org.schabi.newpipe.extractor.comments.CommentsInfo
 import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request
 import org.schabi.newpipe.extractor.downloader.Response
@@ -125,7 +126,50 @@ class NewPipeBackendImpl : NewPipeBackend {
         }
     }
 
-    private fun pick(streams: List<AudioStream>, quality: AudioQuality): AudioStream? {
+    private val commentPages = java.util.concurrent.ConcurrentHashMap<String, Page>()
+
+    override suspend fun comments(videoId: String, token: String?): CommentsPage? = io {
+        val url = "https://www.youtube.com/watch?v=$videoId"
+        val service = ServiceList.YouTube
+        var count: String? = null
+        val (items, next) = if (token == null) {
+            val info = CommentsInfo.getInfo(service, url)
+            if (info.isCommentsDisabled) throw CommentsDisabledException()
+            count = info.commentsCount.takeIf { it > 0 }?.let(::compactCount)
+            info.relatedItems to info.nextPage
+        } else {
+            val page = commentPages.remove(token) ?: return@io null
+            val more = CommentsInfo.getMoreItems(service, url, page)
+            more.items to more.nextPage
+        }
+        val nextKey = next?.takeIf { Page.isValid(it) }?.let { p -> "np:" + java.util.UUID.randomUUID().toString().also { commentPages["np:$it"] = p } }
+        CommentsPage(
+            items.map { c ->
+                YtComment(
+                    id = c.commentId ?: c.url ?: c.hashCode().toString(),
+                    author = c.uploaderName.orEmpty(),
+                    avatar = c.uploaderAvatars.maxByOrNull { it.height }?.url,
+                    text = plain(c.commentText?.content.orEmpty()),
+                    time = c.textualUploadDate,
+                    likes = c.likeCount.takeIf { it > 0 }?.let(::compactCount),
+                    replies = c.replyCount.takeIf { it > 0 }?.toString(),
+                )
+            },
+            nextKey,
+            count = count,
+        )
+    }
+
+    private fun plain(html: String) = html.replace(Regex("<br\\s*/?>"), "\n").replace(Regex("<[^>]+>"), "")
+        .replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
+
+    private fun compactCount(n: Int): String = when {
+        n >= 1_000_000 -> "${(n / 100_000) / 10.0}M".replace(".0M", "M")
+        n >= 1_000 -> "${(n / 100) / 10.0}K".replace(".0K", "K")
+        else -> n.toString()
+    }
+
+$a
         if (streams.isEmpty()) return null
         val sorted = streams.sortedBy { it.averageBitrate }
         return when (quality) {

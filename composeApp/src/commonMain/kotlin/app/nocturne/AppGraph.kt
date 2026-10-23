@@ -246,6 +246,27 @@ class AppGraph(val engine: AudioEngine) {
     fun enabledProviders(): List<MusicProvider> =
         Source.entries.filter { it in settings.value.enabledSources }.map { allProviders.getValue(it) }
 
+    // NewPipe first (maintained parser), then our own WEB `next` parser; ATV songs fall back to their music video.
+    suspend fun comments(videoId: String, token: String? = null): app.nocturne.source.CommentsPage {
+        if (token != null) {
+            return if (token.startsWith("np:")) newPipe.comments(videoId, token) ?: app.nocturne.source.CommentsPage(emptyList(), null)
+            else innerTube.commentsPage(token)
+        }
+        val ids = listOfNotNull(videoId, runCatching { innerTube.musicVideoId(videoId) }.getOrNull()?.takeIf { it != videoId })
+        var failure: Throwable? = null
+        for (id in ids) {
+            runCatching { newPipe.comments(id, null) }
+                .onFailure { failure = it }
+                .getOrNull()?.takeIf { it.comments.isNotEmpty() }?.let { return it }
+        }
+        return try {
+            innerTube.comments(videoId)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            throw failure?.takeIf { e is app.nocturne.source.CommentsDisabledException } ?: e
+        }
+    }
+
     suspend fun openUrl(url: String): MediaEntry? =
         allProviders.values.firstOrNull { it.canOpen(url) }?.open(url)
 
