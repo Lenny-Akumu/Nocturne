@@ -16,7 +16,10 @@ import kotlinx.coroutines.launch
 import platform.Foundation.NSProcessInfo
 import platform.UIKit.UIViewController
 
-private val graph by lazy { AppGraph.init(IosAudioEngine()) }
+private val graph by lazy {
+    val demo = NSProcessInfo.processInfo.arguments.filterIsInstance<String>().any { it.startsWith("--shot=demo") }
+    AppGraph.init(if (demo) app.nocturne.player.DemoAudioEngine() else IosAudioEngine())
+}
 
 // Called from SwiftUI onOpenURL (nocturne://join?code=…).
 fun handleUrl(url: String) {

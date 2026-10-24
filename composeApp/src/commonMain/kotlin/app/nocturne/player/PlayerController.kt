@@ -530,6 +530,7 @@ class PlayerController(
     suspend fun streamFor(track: Track): ResolvedStream = resolve(track, allowLocal = false)
 
     private suspend fun resolve(track: Track, fresh: Boolean = false, allowLocal: Boolean = true): ResolvedStream {
+        if (engine.fake) return ResolvedStream("demo:" + track.key)
         if (allowLocal) localOverride(track)?.let { return ResolvedStream(it) }
         val key = track.key + ":" + settings.value.audioQuality
         if (!fresh) streamCache[key]?.takeIf { nowMillis() - it.at < STREAM_TTL }?.let { return it.stream }

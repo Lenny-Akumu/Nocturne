@@ -31,10 +31,10 @@ object Demo {
     suspend fun tap(id: String, timeoutMs: Long = 6000) {
         var waited = 0L
         while (targets[id] == null && waited < timeoutMs) { delay(100); waited += 100 }
-        val (r, click) = targets[id] ?: return
+        val (r, click) = targets[id] ?: run { log("miss", 0f, 0f, id); return }
         log(if (id == "sheet_close") "swipe" else "tap", r.center.x, if (id == "sheet_close") r.top + 40f else r.center.y, id)
         delay(260) // finger lands, then the press
-        click()
+        runCatching { click() }.onFailure { log("error", 0f, 0f, (it.message ?: it::class.simpleName ?: "").replace("\"", "'").take(120)) }
     }
 
     /** A swipe-free pause the finger spends "reading". */
@@ -46,10 +46,12 @@ object Demo {
         g.scope.launch {
             delay(2500)
             log("start", 0f, 0f)
-            when (script) {
-                "full" -> full(g)
-                else -> short(g)
-            }
+            runCatching {
+                when (script) {
+                    "full" -> full(g)
+                    else -> short(g)
+                }
+            }.onFailure { log("error", 0f, 0f, (it.message ?: it::class.simpleName ?: "").replace("\"", "'").take(120)) }
             log("end", 0f, 0f)
         }
     }

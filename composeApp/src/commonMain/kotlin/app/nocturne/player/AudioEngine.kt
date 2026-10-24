@@ -15,6 +15,8 @@ enum class AudioFx { NORMALIZE, SPATIAL, EIGHT_D, VOCAL_REMOVER, EQUALIZER }
 interface AudioEngine {
     /** Effects this engine really applies; the UI hides the rest. */
     val fx: Set<AudioFx> get() = emptySet()
+    /** Promo recordings: no real stream is resolved. */
+    val fake: Boolean get() = false
     fun clearCache(): Long = 0
     val positionMs: Long
     val durationMs: Long
