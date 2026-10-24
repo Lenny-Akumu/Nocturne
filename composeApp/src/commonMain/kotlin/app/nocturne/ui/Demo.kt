@@ -22,8 +22,8 @@ object Demo {
 
     fun register(id: String, bounds: Rect, onClick: () -> Unit) { targets[id] = bounds to onClick }
 
-    private fun log(kind: String, x: Float, y: Float) {
-        taps.append("""{"t":${nowMillis()},"k":"$kind","x":$x,"y":$y},""")
+    private fun log(kind: String, x: Float, y: Float, id: String = "") {
+        taps.append("""{"t":${nowMillis()},"k":"$kind","id":"$id","x":$x,"y":$y},""")
         FileStore.write("demo_taps.json", "[" + taps.toString().trimEnd(',') + "]")
     }
 
@@ -32,7 +32,7 @@ object Demo {
         var waited = 0L
         while (targets[id] == null && waited < timeoutMs) { delay(100); waited += 100 }
         val (r, click) = targets[id] ?: return
-        log(if (id == "sheet_close") "swipe" else "tap", r.center.x, if (id == "sheet_close") r.top + 40f else r.center.y)
+        log(if (id == "sheet_close") "swipe" else "tap", r.center.x, if (id == "sheet_close") r.top + 40f else r.center.y, id)
         delay(260) // finger lands, then the press
         click()
     }
