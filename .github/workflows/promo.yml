@@ -1,0 +1,109 @@
+name: Promo shots
+
+# Real app screens (iPhone in Liquid Glass + Material, iPad wide layout, Linux desktop window)
+# uploaded to the "promo-assets" release for the promo video.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build simulator app
+        run: |
+          ./gradlew :composeApp:linkReleaseFrameworkIosSimulatorArm64 -q
+          brew install xcodegen
+          cd iosApp
+          xcodegen generate
+          xcodebuild -project Nocturne.xcodeproj -target Nocturne -configuration Release -sdk iphonesimulator ARCHS=arm64 \
+            FRAMEWORK_SEARCH_PATHS="$PWD/../composeApp/build/bin/iosSimulatorArm64/releaseFramework" \
+            SYMROOT="$PWD/simbuild" CODE_SIGNING_ALLOWED=NO build > sim.log 2>&1 || { grep -E "error:" sim.log | head -40; exit 1; }
+      - name: Shoot
+        run: |
+          cd iosApp
+          app=simbuild/Release-iphonesimulator/Nocturne.app
+          mkdir -p ../promo
+          shoot() { # device-name prefix style shots...
+            local dev="$1" pre="$2" style="$3"; shift 3
+            local udid=$(xcrun simctl create "$pre" "$dev")
+            xcrun simctl boot "$udid"
+            xcrun simctl ui "$udid" appearance dark || true
+            xcrun simctl status_bar "$udid" override --time 9:41 --batteryLevel 100 --cellularBars 4 || true
+            xcrun simctl install "$udid" "$app"
+            for s in "$@"; do
+              xcrun simctl terminate "$udid" app.nocturne || true
+              xcrun simctl launch "$udid" app.nocturne --shot=$s --style=$style
+              sleep 30
+              xcrun simctl io "$udid" screenshot "../promo/$pre-$s.png" || true
+              if [ "$s" = "player" ] || [ "$s" = "eq" ]; then
+                xcrun simctl io "$udid" recordVideo --codec=h264 --force "../promo/$pre-$s.mp4" & pid=$!
+                sleep 8; kill -INT $pid; wait $pid || true
+              fi
+            done
+            xcrun simctl shutdown "$udid" || true
+          }
+          phone=$(xcrun simctl list devicetypes | grep -oE "iPhone 1[5-7] Pro \(" | head -1 | sed 's/ ($//'); phone=${phone:-iPhone 16 Pro}
+          pad=$(xcrun simctl list devicetypes | grep -oE "iPad Pro [^(]*13[^(]*\(" | head -1 | sed 's/ ($//'); pad=${pad:-iPad Pro 13-inch (M4)}
+          shoot "$phone" glass GLASS home player eq connect lyrics queue appearance devices search
+          shoot "$phone" material MATERIAL home player eq connect lyrics
+          shoot "$pad" pad WINDOWS home player || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: promo-ios
+          path: promo/*
+
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Shoot desktop window
+        continue-on-error: true
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q xvfb imagemagick vlc >/dev/null
+          mkdir -p promo
+          for pair in "home:WINDOWS" "player:WINDOWS" "home:MATERIAL" "player:GLASS"; do
+            s=${pair%%:*}; st=${pair##*:}
+            Xvfb :99 -screen 0 1600x1000x24 & xpid=$!
+            sleep 2
+            DISPLAY=:99 NOCTURNE_SHOT=$s NOCTURNE_STYLE=$st ./gradlew :composeApp:run -q > run.log 2>&1 & gpid=$!
+            sleep 150
+            DISPLAY=:99 import -window root "promo/desktop-$s-$st.png" || true
+            kill $gpid || true; pkill -f app.nocturne.MainKt || true; kill $xpid || true
+            sleep 3
+          done
+          tail -40 run.log || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: promo-desktop
+          path: promo/*
+          if-no-files-found: ignore
+
+  publish:
+    needs: [ios, desktop]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dl
+      - name: Upload to the promo-assets release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dl && zip -qr ../promo.zip . && cd ..
+          gh release view promo-assets -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create promo-assets -R "$GITHUB_REPOSITORY" --prerelease --title "Promo assets" --notes "Screenshots for promo material (not an app release)."
+          gh release upload promo-assets promo.zip -R "$GITHUB_REPOSITORY" --clobber

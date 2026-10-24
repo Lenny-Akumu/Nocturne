@@ -25,21 +25,8 @@ fun handleUrl(url: String) {
 
 fun MainViewController(): UIViewController {
     val g = graph
-    val shot = NSProcessInfo.processInfo.arguments.filterIsInstance<String>().firstOrNull { it.startsWith("--shot=") }?.substringAfter('=')
-    when (shot) {
-        "search" -> g.navigator.selectTab(Screen.Search)
-        "library" -> g.navigator.selectTab(Screen.Library)
-        "settings" -> g.navigator.push(Screen.Settings)
-        "player" -> g.scope.launch {
-            val tracks = runCatching { g.youtube.search("lofi hip hop", SearchFilter.SONGS) }.getOrDefault(emptyList())
-                .filterIsInstance<MediaEntry.Song>().map { it.track }
-            if (tracks.isNotEmpty()) {
-                g.player.play(tracks, 0, "lofi hip hop")
-                delay(1500)
-                g.navigator.playerExpanded = true
-            }
-        }
-    }
+    val args = NSProcessInfo.processInfo.arguments.filterIsInstance<String>()
+    app.nocturne.ui.runPromoShot(g, args.firstOrNull { it.startsWith("--shot=") }?.substringAfter('='), args.firstOrNull { it.startsWith("--style=") }?.substringAfter('='))
     return ComposeUIViewController {
         // Settings → Refresh rate: Compose's display link follows this vote (ProMotion is unlocked in Info.plist).
         val hz = g.settings.state.collectAsState().value.refreshRate

@@ -183,6 +183,15 @@ private fun PlayerContent(onCollapse: () -> Unit) {
         if (settings.showLyrics) noLyrics = runCatching { graph.lyrics.lyrics(track).isEmpty }.getOrDefault(true)
     }
     LaunchedEffect(noLyrics) { if (noLyrics && pane == Pane.LYRICS) pane = Pane.QUEUE }
+    LaunchedEffect(Unit) {
+        when (app.nocturne.ui.PromoShot.open) {
+            "eq" -> overlays.audio = true
+            "connect" -> overlays.connect = true
+            "comments" -> overlays.comments = true
+            "lyrics" -> pane = Pane.LYRICS
+            "queue" -> pane = Pane.QUEUE
+        }
+    }
     val menu = LocalTrackMenu.current
 
     CompositionLocalProvider(LocalOverlays provides overlays) {

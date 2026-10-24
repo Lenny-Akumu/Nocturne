@@ -109,6 +109,7 @@ private fun launchApp() {
 
     application {
         val graph = remember { AppGraph.init(VlcAudioEngine()) }
+        androidx.compose.runtime.LaunchedEffect(Unit) { app.nocturne.ui.runPromoShot(graph, System.getenv("NOCTURNE_SHOT"), System.getenv("NOCTURNE_STYLE")) }
         val settings by graph.settings.state.collectAsState()
         val windowState = remember {
             val s0 = graph.settings.value
