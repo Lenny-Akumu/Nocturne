@@ -1,5 +1,7 @@
 package app.nocturne.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInWindow
@@ -16,6 +18,9 @@ import kotlinx.coroutines.launch
  */
 object Demo {
     var enabled = false
+        private set
+    /** White frame at the start so the recording can be synced to the tap log. */
+    var flash by androidx.compose.runtime.mutableStateOf(false)
         private set
     private val targets = HashMap<String, Pair<Rect, () -> Unit>>()
     private val taps = StringBuilder()
@@ -45,7 +50,10 @@ object Demo {
         FileStore.delete("demo_taps.json")
         g.scope.launch {
             delay(2500)
+            flash = true
             log("start", 0f, 0f)
+            delay(400)
+            flash = false
             runCatching {
                 when (script) {
                     "full" -> full(g)
