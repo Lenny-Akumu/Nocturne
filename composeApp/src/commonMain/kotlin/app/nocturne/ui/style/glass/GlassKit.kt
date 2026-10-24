@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.glass
 
+import app.nocturne.ui.demo
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -141,7 +142,7 @@ fun GlassSurface(
 // Round glass button (44pt touch target minimum).
 @Composable
 fun GlassCircle(icon: ImageVector, contentDescription: String?, onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 44.dp, tint: Color = Color.Unspecified, iconTint: Color = MaterialTheme.colorScheme.onSurface) {
-    GlassSurface(modifier.size(size), CircleShape, tint, onClick = onClick, contentDescription = contentDescription) {
+    GlassSurface(modifier.demo(contentDescription.orEmpty(), onClick).size(size), CircleShape, tint, onClick = onClick, contentDescription = contentDescription) {
         Icon(icon, contentDescription, Modifier.size(size * 0.5f), tint = iconTint)
     }
 }
@@ -164,6 +165,7 @@ fun GlassInnerButton(
     val rim = Color.White.copy(alpha = if (dark) 0.3f else 0.8f)
     Box(
         modifier
+            .demo(contentDescription.orEmpty(), onClick)
             .graphicsLayer { val s = 1f - 0.08f * press.value; scaleX = s; scaleY = s }
             .drawBehind {
                 val a = maxOf(sel, press.value * 0.7f).coerceIn(0f, 1f)
@@ -200,6 +202,7 @@ fun Modifier.glassAppear(delayMillis: Int = 0): Modifier {
 // Avatar-style settings entry next to large titles.
 @Composable
 fun GlassAvatar(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val modifier = modifier.demo("open_settings", onClick)
     val src = remember { MutableInteractionSource() }
     val press = pressAmount(src)
     Box(

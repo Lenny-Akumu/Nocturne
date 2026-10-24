@@ -16,6 +16,7 @@ object PromoShot {
 /** Puts the app on a given screen ([shot]) in a given design [style]; used by CI screenshot runs. */
 fun runPromoShot(g: AppGraph, shot: String?, style: String?) {
     style?.let { name -> DesignStyle.entries.firstOrNull { it.name == name }?.let { st -> g.settings.update { it.copy(designStyle = st) } } }
+    if (shot == "demo" || shot == "demo-short") { Demo.start(g, if (shot == "demo") "full" else "short"); return }
     if (shot in setOf("eq", "connect", "lyrics", "queue", "comments")) PromoShot.open = shot
     when (shot) {
         "appearance" -> g.navigator.push(Screen.SettingsPage(SettingsCategory.APPEARANCE))

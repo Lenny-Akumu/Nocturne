@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.material
 
+import app.nocturne.ui.demo
 import app.nocturne.ui.components.EdgeArrows
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
@@ -196,7 +197,7 @@ private fun QuickGrid(title: String, tracks: List<Track>, source: Source? = null
         ) {
             items(pages.size) { p ->
                 Column(Modifier.width(pageW), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    pages[p].forEach { i -> CompactRow(tracks[i], Modifier.fillMaxWidth()) { onPlay(i) } }
+                    pages[p].forEach { i -> CompactRow(tracks[i], Modifier.fillMaxWidth().demo("rec" + i.toString().padStart(2, '0')) { onPlay(i) }) { onPlay(i) } }
                 }
             }
         }

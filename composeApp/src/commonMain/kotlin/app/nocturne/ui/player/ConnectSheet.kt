@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.ui.demo
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -73,8 +74,11 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     LaunchedEffect(Unit) { if (device == null) cast.scan() }
 
+    val scroll = rememberScrollState()
+    // promo walkthrough: bring "Listen together" into view
+    if (app.nocturne.ui.Demo.enabled) LaunchedEffect(Unit) { delay(900); scroll.animateScrollTo(scroll.maxValue / 2) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
-        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+        Column(Modifier.demo("sheet_close", onDismiss).navigationBarsPadding().verticalScroll(scroll).padding(bottom = 24.dp)) {
             app.nocturne.ui.YourDevicesSection()
             OptionGroup(t("Play on a device"), icon = Icons.Rounded.Cast) {
                 if (device != null) {
@@ -160,7 +164,7 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
                     }
                     else -> {
                         var address by remember { mutableStateOf("") }
-                        OptionRow { FilledTonalButton(onClick = { party.host() }) { Text(t("Start a session")) } }
+                        OptionRow { FilledTonalButton(onClick = { party.host() }, modifier = Modifier.demo("party_start") { party.host() }) { Text(t("Start a session")) } }
                         Column(Modifier.optionRow().fillMaxWidth().padding(16.dp)) {
                             OutlinedTextField(address, { address = it }, singleLine = true, label = { Text(t("Session code")) }, placeholder = { Text("ABCD-1234") }, modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(8.dp))

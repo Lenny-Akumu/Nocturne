@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.ui.demo
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -237,6 +238,7 @@ fun TransportButton(
     circle: Boolean = false,
 ) {
     val s = size.takeOrElse { 48.dp }
+    val modifier = modifier.demo(contentDescription.orEmpty(), onClick)
     when (LocalDesignStyle.current) {
         DesignStyle.MATERIAL -> app.nocturne.ui.style.material.ExpressiveIconButton(onClick, modifier, enabled, s) {
             Icon(icon, contentDescription, Modifier.size(iconSize), tint = tint)
@@ -263,6 +265,7 @@ fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, icon: ImageVector, conten
 @Composable
 fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, contentDescription: String?, modifier: Modifier = Modifier, enabled: Boolean = true, label: String? = null, glyph: @Composable (Color, Dp) -> Unit) {
     val cs = MaterialTheme.colorScheme
+    val modifier = modifier.demo(contentDescription.orEmpty(), onClick)
     when (LocalDesignStyle.current) {
         DesignStyle.MATERIAL -> app.nocturne.ui.style.material.MaterialToggle(checked, onClick, label ?: contentDescription, modifier, enabled, glyph)
         DesignStyle.GLASS -> {

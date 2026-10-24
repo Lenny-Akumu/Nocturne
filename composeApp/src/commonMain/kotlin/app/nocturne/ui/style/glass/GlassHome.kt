@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.glass
 
+import app.nocturne.ui.demo
 import app.nocturne.ui.components.EdgeArrows
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -339,7 +340,7 @@ private fun GroupedGrid(tracks: List<Track>, title: String? = null, onPlay: (Int
         ) {
             items(pages.size) { p ->
                 Column(Modifier.width(pageW).clip(RoundedCornerShape(22.dp)).background(cs.surfaceContainerLow).padding(vertical = 4.dp)) {
-                    pages[p].forEach { i -> GridCell(tracks[i], Modifier.fillMaxWidth()) { onPlay(i) } }
+                    pages[p].forEach { i -> GridCell(tracks[i], Modifier.fillMaxWidth().demo("rec" + i.toString().padStart(2, '0')) { onPlay(i) }) { onPlay(i) } }
                 }
             }
         }

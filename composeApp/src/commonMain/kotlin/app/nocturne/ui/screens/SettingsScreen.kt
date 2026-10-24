@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.ui.demo
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.NotificationsActive
 import app.nocturne.model.isOnline
@@ -186,7 +187,7 @@ fun SettingsScreen(contentPadding: PaddingValues) {
                         },
                         trailingContent = { Chevron() },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.clickable { nav.push(Screen.SettingsPage(c)) }.padding(horizontal = if (ios) 0.dp else 4.dp, vertical = 2.dp),
+                        modifier = Modifier.demo("settings_" + c.name) { nav.push(Screen.SettingsPage(c)) }.clickable { nav.push(Screen.SettingsPage(c)) }.padding(horizontal = if (ios) 0.dp else 4.dp, vertical = 2.dp),
                     )
                     if (i < group.lastIndex) {
                         if (ios) HorizontalDivider(Modifier.padding(start = 61.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
@@ -488,7 +489,7 @@ private fun Action(title: String, summary: String?, icon: ImageVector, chevron: 
         leadingContent = { if (ios) IosBadge(icon, badgeColor(title)) else Icon(icon, null) },
         trailingContent = if (ios && chevron) { { Chevron() } } else null,
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = rowModifier(true).clickable(onClick = onClick),
+        modifier = rowModifier(true).demo(title, onClick).clickable(onClick = onClick),
     )
 }
 
@@ -547,7 +548,7 @@ private fun <T> Choice(title: String, icon: ImageVector, value: T, options: List
                 Column {
                     options.forEach { o ->
                         Row(
-                            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).selectable(o == value) { onSelect(o); open = false }.padding(vertical = 10.dp),
+                            Modifier.fillMaxWidth().demo("opt_" + label(o)) { onSelect(o); open = false }.clip(MaterialTheme.shapes.small).selectable(o == value) { onSelect(o); open = false }.padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = o == value, onClick = null)

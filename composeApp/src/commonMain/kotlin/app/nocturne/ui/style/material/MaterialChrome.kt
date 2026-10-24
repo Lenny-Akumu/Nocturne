@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.material
 
+import app.nocturne.ui.demo
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
@@ -138,7 +139,7 @@ fun MaterialSearchBar(modifier: Modifier = Modifier) {
         Icon(Icons.Rounded.Search, null, tint = cs.onSurface)
         Spacer(Modifier.width(14.dp))
         Text(t("Search songs, artists"), style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        ExpressiveIconButton(onClick = { nav.push(Screen.Settings) }) {
+        ExpressiveIconButton(onClick = { nav.push(Screen.Settings) }, modifier = Modifier.demo("open_settings") { nav.push(Screen.Settings) }) {
             app.nocturne.ui.components.ProfileAvatar(34.dp)
         }
     }

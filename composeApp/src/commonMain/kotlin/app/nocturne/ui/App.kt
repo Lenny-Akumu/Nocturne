@@ -194,7 +194,7 @@ private fun AppScaffold() {
                 app.nocturne.ui.style.glass.GlassBottomBar(nav, onExpand = { nav.playerExpanded = true }, modifier = Modifier.align(Alignment.BottomCenter))
             } else Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                 RemoteStrip()
-                MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false)
+                MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false, modifier = Modifier.demo("mini") { nav.playerExpanded = true })
                 if (LocalDesignStyle.current == app.nocturne.data.DesignStyle.MATERIAL) app.nocturne.ui.style.material.MaterialNavBar(nav)
                 else NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (backdrop) 0.7f else 0.97f)) {
                     tabs.forEach { tab ->

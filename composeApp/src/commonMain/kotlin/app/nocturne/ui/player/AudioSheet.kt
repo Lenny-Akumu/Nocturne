@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.ui.demo
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -80,7 +81,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
     val fx = graph.player.audioFx
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
-        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+        Column(Modifier.demo("sheet_close", onDismiss).navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
             Text(t("Versions"), style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(12.dp))
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -88,6 +89,7 @@ fun AudioSheet(onDismiss: () -> Unit) {
                     val selected = abs(settings.playbackSpeed - v.speed) < 0.01f
                     OutlinedButton(
                         onClick = { graph.settings.update { it.copy(playbackSpeed = v.speed) } },
+                        modifier = Modifier.demo("ver_" + v.name) { graph.settings.update { it.copy(playbackSpeed = v.speed) } },
                         border = if (selected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface)
                         else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     ) { Text(v.label, maxLines = 1, softWrap = false) }
@@ -163,6 +165,9 @@ fun AudioSheet(onDismiss: () -> Unit) {
                                 }
                             },
                             label = { Text(if (name == "Custom") t("Custom") else name) },
+                            modifier = Modifier.demo("preset_$name") {
+                                Eq.presets[name]?.let { gains -> graph.settings.update { it.copy(eqPreset = name, eqGains = gains, eqEnabled = true) } }
+                            },
                         )
                     }
                 }
