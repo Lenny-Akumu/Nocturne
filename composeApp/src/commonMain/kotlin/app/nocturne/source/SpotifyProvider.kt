@@ -294,11 +294,16 @@ class SpotifyProvider(
                 continue
             }
             if (!response.status.isSuccess()) {
-                val msg = runCatching { json.parseToJsonElement(response.bodyAsText()).path("error", "message").str }.getOrNull()
+                // 403 bodies are often plain text ("Check settings on developer.spotify.com/dashboard, the user may not be registered.")
+                val body = runCatching { response.bodyAsText() }.getOrDefault("")
+                val msg = runCatching { json.parseToJsonElement(body).path("error", "message").str }.getOrNull() ?: body.take(200).takeIf { it.isNotBlank() }
+                val notRegistered = msg?.let { it.contains("dashboard", true) || it.contains("not be registered", true) || it.contains("user may not", true) } == true
                 throw SourceUnavailableException(
-                    if (code == 403 && msg?.contains("developer dashboard", ignoreCase = true) == true)
-                        t("Your Spotify account isn't added to the Spotify app's User Management list")
-                    else "Spotify: ${msg ?: response.status.toString()}"
+                    when {
+                        code == 403 && notRegistered -> t("Your Spotify account isn't added to the Spotify app's User Management list")
+                        code == 403 -> t("Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again.")
+                        else -> "Spotify: ${msg ?: response.status.toString()}"
+                    },
                 )
             }
             return json.parseToJsonElement(response.bodyAsText())

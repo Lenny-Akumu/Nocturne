@@ -655,5 +655,6 @@ internal object Tr {
         "Orientation" to "Yön",
         "Vertical" to "Dikey",
         "Horizontal" to "Yatay",
+        "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotify erişimi reddetti (403). developer.spotify.com/dashboard → uygulaman → User Management bölümünde Spotify hesabının e-postasını ekle ve tekrar giriş yap.",
     )
 }

@@ -661,5 +661,6 @@ internal object Uk {
         "Orientation" to "Орієнтація",
         "Vertical" to "Вертикально",
         "Horizontal" to "Горизонтально",
+        "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotify відмовив у доступі (403). Відкрий developer.spotify.com/dashboard → свій застосунок → User Management і додай email свого акаунта Spotify, потім увійди знову.",
     )
 }

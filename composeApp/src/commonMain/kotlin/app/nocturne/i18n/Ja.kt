@@ -655,5 +655,6 @@ internal object Ja {
         "Orientation" to "向き",
         "Vertical" to "縦",
         "Horizontal" to "横",
+        "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotifyがアクセスを拒否しました（403）。developer.spotify.com/dashboard → アプリ → User Management でSpotifyアカウントのメールを追加し、再ログインしてください。",
     )
 }

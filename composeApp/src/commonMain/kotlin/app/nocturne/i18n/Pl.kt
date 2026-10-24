@@ -655,5 +655,6 @@ internal object Pl {
         "Orientation" to "Orientacja",
         "Vertical" to "Pionowo",
         "Horizontal" to "Poziomo",
+        "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotify odmówił dostępu (403). Otwórz developer.spotify.com/dashboard → swoją aplikację → User Management, dodaj e-mail konta Spotify i zaloguj się ponownie.",
     )
 }

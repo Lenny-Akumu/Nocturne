@@ -655,5 +655,6 @@ internal object Fr {
         "Orientation" to "Orientation",
         "Vertical" to "Vertical",
         "Horizontal" to "Horizontal",
+        "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotify a refusé l'accès (403). Ouvre developer.spotify.com/dashboard → ton app → User Management, ajoute l'e-mail de ton compte Spotify puis reconnecte-toi.",
     )
 }
