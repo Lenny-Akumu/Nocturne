@@ -53,6 +53,8 @@ object WindowEffects {
             return false
         }
         window.findSkiaLayer()?.transparency = true
+        // the Swing panes under the Compose layer paint an opaque fill that hides the backdrop
+        window.makePanesTransparent()
         dwm.DwmExtendFrameIntoClientArea(hwnd, Margins())
         val type = when (backdrop) {
             WindowBackdrop.MICA -> 2
@@ -66,6 +68,41 @@ object WindowEffects {
     private fun Dwm.set(hwnd: WinDef.HWND, attr: Int, value: Int): Int {
         val ref = IntByReference(value)
         return DwmSetWindowAttribute(hwnd, attr, ref.pointer, 4)
+    }
+
+    private val clear = java.awt.Color(0, 0, 0, 0)
+
+    private fun ComposeWindow.makePanesTransparent() {
+        if (contentPane !is ClearPane) {
+            val old = contentPane
+            val pane = ClearPane().apply {
+                name = "${rootPane.name}.contentPane"
+                layout = java.awt.BorderLayout()
+                background = clear
+            }
+            old.components.toList().forEach { c -> old.remove(c); pane.add(c, java.awt.BorderLayout.CENTER) }
+            contentPane = pane
+        }
+        rootPane.background = clear
+        rootPane.isOpaque = false
+        layeredPane.isOpaque = false
+        (contentPane as? javax.swing.JComponent)?.isOpaque = false
+        revalidate()
+        repaint()
+    }
+
+    // Clears to transparent instead of filling with the look-and-feel gray.
+    private class ClearPane : javax.swing.JPanel() {
+        override fun paint(g: java.awt.Graphics) {
+            if (background.alpha != 255) {
+                val g2 = g.create() as java.awt.Graphics2D
+                g2.composite = java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC)
+                g2.color = background
+                g2.fillRect(0, 0, width, height)
+                g2.dispose()
+            }
+            super.paint(g)
+        }
     }
 
     private fun Container.findSkiaLayer(): SkiaLayer? {
