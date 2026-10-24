@@ -656,5 +656,8 @@ internal object Cs {
         "Vertical" to "Svisle",
         "Horizontal" to "Vodorovně",
         "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotify odepřel přístup (403). Otevři developer.spotify.com/dashboard → svou aplikaci → User Management a přidej e-mail svého účtu Spotify, pak se znovu přihlas.",
+        "App language" to "Jazyk aplikace",
+        "Got it" to "Rozumím",
+        "What's new in %s" to "Co je nového ve verzi %s",
     )
 }

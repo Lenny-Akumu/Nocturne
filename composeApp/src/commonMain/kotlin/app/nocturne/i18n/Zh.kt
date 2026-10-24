@@ -656,5 +656,8 @@ internal object Zh {
         "Vertical" to "竖向",
         "Horizontal" to "横向",
         "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotify 拒绝访问（403）。打开 developer.spotify.com/dashboard → 你的应用 → User Management，添加你 Spotify 账号的邮箱，然后重新登录。",
+        "App language" to "应用语言",
+        "Got it" to "知道了",
+        "What's new in %s" to "%s 新功能",
     )
 }

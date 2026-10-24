@@ -656,5 +656,8 @@ internal object Ko {
         "Vertical" to "세로",
         "Horizontal" to "가로",
         "Spotify refused access (403). Open developer.spotify.com/dashboard → your app → User Management and add the email of your Spotify account, then sign in again." to "Spotify가 접근을 거부했습니다(403). developer.spotify.com/dashboard → 내 앱 → User Management에서 Spotify 계정 이메일을 추가한 뒤 다시 로그인하세요.",
+        "App language" to "앱 언어",
+        "Got it" to "확인",
+        "What's new in %s" to "%s의 새로운 기능",
     )
 }

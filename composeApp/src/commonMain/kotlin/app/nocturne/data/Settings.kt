@@ -124,6 +124,8 @@ data class Settings(
     val windowMaximized: Boolean = false,
     val floatingY: Int = -1,
     val uiLanguage: String = "system",
+    /** Version whose "What's new" was shown; empty = fresh install. */
+    val lastSeenVersion: String = "",
 
     val discordRpc: Boolean = true,
     val discordAppId: String = "",

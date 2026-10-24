@@ -139,6 +139,7 @@ expect fun ShortcutSettings()
 
 enum class SettingsCategory(val title: String, val summary: String, val icon: ImageVector) {
     ACCOUNTS("Accounts", "YouTube Music, Spotify, SoundCloud sign-in", Icons.Rounded.AccountCircle),
+    LANGUAGE("Language", "App language", Icons.Rounded.Language),
     DEVICES("Devices & sync", "Your phone, PC and iPhone in sync", Icons.Rounded.Devices),
     APPEARANCE("Appearance", "Theme, colors, player style", Icons.Rounded.Palette),
     CONTENT("Content & sources", "YouTube Music, Spotify, SoundCloud, region", Icons.Rounded.Public),
@@ -165,7 +166,7 @@ fun SettingsScreen(contentPadding: PaddingValues) {
         val desktopOnly = setOf(SettingsCategory.SHORTCUTS, SettingsCategory.DISCORD, SettingsCategory.FLOATING)
         val visible = SettingsCategory.entries.filter { it !in desktopOnly || platformKind == PlatformKind.DESKTOP }
         val groups = listOf(
-            visible.filter { it in listOf(SettingsCategory.ACCOUNTS, SettingsCategory.DEVICES, SettingsCategory.APPEARANCE, SettingsCategory.CONTENT, SettingsCategory.PLAYER, SettingsCategory.LYRICS) },
+            visible.filter { it in listOf(SettingsCategory.ACCOUNTS, SettingsCategory.LANGUAGE, SettingsCategory.DEVICES, SettingsCategory.APPEARANCE, SettingsCategory.CONTENT, SettingsCategory.PLAYER, SettingsCategory.LYRICS) },
             visible.filter { it in desktopOnly },
             visible.filter { it in listOf(SettingsCategory.SPOTIFY, SettingsCategory.STORAGE, SettingsCategory.PRIVACY, SettingsCategory.ABOUT) },
         ).filter { it.isNotEmpty() }
@@ -217,6 +218,21 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
             val body: @Composable () -> Unit = {
                 when (category) {
                     SettingsCategory.ACCOUNTS -> AccountsSettings()
+                    SettingsCategory.LANGUAGE -> {
+                        // native names, so anyone can find their language whatever the current one is
+                        app.nocturne.i18n.I18n.languages.forEach { (code, name) ->
+                            val label = if (code == "system") t(name) else name
+                            Row(
+                                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).selectable(s.uiLanguage == code) { set { it.copy(uiLanguage = code) } }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                RadioButton(selected = s.uiLanguage == code, onClick = null)
+                                Spacer(Modifier.size(14.dp))
+                                Text(label, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
                     SettingsCategory.DEVICES -> {
                         app.nocturne.ui.DevicesSettings()
                         Header("This device")
@@ -522,6 +538,7 @@ private fun badgeColor(key: String) = IosBadgeColors[(key.hashCode() and 0x7ffff
 
 private fun categoryColor(c: SettingsCategory) = when (c) {
     SettingsCategory.ACCOUNTS -> Color(0xFF007AFF)
+    SettingsCategory.LANGUAGE -> Color(0xFF5856D6)
     SettingsCategory.DEVICES -> Color(0xFF34C759)
     SettingsCategory.APPEARANCE -> Color(0xFF5856D6)
     SettingsCategory.CONTENT -> Color(0xFF34C759)
