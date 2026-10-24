@@ -32,7 +32,7 @@ jobs:
         timeout-minutes: 35
         continue-on-error: true
         run: |
-          set -x
+          set +e -x
           # run a command, killing it after N seconds (macOS has no `timeout`)
           limit() { local n=$1; shift; "$@" & local p=$!; ( sleep "$n"; kill -9 $p 2>/dev/null ) & local w=$!; wait $p 2>/dev/null; kill $w 2>/dev/null; true; }
           cd iosApp
