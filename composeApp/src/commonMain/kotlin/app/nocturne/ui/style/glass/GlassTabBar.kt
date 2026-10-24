@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.glass
 
+import app.nocturne.ui.demo
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -216,7 +217,7 @@ private fun NowPlayingCapsule(track: Track, playing: Boolean, buffering: Boolean
     val dx = remember { Animatable(0f) }
     val swipe = with(LocalDensity.current) { 70.dp.toPx() }
     GlassSurface(
-        modifier.pointerInput(Unit) {
+        modifier.demo("mini", onExpand).pointerInput(Unit) {
             detectHorizontalDragGestures(
                 onDragEnd = {
                     val x = dx.value
