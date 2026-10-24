@@ -107,6 +107,8 @@ import app.nocturne.ui.theme.NocturneTheme
 import app.nocturne.ui.theme.rememberArtworkSeed
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
 
@@ -130,6 +132,13 @@ fun FloatingPlayerWindow() {
     val busy = remember { mutableStateOf(false) }
     // The pill may only animate open once the window has its fixed max size (no resizes mid-animation).
     var full by remember { mutableStateOf(false) }
+    // Tucked away: the pill slides off the nearest screen edge, a small tab stays to pull it back.
+    var hidden by remember { mutableStateOf(false) }
+    var edge by remember { mutableStateOf(Edge.TOP) }
+    val slide = remember { androidx.compose.animation.core.Animatable(0f) }
+    val tabIn = remember { androidx.compose.animation.core.Animatable(0f) }
+    var lastRect by remember { mutableStateOf(java.awt.Rectangle(0, 0, 0, 0)) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     DialogWindow(
         onCloseRequest = { graph.settings.update { it.copy(floatingPlayer = false) } },
         state = state,
@@ -146,9 +155,13 @@ fun FloatingPlayerWindow() {
             val k = window.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0
             val margin = 4
             fun place(w: Int, h: Int) {
+                if (hidden) return
                 val x = when (anchor) { 0 -> ax - margin; 2 -> ax - w + margin; else -> ax - w / 2 }
-                if (window.x != x || window.y != ay || window.width != w || window.height != h) window.setBounds(x, ay, w, h)
+                lastRect = java.awt.Rectangle(x, ay, w, h)
+                val (dx, dy) = slideOffset(edge, slide.value, lastRect, bounds)
+                if (window.x != x + dx || window.y != ay + dy || window.width != w || window.height != h) window.setBounds(x + dx, ay + dy, w, h)
             }
+            launch { snapshotFlow { slide.value }.collect { if (!hidden && lastRect.width > 0) place(lastRect.width, lastRect.height) } }
             snapshotFlow<IntSize?> { if (editing || busy.value) null else pillPx.value }.collectLatest { px ->
                 if (px == null) {
                     place((base0.width.value * scale).toInt(), (base0.height.value * scale).toInt())
@@ -188,8 +201,32 @@ fun FloatingPlayerWindow() {
                             },
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
                         ) { Text(t("Done")) }
+                    } else if (hidden) {
+                        HiddenTab(edge, tabIn.value) {
+                            scope.launch {
+                                tabIn.animateTo(0f, androidx.compose.animation.core.tween(160))
+                                slide.snapTo(1f)
+                                hidden = false
+                                slide.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.78f, stiffness = 320f))
+                            }
+                        }
                     } else {
-                        Box(pillModifier) { Pill(interactive = true, window = window, canOpen = full) { busy.value = it } }
+                        Box(pillModifier) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                HideHandle {
+                                    scope.launch {
+                                        edge = nearestEdge(window.bounds, bounds)
+                                        slide.animateTo(1f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                                        hidden = true
+                                        val t = tabRect(edge, lastRect, bounds)
+                                        window.setBounds(t.x, t.y, t.width, t.height)
+                                        tabIn.snapTo(0f)
+                                        tabIn.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 420f))
+                                    }
+                                }
+                                Pill(interactive = true, window = window, canOpen = full) { busy.value = it }
+                            }
+                        }
                     }
                 }
             }
@@ -518,5 +555,79 @@ private fun VerticalPill(
                 if (p > 0f) more.placeWithLayer((w - more.width) / 2, core.height) { alpha = p * p * (3 - 2 * p) }
             }
         }
+    }
+}
+
+internal enum class Edge { TOP, BOTTOM, LEFT, RIGHT }
+
+private const val TAB_LONG = 72
+private const val TAB_SHORT = 20
+
+private fun nearestEdge(r: java.awt.Rectangle, screen: java.awt.Rectangle): Edge {
+    val d = mapOf(
+        Edge.TOP to r.y - screen.y,
+        Edge.BOTTOM to screen.y + screen.height - (r.y + r.height),
+        Edge.LEFT to r.x - screen.x,
+        Edge.RIGHT to screen.x + screen.width - (r.x + r.width),
+    )
+    return d.minBy { it.value }.key
+}
+
+// How far the window travels (at progress p) to leave the screen through [edge].
+private fun slideOffset(edge: Edge, p: Float, r: java.awt.Rectangle, screen: java.awt.Rectangle): Pair<Int, Int> {
+    if (p <= 0f || r.width == 0) return 0 to 0
+    val k = p.coerceIn(0f, 1f)
+    return when (edge) {
+        Edge.TOP -> 0 to -((r.y - screen.y + r.height + 8) * k).roundToInt()
+        Edge.BOTTOM -> 0 to ((screen.y + screen.height - r.y + 8) * k).roundToInt()
+        Edge.LEFT -> -((r.x - screen.x + r.width + 8) * k).roundToInt() to 0
+        Edge.RIGHT -> ((screen.x + screen.width - r.x + 8) * k).roundToInt() to 0
+    }
+}
+
+private fun tabRect(edge: Edge, r: java.awt.Rectangle, screen: java.awt.Rectangle): java.awt.Rectangle = when (edge) {
+    Edge.TOP -> java.awt.Rectangle(r.x + r.width / 2 - TAB_LONG / 2, screen.y, TAB_LONG, TAB_SHORT)
+    Edge.BOTTOM -> java.awt.Rectangle(r.x + r.width / 2 - TAB_LONG / 2, screen.y + screen.height - TAB_SHORT, TAB_LONG, TAB_SHORT)
+    Edge.LEFT -> java.awt.Rectangle(screen.x, r.y + r.height / 2 - TAB_LONG / 2, TAB_SHORT, TAB_LONG)
+    Edge.RIGHT -> java.awt.Rectangle(screen.x + screen.width - TAB_SHORT, r.y + r.height / 2 - TAB_LONG / 2, TAB_SHORT, TAB_LONG)
+}
+
+// Grab bar above the pill: click to tuck the player away.
+@Composable
+private fun HideHandle(onHide: () -> Unit) {
+    val hover = remember { MutableInteractionSource() }
+    val hovered by hover.collectIsHoveredAsState()
+    val a by animateFloatAsState(if (hovered) 0.95f else 0.45f, tween(180), label = "handle")
+    Box(
+        Modifier.padding(bottom = 3.dp).size(56.dp, 12.dp).clip(RoundedCornerShape(6.dp)).hoverable(hover).clickable(onClick = onHide),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(if (hovered) 40.dp else 32.dp, 5.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = a)))
+    }
+}
+
+// What stays on screen while the player is tucked away; slides in from the edge, click to bring the player back.
+@Composable
+private fun HiddenTab(edge: Edge, progress: Float, onShow: () -> Unit) {
+    val vertical = edge == Edge.LEFT || edge == Edge.RIGHT
+    val shape = when (edge) {
+        Edge.TOP -> RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp)
+        Edge.BOTTOM -> RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
+        Edge.LEFT -> RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp)
+        Edge.RIGHT -> RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
+    }
+    Box(
+        Modifier.fillMaxSize().graphicsLayer {
+            val off = (1f - progress)
+            when (edge) {
+                Edge.TOP -> translationY = -size.height * off
+                Edge.BOTTOM -> translationY = size.height * off
+                Edge.LEFT -> translationX = -size.width * off
+                Edge.RIGHT -> translationX = size.width * off
+            }
+        }.clip(shape).background(Color(0xE6141218)).clickable(onClick = onShow),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(if (vertical) 4.dp else 30.dp, if (vertical) 30.dp else 4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = 0.8f)))
     }
 }

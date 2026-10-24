@@ -177,6 +177,8 @@ private fun launchApp() {
                 }
                 Hotkeys.find(e, settings)?.let { performHotkey(it) } ?: false
             },
+            // plain player keys only if nothing focused (e.g. a text field) used them
+            onKeyEvent = { e -> !Hotkeys.capturing && app.nocturne.ui.handleAppKey(e) },
         ) {
             window.minimumSize = java.awt.Dimension(420, 600)
             // mouse side buttons (X1 = back, X2 = forward), like a browser

@@ -1,5 +1,8 @@
 package app.nocturne.ui
 
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
@@ -128,7 +131,15 @@ fun App(backdrop: Boolean = false) {
                 // Root haze state so any overlay can blur the content (Liquid Glass only).
                 val haze = remember { dev.chrisbanes.haze.HazeState() }
                 CompositionLocalProvider(LocalGlass provides haze.takeIf { settings.designStyle == app.nocturne.data.DesignStyle.GLASS }) {
-                    Box(Modifier.fillMaxSize()) {
+                    // phones/tablets with a keyboard: the root holds focus so player keys always arrive
+                    val keyFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+                    if (app.nocturne.platformKind != app.nocturne.PlatformKind.DESKTOP) androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { keyFocus.requestFocus() } }
+                    Box(
+                        Modifier.fillMaxSize().then(
+                            if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) Modifier
+                            else Modifier.focusRequester(keyFocus).focusable().onKeyEvent { handleAppKey(it) },
+                        ),
+                    ) {
                         TrackMenuHost { AppScaffold() }
                         UpdateBanner(Modifier.align(Alignment.TopCenter))
                         // Opened by a nocturne://join link.
