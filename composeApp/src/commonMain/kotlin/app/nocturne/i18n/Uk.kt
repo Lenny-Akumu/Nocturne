@@ -665,5 +665,10 @@ internal object Uk {
         "App language" to "Мова застосунку",
         "Got it" to "Зрозуміло",
         "What's new in %s" to "Що нового у %s",
+        "Save preset" to "Зберегти пресет",
+        "Rename preset" to "Перейменувати пресет",
+        "Preset %s" to "Пресет %s",
+        "Hold a preset to rename it" to "Затисніть пресет, щоб перейменувати",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost увімкнено",
     )
 }

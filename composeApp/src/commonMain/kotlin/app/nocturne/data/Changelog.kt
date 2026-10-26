@@ -10,11 +10,15 @@ val Changelog = listOf(
             "“What's new” after every update",
             "Language picker right in Settings",
             "Clearer Spotify errors: tells you exactly how to fix access (403)",
+            "Custom equalizer presets: save your curve and rename it (hold a preset)",
+            "Secret Extra Bass Boost: hold the Bass Boost chip in the equalizer",
         ),
         uk = listOf(
             "Вікно «Що нового» після кожного оновлення",
             "Вибір мови прямо в Налаштуваннях",
             "Зрозуміліші помилки Spotify: підказка, як виправити доступ (403)",
+            "Власні пресети еквалайзера: збережіть свою криву й перейменуйте її (затисніть пресет)",
+            "Прихований Extra Bass Boost: затисніть Bass Boost в еквалайзері",
         ),
     ),
     ChangelogEntry(

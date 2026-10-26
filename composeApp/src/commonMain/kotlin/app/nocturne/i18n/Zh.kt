@@ -659,5 +659,10 @@ internal object Zh {
         "App language" to "应用语言",
         "Got it" to "知道了",
         "What's new in %s" to "%s 新功能",
+        "Save preset" to "保存预设",
+        "Rename preset" to "重命名预设",
+        "Preset %s" to "预设 %s",
+        "Hold a preset to rename it" to "长按预设可重命名",
+        "Extra Bass Boost unlocked" to "已开启 Extra Bass Boost",
     )
 }

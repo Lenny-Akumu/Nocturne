@@ -20,6 +20,9 @@ object Eq {
         "Loudness" to listOf(5f, 2f, 0f, 0f, 2f, 5f),
     )
 
+    const val EXTRA_BASS = "Extra Bass Boost"
+    val extraBass = listOf(12f, 10f, 3f, 0f, 0f, 0f)
+
     fun gainAt(freq: Float, gains: List<Float>): Float {
         if (gains.size != bands.size) return 0f
         if (freq <= bands.first()) return gains.first()

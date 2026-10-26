@@ -659,5 +659,10 @@ internal object Pt {
         "App language" to "Idioma do app",
         "Got it" to "Entendi",
         "What's new in %s" to "Novidades da %s",
+        "Save preset" to "Salvar predefinição",
+        "Rename preset" to "Renomear predefinição",
+        "Preset %s" to "Predefinição %s",
+        "Hold a preset to rename it" to "Segure uma predefinição para renomear",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost ativado",
     )
 }

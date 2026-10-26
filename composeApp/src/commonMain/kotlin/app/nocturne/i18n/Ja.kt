@@ -659,5 +659,10 @@ internal object Ja {
         "App language" to "アプリの言語",
         "Got it" to "OK",
         "What's new in %s" to "%s の新機能",
+        "Save preset" to "プリセットを保存",
+        "Rename preset" to "プリセット名を変更",
+        "Preset %s" to "プリセット %s",
+        "Hold a preset to rename it" to "長押しで名前を変更",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost オン",
     )
 }

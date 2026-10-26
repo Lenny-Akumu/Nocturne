@@ -87,6 +87,7 @@ data class Settings(
     val eqEnabled: Boolean = false,
     val eqPreset: String = "Default",
     val eqGains: List<Float> = List(6) { 0f },
+    val customEqPresets: Map<String, List<Float>> = emptyMap(),
     val showVideo: Boolean = false,
     val crossfadeSec: Int = 0,
     val releaseAlerts: Boolean = true,

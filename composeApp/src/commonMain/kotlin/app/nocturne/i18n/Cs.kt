@@ -659,5 +659,10 @@ internal object Cs {
         "App language" to "Jazyk aplikace",
         "Got it" to "Rozumím",
         "What's new in %s" to "Co je nového ve verzi %s",
+        "Save preset" to "Uložit předvolbu",
+        "Rename preset" to "Přejmenovat předvolbu",
+        "Preset %s" to "Předvolba %s",
+        "Hold a preset to rename it" to "Podržte předvolbu pro přejmenování",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost zapnut",
     )
 }

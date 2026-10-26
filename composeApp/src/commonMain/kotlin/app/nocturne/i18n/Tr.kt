@@ -659,5 +659,10 @@ internal object Tr {
         "App language" to "Uygulama dili",
         "Got it" to "Anladım",
         "What's new in %s" to "%s sürümündeki yenilikler",
+        "Save preset" to "Ön ayarı kaydet",
+        "Rename preset" to "Ön ayarı yeniden adlandır",
+        "Preset %s" to "Ön ayar %s",
+        "Hold a preset to rename it" to "Yeniden adlandırmak için basılı tutun",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost açık",
     )
 }

@@ -659,5 +659,10 @@ internal object It {
         "App language" to "Lingua dell'app",
         "Got it" to "Ho capito",
         "What's new in %s" to "Novità della %s",
+        "Save preset" to "Salva preset",
+        "Rename preset" to "Rinomina preset",
+        "Preset %s" to "Preset %s",
+        "Hold a preset to rename it" to "Tieni premuto un preset per rinominarlo",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost attivato",
     )
 }

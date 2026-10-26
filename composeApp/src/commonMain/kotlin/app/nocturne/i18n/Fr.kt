@@ -659,5 +659,10 @@ internal object Fr {
         "App language" to "Langue de l'app",
         "Got it" to "Compris",
         "What's new in %s" to "Nouveautés de la %s",
+        "Save preset" to "Enregistrer le préréglage",
+        "Rename preset" to "Renommer le préréglage",
+        "Preset %s" to "Préréglage %s",
+        "Hold a preset to rename it" to "Maintenez un préréglage pour le renommer",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost activé",
     )
 }

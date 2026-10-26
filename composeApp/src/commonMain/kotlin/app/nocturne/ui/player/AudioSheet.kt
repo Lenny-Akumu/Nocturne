@@ -1,6 +1,15 @@
 package app.nocturne.ui.player
 
 import app.nocturne.ui.demo
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.ui.input.pointer.PointerEventPass
+import app.nocturne.ui.kit.AlertDialog
+import app.nocturne.ui.kit.OutlinedTextField
+import app.nocturne.ui.kit.TextButton
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -152,23 +161,76 @@ fun AudioSheet(onDismiss: () -> Unit) {
                     Switch(checked = settings.eqEnabled, onCheckedChange = { v -> graph.settings.update { it.copy(eqEnabled = v) } })
                 }
                 Spacer(Modifier.height(12.dp))
+                var editing by remember { mutableStateOf<String?>(null) }
+                var extraToast by remember { mutableStateOf(false) }
+                LaunchedEffect(extraToast) { if (extraToast) { delay(2200); extraToast = false } }
+                val custom = settings.customEqPresets
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
-                    val names = listOf("Custom") + Eq.presets.keys
+                    val names = listOf("Custom") + Eq.presets.keys + custom.keys
                     items(names) { name ->
+                        val bass = name == "Bass Boost"
+                        val extra = bass && settings.eqPreset == Eq.EXTRA_BASS
+                        val user = name in custom && name !in Eq.presets
                         FilterChip(
-                            selected = settings.eqPreset == name,
+                            selected = settings.eqPreset == name || extra,
                             onClick = {
-                                val gains = Eq.presets[name]
+                                val gains = if (user) custom[name] else Eq.presets[name]
                                 graph.settings.update {
                                     if (gains == null) it.copy(eqPreset = name, eqEnabled = true)
                                     else it.copy(eqPreset = name, eqGains = gains, eqEnabled = true)
                                 }
                             },
-                            label = { Text(if (name == "Custom") t("Custom") else name) },
-                            modifier = Modifier.demo("preset_$name") {
-                                Eq.presets[name]?.let { gains -> graph.settings.update { it.copy(eqPreset = name, eqGains = gains, eqEnabled = true) } }
-                            },
+                            label = { Text(if (name == "Custom") t("Custom") else if (extra) "Extra Bass Boost" else name) },
+                            modifier = Modifier
+                                .then(if (bass) Modifier.longPress(name) {
+                                    val on = graph.settings.value.eqPreset != Eq.EXTRA_BASS
+                                    graph.settings.update {
+                                        if (on) it.copy(eqPreset = Eq.EXTRA_BASS, eqGains = Eq.extraBass, eqEnabled = true)
+                                        else it.copy(eqPreset = name, eqGains = Eq.presets.getValue(name), eqEnabled = true)
+                                    }
+                                    extraToast = on
+                                } else if (user) Modifier.longPress(name) { editing = name } else Modifier)
+                                .demo("preset_$name") {
+                                    Eq.presets[name]?.let { gains -> graph.settings.update { it.copy(eqPreset = name, eqGains = gains, eqEnabled = true) } }
+                                },
                         )
+                    }
+                    item {
+                        FilterChip(
+                            selected = false,
+                            onClick = { editing = "" },
+                            label = { Text(t("Save preset")) },
+                            leadingIcon = { Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)) },
+                        )
+                    }
+                }
+                AnimatedVisibility(extraToast, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                    Text(t("Extra Bass Boost unlocked"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 8.dp))
+                }
+                if (custom.isNotEmpty()) {
+                    Text(t("Hold a preset to rename it"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp))
+                }
+                editing?.let { old ->
+                    PresetDialog(
+                        initial = old.ifEmpty { t("Preset %s", custom.size + 1) },
+                        isNew = old.isEmpty(),
+                        taken = { n -> n != old && (n in custom || n in Eq.presets || n == "Custom" || n == Eq.EXTRA_BASS) },
+                        onDismiss = { editing = null },
+                        onDelete = {
+                            graph.settings.update { it.copy(customEqPresets = it.customEqPresets - old, eqPreset = if (it.eqPreset == old) "Custom" else it.eqPreset) }
+                            editing = null
+                        },
+                    ) { n ->
+                        graph.settings.update {
+                            if (old.isEmpty()) it.copy(customEqPresets = it.customEqPresets + (n to it.eqGains), eqPreset = n, eqEnabled = true)
+                            else it.copy(
+                                customEqPresets = it.customEqPresets.entries.associate { (k, v) -> (if (k == old) n else k) to v },
+                                eqPreset = if (it.eqPreset == old) n else it.eqPreset,
+                            )
+                        }
+                        editing = null
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -268,4 +330,49 @@ private fun FxSwitch(title: String, summary: String, checked: Boolean, onChange:
         }
         Switch(checked = checked, onCheckedChange = onChange)
     }
+}
+
+private fun Modifier.longPress(key: Any, onLongPress: () -> Unit): Modifier = pointerInput(key) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val up = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            waitForUpOrCancellation(PointerEventPass.Initial)
+        }
+        if (up == null) {
+            onLongPress()
+            do {
+                val e = awaitPointerEvent(PointerEventPass.Initial)
+                e.changes.forEach { it.consume() }
+            } while (e.changes.any { it.pressed })
+        }
+    }
+}
+
+@Composable
+private fun PresetDialog(
+    initial: String,
+    isNew: Boolean,
+    taken: (String) -> Boolean,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var name by remember { mutableStateOf(initial) }
+    val n = name.trim()
+    val ok = n.isNotEmpty() && !taken(n)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(t(if (isNew) "Save preset" else "Rename preset")) },
+        text = {
+            OutlinedTextField(name, { name = it.take(32) }, label = { Text(t("Name")) }, singleLine = true, isError = n.isNotEmpty() && !ok,
+                modifier = Modifier.fillMaxWidth())
+        },
+        confirmButton = { TextButton(onClick = { onSave(n) }, enabled = ok) { Text(t("Save")) } },
+        dismissButton = {
+            Row {
+                if (!isNew) TextButton(onClick = onDelete) { Text(t("Delete"), color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = onDismiss) { Text(t("Cancel")) }
+            }
+        },
+    )
 }

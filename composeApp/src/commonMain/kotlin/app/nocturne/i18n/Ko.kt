@@ -659,5 +659,10 @@ internal object Ko {
         "App language" to "앱 언어",
         "Got it" to "확인",
         "What's new in %s" to "%s의 새로운 기능",
+        "Save preset" to "프리셋 저장",
+        "Rename preset" to "프리셋 이름 변경",
+        "Preset %s" to "프리셋 %s",
+        "Hold a preset to rename it" to "길게 눌러 이름 변경",
+        "Extra Bass Boost unlocked" to "Extra Bass Boost 켜짐",
     )
 }
