@@ -1,5 +1,6 @@
 package app.nocturne.ui.kit
 
+import app.nocturne.ui.textInput
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -1186,7 +1187,7 @@ fun OutlinedTextField(
     val design = LocalDesignStyle.current
     if (design == DesignStyle.MATERIAL) {
         androidx.compose.material3.OutlinedTextField(
-            value = value, onValueChange = onValueChange, modifier = modifier, enabled = enabled, readOnly = readOnly,
+            value = value, onValueChange = onValueChange, modifier = modifier.textInput(), enabled = enabled, readOnly = readOnly,
             textStyle = textStyle, label = label, placeholder = placeholder, leadingIcon = leadingIcon, trailingIcon = trailingIcon,
             prefix = prefix, suffix = suffix, supportingText = supportingText, isError = isError,
             visualTransformation = visualTransformation, keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
@@ -1218,7 +1219,7 @@ fun OutlinedTextField(
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = if (fluent) modifier.hoverable(src, enabled) else modifier,
+        modifier = (if (fluent) modifier.hoverable(src, enabled) else modifier).textInput(),
         enabled = enabled,
         readOnly = readOnly,
         textStyle = style,

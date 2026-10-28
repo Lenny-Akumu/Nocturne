@@ -62,6 +62,7 @@ import app.nocturne.ui.kit.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -116,6 +117,12 @@ private val tabs = listOf(
 
 private val settingsTab = Tab(Screen.Settings, "Settings", Icons.Outlined.Settings, Icons.Rounded.Settings)
 
+/** Desktop without a system title bar: the app draws its own caption strip on top. */
+object WindowChrome {
+    var bar: (@Composable () -> Unit)? by androidx.compose.runtime.mutableStateOf(null)
+    val height = 34.dp
+}
+
 @Composable
 fun App(backdrop: Boolean = false) {
     val graph = AppGraph.instance
@@ -140,9 +147,15 @@ fun App(backdrop: Boolean = false) {
                             else Modifier.focusRequester(keyFocus).focusable().onKeyEvent { handleAppKey(it) },
                         ),
                     ) {
-                        TrackMenuHost { AppScaffold() }
+                        val chrome = WindowChrome.bar
+                        Box(
+                            if (chrome == null) Modifier.fillMaxSize()
+                            else Modifier.fillMaxSize().background(if (backdrop) Color.Transparent else MaterialTheme.colorScheme.background).padding(top = WindowChrome.height),
+                        ) { TrackMenuHost { AppScaffold() } }
+                        chrome?.invoke()
                         UpdateBanner(Modifier.align(Alignment.TopCenter))
                         WhatsNewDialog()
+                        StartupIntro()
                         if (Demo.flash) Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.White))
                         // Opened by a nocturne://join link.
                         val partySheet by graph.party.sheet.collectAsState()
@@ -174,7 +187,7 @@ private fun AppScaffold() {
                     containerColor = if (backdrop) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier.fillMaxHeight().statusBarsPadding(),
                     header = {
-                        NocturneLogo(Modifier.padding(top = 12.dp, bottom = 16.dp).size(44.dp))
+                        NocturneLogo(Modifier.padding(top = 12.dp, bottom = 16.dp).size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).clickable { LogoTaps.tap() })
                     },
                 ) {
                     tabs.forEach { RailItem(it, nav) }
@@ -290,6 +303,7 @@ private fun ScreenHost(padding: PaddingValues) {
         transitionSpec = { fadeIn() togetherWith fadeOut() },
         label = "screen",
     ) { screen ->
+        Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             val isTab = screen == Screen.Home || screen == Screen.Search || screen == Screen.Library
             // Material home has its own search bar on top.
@@ -314,6 +328,8 @@ private fun ScreenHost(padding: PaddingValues) {
                 }
             }
         }
+        if (screen == Screen.Home) SeasonalLayer(Modifier.fillMaxWidth().height(320.dp))
+        }
     }
 }
 
@@ -327,11 +343,21 @@ private fun TopBar(padding: PaddingValues) {
         Modifier.fillMaxWidth().padding(top = padding.calculateTopPadding()).padding(start = 18.dp, end = 6.dp, top = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (showLogo) {
-            NocturneLogo(Modifier.size(30.dp))
-            Spacer(Modifier.width(10.dp))
+        Row(
+            Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).clickable { LogoTaps.tap() }.padding(end = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (showLogo) {
+                    NocturneLogo(Modifier.size(30.dp))
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(t("Nocturne"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
         }
-        Text(t("Nocturne"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         IconButton(onClick = { nav.push(Screen.Settings) }) { Icon(Icons.Rounded.Settings, "Settings") }
     }
     }

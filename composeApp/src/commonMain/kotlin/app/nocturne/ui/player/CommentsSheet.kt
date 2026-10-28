@@ -148,10 +148,13 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 val err = error
                 when {
-                    comments.isEmpty() && loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    comments.isEmpty() && loading -> SlowLoading(videoId, Modifier.align(Alignment.Center))
                     comments.isEmpty() && err is CommentsDisabledException -> MessageBox(Icons.Rounded.ChatBubbleOutline, "Comments are turned off")
                     // the real reason, so a screenshot tells what broke
-                    comments.isEmpty() && err != null -> MessageBox(Icons.Rounded.ErrorOutline, "Couldn't load comments", message = (err.message ?: err::class.simpleName)?.take(160), actionLabel = "Retry", onAction = { attempt++ })
+                    comments.isEmpty() && err != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                        MessageBox(Icons.Rounded.ErrorOutline, "Couldn't load comments", message = (err.message ?: err::class.simpleName)?.take(160), actionLabel = "Retry", onAction = { attempt++ })
+                        OpenOnYouTube(videoId)
+                    }
                     comments.isEmpty() -> MessageBox(Icons.Rounded.ChatBubbleOutline, "No comments yet")
                     else -> LazyColumn(Modifier.fillMaxSize(), state = list) {
                         items(comments, key = { it.id }) { CommentRow(it) }
@@ -166,6 +169,27 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun SlowLoading(videoId: String, modifier: Modifier) {
+    var slow by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(7000); slow = true }
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        CircularProgressIndicator()
+        androidx.compose.animation.AnimatedVisibility(slow) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 16.dp)) {
+                Text(t("YouTube is slow to answer…"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OpenOnYouTube(videoId)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OpenOnYouTube(videoId: String) {
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    TextButton(onClick = { runCatching { uri.openUri("https://www.youtube.com/watch?v=$videoId") } }) { Text(t("Open on YouTube")) }
 }
 
 @Composable

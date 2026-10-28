@@ -204,6 +204,9 @@ private fun launchApp() {
                 }
             }
             MainWindow.window = window
+            LaunchedEffect(Unit) {
+                if (settings.customTitleBar && CustomFrame.install(window)) app.nocturne.ui.WindowChrome.bar = { app.nocturne.ui.CaptionBar(window, windowState) }
+            }
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
             LaunchedEffect(Unit) { DiscordRpc.start() }
             val dark = isDark(settings)

@@ -449,7 +449,9 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private fun offer(s: PartyState) {
         val cur = latest?.state
         // Drop stale or out-of-order states (relay replays / duplicates, slow LAN responses).
-        if (cur != null && (s.seq < cur.seq || (s.seq == cur.seq && s.sentAt <= cur.sentAt))) return
+        // a restarted host starts seq from 1 again: a clearly newer sentAt wins
+        val restarted = cur != null && s.seq < cur.seq && s.sentAt > cur.sentAt + 5000
+        if (cur != null && !restarted && (s.seq < cur.seq || (s.seq == cur.seq && s.sentAt <= cur.sentAt))) return
         val r = Remote(s, nowMillis())
         latest = r
         apply(r)

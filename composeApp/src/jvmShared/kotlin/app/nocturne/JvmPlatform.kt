@@ -11,6 +11,8 @@ actual fun nowMillis(): Long = System.currentTimeMillis()
 
 actual fun currentHour(): Int = LocalTime.now().hour
 
+actual fun currentMonthDay(): Pair<Int, Int> = java.time.LocalDate.now().let { it.monthValue to it.dayOfMonth }
+
 actual object FileStore {
     private val lock = Any()
 

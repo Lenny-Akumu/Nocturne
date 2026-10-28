@@ -9,9 +9,32 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.focus.onFocusChanged
 import app.nocturne.AppGraph
 
 private var lastVolume = 0.6f
+
+object TextInput {
+    var focused = 0
+        internal set
+}
+
+/** Marks a text field so player keys stay off while it has focus. */
+fun Modifier.textInput(): Modifier = composed {
+    val has = remember { mutableStateOf(false) }
+    DisposableEffect(Unit) { onDispose { if (has.value) TextInput.focused-- } }
+    onFocusChanged {
+        if (it.isFocused != has.value) {
+            has.value = it.isFocused
+            TextInput.focused += if (it.isFocused) 1 else -1
+        }
+    }
+}
 
 /**
  * Standard player keys on every platform (hardware keyboards on phones too). Text fields consume their own
@@ -28,6 +51,7 @@ fun handleAppKey(e: KeyEvent): Boolean {
     val step = s.seekStepSeconds.coerceAtLeast(1) * 1000L
     val mod = e.isCtrlPressed || e.isMetaPressed
     if (e.isAltPressed) return false
+    if (TextInput.focused > 0 && e.key !in mediaKeys) return false
     when (e.key) {
         Key.Spacebar, Key.K, Key.MediaPlayPause -> if (!mod) p.toggle() else return false
         Key.MediaPlay -> p.resume()
@@ -49,3 +73,5 @@ fun handleAppKey(e: KeyEvent): Boolean {
     }
     return true
 }
+
+private val mediaKeys = setOf(Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause, Key.MediaNext, Key.MediaPrevious)

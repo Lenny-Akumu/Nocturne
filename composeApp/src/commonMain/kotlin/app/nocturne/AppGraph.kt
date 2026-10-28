@@ -1,5 +1,7 @@
 package app.nocturne
 
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 import app.nocturne.data.AccountsStore
 import app.nocturne.data.Library
 import app.nocturne.data.SettingsStore
@@ -249,24 +251,49 @@ class AppGraph(val engine: AudioEngine) {
     fun enabledProviders(): List<MusicProvider> =
         Source.entries.filter { it in settings.value.enabledSources }.map { allProviders.getValue(it) }
 
-    // NewPipe first (maintained parser), then our own WEB `next` parser; ATV songs fall back to their music video.
+    private val commentsCache = mutableMapOf<String, app.nocturne.source.CommentsPage>()
+
+    // Runs off the caller so a stuck blocking call can't hold the UI past the timeout.
+    private suspend fun <T> detached(ms: Long, block: suspend () -> T): T {
+        val d = scope.async(Dispatchers.Default) { block() }
+        return try { withTimeout(ms) { d.await() } } finally { d.cancel() }
+    }
+
+    // Our WEB `next` parser and NewPipe race each other; the first page with comments wins and is cached.
     suspend fun comments(videoId: String, token: String? = null): app.nocturne.source.CommentsPage {
-        if (token != null) {
-            return if (token.startsWith("np:")) newPipe.comments(videoId, token) ?: app.nocturne.source.CommentsPage(emptyList(), null)
+        if (token != null) return detached(15_000) {
+            if (token.startsWith("np:")) newPipe.comments(videoId, token) ?: app.nocturne.source.CommentsPage(emptyList(), null)
             else innerTube.commentsPage(token)
         }
-        val ids = listOfNotNull(videoId, runCatching { innerTube.musicVideoId(videoId) }.getOrNull()?.takeIf { it != videoId })
-        var failure: Throwable? = null
-        for (id in ids) {
-            runCatching { newPipe.comments(id, null) }
-                .onFailure { failure = it }
-                .getOrNull()?.takeIf { it.comments.isNotEmpty() }?.let { return it }
-        }
-        return try {
-            innerTube.comments(videoId)
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            throw failure?.takeIf { e is app.nocturne.source.CommentsDisabledException } ?: e
+        commentsCache[videoId]?.let { return it }
+        val attempts = listOf<suspend () -> app.nocturne.source.CommentsPage>(
+            { innerTube.comments(videoId) },
+            { newPipe.comments(videoId, null) ?: app.nocturne.source.CommentsPage(emptyList(), null) },
+            {
+                val mv = innerTube.musicVideoId(videoId)?.takeIf { it != videoId } ?: throw app.nocturne.source.CommentsDisabledException()
+                newPipe.comments(mv, null) ?: app.nocturne.source.CommentsPage(emptyList(), null)
+            },
+        )
+        val out = kotlinx.coroutines.channels.Channel<Result<app.nocturne.source.CommentsPage>>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        val jobs = attempts.map { a -> scope.launch(Dispatchers.Default) { out.send(runCatching { a() }) } }
+        try {
+            var failure: Throwable? = null
+            var empty: app.nocturne.source.CommentsPage? = null
+            val page = withTimeoutOrNull(20_000) {
+                repeat(attempts.size) {
+                    val r = out.receive()
+                    val p = r.getOrNull()
+                    if (p != null && p.comments.isNotEmpty()) return@withTimeoutOrNull p
+                    if (p != null) empty = empty ?: p
+                    r.exceptionOrNull()?.let { e -> if (failure == null || failure is app.nocturne.source.CommentsDisabledException) failure = e }
+                }
+                null
+            }
+            if (page != null) { commentsCache[videoId] = page; return page }
+            empty?.let { return it }
+            throw failure ?: Exception(app.nocturne.i18n.t("YouTube didn't answer in time"))
+        } finally {
+            jobs.forEach { it.cancel() }
         }
     }
 

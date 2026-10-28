@@ -49,6 +49,8 @@ object WindowEffects {
         dwm.set(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, 2)
         if (!supportsBackdrop || backdrop == WindowBackdrop.NONE) {
             if (supportsBackdrop) dwm.set(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, 1)
+            // keeps the DWM shadow on a window without a title bar
+            if (CustomFrame.installed) dwm.DwmExtendFrameIntoClientArea(hwnd, Margins(0, 0, 1, 0))
             window.findSkiaLayer()?.transparency = false
             return false
         }

@@ -72,7 +72,11 @@ class IosAudioEngine : AudioEngine {
     private val ready get() = player.currentItem?.status == AVPlayerItemStatusReadyToPlay
 
     override val positionMs: Long get() = pendingSeekMs ?: player.currentTime().ms()
-    override val durationMs: Long get() = player.currentItem?.takeIf { ready }?.duration?.ms() ?: 0L
+    private val rawDurationMs: Long get() = player.currentItem?.takeIf { ready }?.duration?.ms() ?: 0L
+    // some streams report a stretched timeline (audio ends, silence runs on): trust the track's own length then
+    private val stretched: Boolean get() = (track?.durationMs ?: 0L).let { m -> m > 0 && rawDurationMs > m * 1.15 + 3000 }
+    override val durationMs: Long get() = if (stretched) track!!.durationMs else rawDurationMs
+    private var endedEarly = false
     override val isPlaying: Boolean get() = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
 
     override fun setListener(listener: EngineListener) {
@@ -146,6 +150,7 @@ class IosAudioEngine : AudioEngine {
     private fun open(url: String, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
         detach()
         failed = false
+        endedEarly = false
         currentUrl = url
         this.track = track
         loadArtwork(track.artworkUrl)
@@ -162,6 +167,7 @@ class IosAudioEngine : AudioEngine {
         val center = NSNotificationCenter.defaultCenter
         observers = listOf(
             center.addObserverForName(AVPlayerItemDidPlayToEndTimeNotification, item, NSOperationQueue.mainQueue) { _ ->
+                if (endedEarly) return@addObserverForName
                 wantPlay = false
                 setPlaying(false)
                 listener?.onEnded()
@@ -184,10 +190,19 @@ class IosAudioEngine : AudioEngine {
             if (wantPlay) startPlayback()
         }
         val status = player.timeControlStatus
+        // play() from the lock screen / AirPods resets the rate to 1x
+        if (speed != 1f && player.rate != 0f && player.rate != speed) player.rate = speed
         setPlaying(status == AVPlayerTimeControlStatusPlaying)
         setBuffering(status == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate || (wantPlay && item.status == AVPlayerItemStatusUnknown))
         val d = durationMs
         if (d != lastDuration) { lastDuration = d; updateNowPlaying() }
+        if (stretched && !endedEarly && lastPlaying && pendingSeekMs == null && positionMs >= d + 400) {
+            endedEarly = true
+            player.pause()
+            wantPlay = false
+            setPlaying(false)
+            listener?.onEnded()
+        }
     }
 
     private fun setPlaying(playing: Boolean) {
@@ -252,6 +267,7 @@ class IosAudioEngine : AudioEngine {
     }
 
     override fun seekTo(positionMs: Long) {
+        endedEarly = false
         if (pendingSeekMs != null || !ready) pendingSeekMs = positionMs else seekNow(positionMs)
         updateNowPlaying()
     }

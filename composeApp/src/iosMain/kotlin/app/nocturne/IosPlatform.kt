@@ -45,6 +45,10 @@ actual fun nowMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
 actual fun currentHour(): Int = NSCalendar.currentCalendar.component(NSCalendarUnitHour, NSDate()).toInt()
 
+actual fun currentMonthDay(): Pair<Int, Int> = NSCalendar.currentCalendar.let {
+    it.component(platform.Foundation.NSCalendarUnitMonth, NSDate()).toInt() to it.component(platform.Foundation.NSCalendarUnitDay, NSDate()).toInt()
+}
+
 val documentsDir: String by lazy {
     (NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).firstOrNull() as? String) ?: "."
 }

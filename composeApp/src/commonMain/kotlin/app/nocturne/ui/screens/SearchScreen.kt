@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.ui.textInput
 import app.nocturne.i18n.t
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -183,7 +184,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
         TextField(
             value = s.query,
             onValueChange = { s.query = it },
-            modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus).padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.fillMaxWidth().focusRequester(fieldFocus).textInput().padding(horizontal = 16.dp, vertical = 8.dp)
                 .then(if (design == DesignStyle.GLASS) Modifier.liquidGlass(CircleShape, 6.dp) else Modifier),
             placeholder = { Text(t("Search songs, artists"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Rounded.Search, null) },

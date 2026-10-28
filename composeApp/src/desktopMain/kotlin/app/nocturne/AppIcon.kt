@@ -34,17 +34,18 @@ internal object AppIcon {
 
     /** Renders the chosen icon (the default uses the bundled PNGs) and returns it. */
     fun update(background: IconBackground, palette: IconPalette): List<BufferedImage> {
-        images = if (background == IconBackground.SQUARE && palette == IconPalette.STANDARD) bundled
-        else runCatching { SIZES.map { render(it, background, palette) } }.getOrDefault(bundled)
+        val spooky = app.nocturne.ui.isHalloween()
+        images = if (!spooky && background == IconBackground.SQUARE && palette == IconPalette.STANDARD) bundled
+        else runCatching { SIZES.map { render(it, background, palette, spooky) } }.getOrDefault(bundled)
         return images
     }
 
-    private fun render(n: Int, background: IconBackground, palette: IconPalette): BufferedImage {
+    private fun render(n: Int, background: IconBackground, palette: IconPalette, spooky: Boolean): BufferedImage {
         val bmp = ImageBitmap(n, n)
         val colors = palette.colors()
         CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(bmp), Size(n.toFloat(), n.toFloat())) {
             drawRect(Color.Transparent, blendMode = BlendMode.Clear)
-            drawNocturneIcon(background, colors)
+            drawNocturneIcon(background, colors, spooky)
         }
         return bmp.toAwtImage()
     }

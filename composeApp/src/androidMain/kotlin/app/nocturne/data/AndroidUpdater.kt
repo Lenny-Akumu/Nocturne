@@ -85,7 +85,7 @@ actual fun notifyRelease(title: String, text: String) {
         nm.createNotificationChannel(android.app.NotificationChannel("releases", app.nocturne.i18n.t("New releases"), android.app.NotificationManager.IMPORTANCE_DEFAULT))
     }
     val n = androidx.core.app.NotificationCompat.Builder(ctx, "releases")
-        .setSmallIcon(android.R.drawable.ic_media_play)
+        .setSmallIcon(app.nocturne.R.drawable.ic_notification)
         .setContentTitle(title)
         .setContentText(text)
         .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(text))

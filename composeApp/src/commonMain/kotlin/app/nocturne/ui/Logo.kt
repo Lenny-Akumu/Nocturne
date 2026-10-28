@@ -11,5 +11,6 @@ import app.nocturne.data.IconBackground
 @Composable
 fun NocturneLogo(modifier: Modifier = Modifier, background: Boolean = true) {
     val s by AppGraph.instance.settings.state.collectAsState()
-    NocturneIcon(if (background) s.iconBackground else IconBackground.NONE, s.iconPalette, modifier)
+    val spooky = androidx.compose.runtime.remember { isHalloween() }
+    NocturneIcon(if (background) s.iconBackground else IconBackground.NONE, s.iconPalette, modifier, spooky)
 }

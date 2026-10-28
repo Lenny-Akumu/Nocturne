@@ -1,6 +1,10 @@
 package app.nocturne.ui.screens
 
 import app.nocturne.ui.demo
+import androidx.compose.material.icons.rounded.Web
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.NotificationsActive
 import app.nocturne.model.isOnline
@@ -31,6 +35,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -315,6 +320,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             app.nocturne.i18n.I18n.languages.firstOrNull { it.first == code }?.second ?: code
                         }) { v -> set { it.copy(uiLanguage = v) } }
                         if (desktop) {
+                            Toggle("Frameless window", "Window buttons in a frosted capsule (Windows) · restart to apply", Icons.Rounded.Web, s.customTitleBar) { v -> set { it.copy(customTitleBar = v) } }
                             SliderPref("Interface scale", "${(s.uiScale * 100).roundToInt()}%  ·  Ctrl + / Ctrl −", s.uiScale, 0.6f..1.8f, 11) { v -> set { it.copy(uiScale = (v * 10).roundToInt() / 10f) } }
                         }
                         Header("Theme")
@@ -328,6 +334,10 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Color style", Icons.Rounded.Palette, s.colorStyle, listOf("TonalSpot", "Vibrant", "Expressive", "Fidelity", "Content", "Rainbow", "FruitSalad", "Neutral", "Monochrome"), {
                             when (it) { "TonalSpot" -> "Balanced"; "FruitSalad" -> "Fruit salad"; else -> it }
                         }) { v -> set { it.copy(colorStyle = v) } }
+                        Header("Atmosphere")
+                        Toggle("Startup animation", null, Icons.Rounded.AutoAwesome, s.startupIntro) { v -> set { it.copy(startupIntro = v) } }
+                        Toggle("Startup sound", "A short chime when the app opens", Icons.Rounded.MusicNote, s.startupSound) { v -> set { it.copy(startupSound = v) } }
+                        Toggle("Seasonal effects", "Falling leaves in autumn, snow in winter, fresh leaves in spring, sun rays in summer", Icons.Rounded.AcUnit, s.seasonalEffects) { v -> set { it.copy(seasonalEffects = v) } }
                         Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive", "minecraft"), {
                             when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; "minecraft" -> "Minecraft"; else -> "Default" }
                         }) { v -> set { it.copy(fontStyle = v) } }
@@ -452,6 +462,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             Spacer(Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Source.entries.filter { it.isOnline }.forEach { SourceBadge(it, size = 22.dp) } }
                         }
+                        Credits()
                         val scope = androidx.compose.runtime.rememberCoroutineScope()
                         var checkResult by remember { mutableStateOf<String?>(null) }
                         Action("Check for updates", checkResult ?: "Look for a newer version on GitHub", Icons.Rounded.SystemUpdate) {
@@ -482,6 +493,41 @@ private fun sourceSummary(src: Source, s: Settings) = when (src) {
 
 @Composable
 private fun Header(text: String) = OptionHeader(t(text))
+
+private val credits = listOf(
+    "Developer" to listOf("Lenny" to "581182871969071115"),
+    "Ideas & tests" to listOf("birtoy" to "1221049274222252085", "redmonkeyyyyy" to "449816910733901834"),
+)
+
+@Composable
+private fun Credits() {
+    val uri = LocalUriHandler.current
+    val cs = MaterialTheme.colorScheme
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(20.dp)).background(cs.surfaceContainerHigh).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        credits.forEach { (role, people) ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(t(role) + ":", style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant, modifier = Modifier.padding(end = 10.dp))
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    people.forEach { (nick, id) ->
+                        Row(
+                            Modifier.clip(CircleShape).background(Color(0x295865F2)).clickable { uri.openUri("https://discord.com/users/$id") }
+                                .padding(start = 8.dp, end = 12.dp, top = 5.dp, bottom = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(app.nocturne.ui.icons.DiscordIcon, "Discord", Modifier.size(16.dp), tint = Color(0xFF5865F2))
+                            Spacer(Modifier.width(6.dp))
+                            Text(nick, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun Toggle(title: String, summary: String?, icon: ImageVector?, checked: Boolean, leading: (@Composable () -> Unit)? = null, onChange: (Boolean) -> Unit) {

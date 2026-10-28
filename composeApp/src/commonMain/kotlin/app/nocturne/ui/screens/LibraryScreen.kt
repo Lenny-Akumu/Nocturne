@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.ui.components.rowMotion
 import androidx.compose.foundation.layout.Box
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.rounded.Refresh
@@ -158,7 +159,7 @@ private fun TrackList(
             }
         }
         items(tracks.size, key = { tracks[it].key }) { i ->
-            TrackRow(tracks[i], onClick = { player.play(tracks, i, title) }, modifier = Modifier.padding(horizontal = 4.dp), menuContext = TrackMenuContext())
+            TrackRow(tracks[i], onClick = { player.play(tracks, i, title) }, modifier = rowMotion().padding(horizontal = 4.dp), menuContext = TrackMenuContext())
         }
     }
 }

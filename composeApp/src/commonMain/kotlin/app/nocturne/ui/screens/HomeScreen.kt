@@ -80,6 +80,15 @@ fun HomeScreen(contentPadding: PaddingValues) {
         }
     }
 
+    val logoTaps = app.nocturne.ui.LogoTaps.refresh
+    var seenTaps by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(logoTaps) {
+        if (logoTaps != seenTaps && app.nocturne.nowMillis() - app.nocturne.ui.LogoTaps.at < 1500) {
+            seenTaps = logoTaps
+            runCatching { listState.animateScrollToItem(0) }
+            reload++
+        }
+    }
     LaunchedEffect(reload, HomeCache.version) {
         launch { recommended = runCatching { graph.recommendations(force = reload > 0) }.getOrDefault(emptyList()) }
         if (sections != null && reload == 0) return@LaunchedEffect

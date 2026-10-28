@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -27,6 +28,11 @@ import kotlin.random.Random
 data class IconColors(val arcLight: Color, val arcDeep: Color, val wave0: Color, val wave1: Color, val wave2: Color)
 
 private fun ic(vararg c: Long) = IconColors(Color(c[0]), Color(c[1]), Color(c[2]), Color(c[3]), Color(c[4]))
+
+private val Halloween = ic(0xFFFFC774, 0xFFF06A0E, 0xFFFFE3A3, 0xFFFF8A1F, 0xFFB8380A)
+
+/** 28 Oct – 1 Nov. */
+fun isHalloween(): Boolean = app.nocturne.currentMonthDay().let { (m, d) -> (m == 10 && d >= 28) || (m == 11 && d == 1) }
 
 private val Standard = ic(0xFFD9C8FF, 0xFF7B4DF0, 0xFFE2D4FF, 0xFF9B6BFF, 0xFF4B2A9E)
 
@@ -77,13 +83,15 @@ private val grain: Pair<List<Offset>, List<Offset>> by lazy {
 }
 
 /** Draws the app icon (200-unit geometry) scaled to fit this scope. */
-fun DrawScope.drawNocturneIcon(background: IconBackground, c: IconColors) {
+fun DrawScope.drawNocturneIcon(background: IconBackground, colors: IconColors, halloween: Boolean = false) {
     val k = size.minDimension / 200f
+    val c = if (halloween) Halloween else colors
+    val dark: Brush = if (halloween) Brush.radialGradient(0f to Color(0xFF2A1206), 1f to Color(0xFF0A0604), center = Offset(100f, 90f), radius = 140f) else SolidColor(Color.Black)
     scale(k, k, pivot = Offset.Zero) {
         val center = Offset(100f, 100f)
         when (background) {
-            IconBackground.SQUARE -> drawRoundRect(Color.Black, size = Size(200f, 200f), cornerRadius = CornerRadius(44f))
-            IconBackground.CIRCLE -> drawCircle(Color.Black, 100f, center)
+            IconBackground.SQUARE -> drawRoundRect(dark, size = Size(200f, 200f), cornerRadius = CornerRadius(44f))
+            IconBackground.CIRCLE -> drawCircle(dark, 100f, center)
             IconBackground.ACRYLIC -> {
                 // Native-acrylic imitation: translucent tinted gradient, palette glow, grain and a light rim.
                 drawCircle(Brush.linearGradient(0f to Color(0x8C3A3450), 1f to Color(0xB8121018), start = Offset(30f, 30f), end = Offset(170f, 170f)), 100f, center)
@@ -106,11 +114,50 @@ fun DrawScope.drawNocturneIcon(background: IconBackground, c: IconColors) {
             Brush.linearGradient(0f to c.wave0, 0.5f to c.wave1, 1f to c.wave2, start = Offset(56f, 86f), end = Offset(72.18f, 136.85f)),
             style = Stroke(14f, cap = StrokeCap.Round),
         )
+        if (halloween) {
+            drawPumpkin(Offset(46f, 50f))
+            drawBat(Offset(150f, 150f), 1.15f)
+        }
     }
 }
 
+private fun DrawScope.drawPumpkin(at: Offset) {
+    val stem = Path().apply { moveTo(at.x, at.y - 14f); cubicTo(at.x - 1f, at.y - 19f, at.x + 2f, at.y - 23f, at.x + 6f, at.y - 24f) }
+    drawPath(stem, Color(0xFF5A8A2E), style = Stroke(3.5f, cap = StrokeCap.Round))
+    val body = Brush.radialGradient(0f to Color(0xFFFFB347), 1f to Color(0xFFD45A08), center = Offset(at.x - 3f, at.y - 4f), radius = 18f)
+    drawOval(body, Offset(at.x - 16f, at.y - 13f), Size(20f, 26f))
+    drawOval(body, Offset(at.x - 4f, at.y - 13f), Size(20f, 26f))
+    drawOval(body, Offset(at.x - 11f, at.y - 14f), Size(22f, 28f))
+    val face = Color(0xFF2A1004)
+    val eyes = Path().apply {
+        moveTo(at.x - 7f, at.y - 3f); lineTo(at.x - 3f, at.y - 3f); lineTo(at.x - 5f, at.y - 7f); close()
+        moveTo(at.x + 3f, at.y - 3f); lineTo(at.x + 7f, at.y - 3f); lineTo(at.x + 5f, at.y - 7f); close()
+    }
+    drawPath(eyes, face)
+    val mouth = Path().apply { moveTo(at.x - 7f, at.y + 4f); quadraticTo(at.x, at.y + 9f, at.x + 7f, at.y + 4f) }
+    drawPath(mouth, face, style = Stroke(1.8f, cap = StrokeCap.Round))
+}
+
+private fun DrawScope.drawBat(at: Offset, k: Float) {
+    val p = Path().apply {
+        fun m(x: Float, y: Float) = moveTo(at.x + x * k, at.y + y * k)
+        fun l(x: Float, y: Float) = lineTo(at.x + x * k, at.y + y * k)
+        fun c(x1: Float, y1: Float, x2: Float, y2: Float, x: Float, y: Float) = cubicTo(at.x + x1 * k, at.y + y1 * k, at.x + x2 * k, at.y + y2 * k, at.x + x * k, at.y + y * k)
+        // ears
+        m(0f, -3f); c(-2f, -7f, -3f, -9f, -3.5f, -11f); l(-2f, -8.5f); l(0f, -9.5f); l(2f, -8.5f); l(3.5f, -11f); c(3f, -9f, 2f, -7f, 0f, -3f); close()
+        for (s in listOf(-1f, 1f)) {
+            m(2.5f * s, -4f); c(8f * s, -9f, 16f * s, -10f, 24f * s, -6f); c(20f * s, -5f, 19f * s, -2f, 19.5f * s, 1f)
+            c(17f * s, -1.5f, 14f * s, -1.5f, 12.5f * s, 1.5f); c(11f * s, -1f, 8f * s, -1f, 6.5f * s, 2f)
+            c(5f * s, -1f, 3f * s, -1f, 2f * s, 0f); close()
+        }
+    }
+    val bat = Color(0xFFF06A0E)
+    drawPath(p, bat)
+    drawOval(bat, Offset(at.x - 3.6f * k, at.y - 7.7f * k), Size(7.2f * k, 10.4f * k))
+}
+
 @Composable
-fun NocturneIcon(background: IconBackground, palette: IconPalette, modifier: Modifier = Modifier) {
+fun NocturneIcon(background: IconBackground, palette: IconPalette, modifier: Modifier = Modifier, halloween: Boolean = false) {
     val colors = remember(palette) { palette.colors() }
-    Canvas(modifier) { drawNocturneIcon(background, colors) }
+    Canvas(modifier) { drawNocturneIcon(background, colors, halloween) }
 }

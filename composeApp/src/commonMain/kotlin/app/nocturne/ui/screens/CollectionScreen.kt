@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import app.nocturne.ui.components.rowMotion
 import androidx.compose.material.icons.rounded.Download
 import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
@@ -173,8 +174,9 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                 if (header.type == CollectionType.ARTIST && p.tracks.isNotEmpty()) {
                     item { Text(t("Popular"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 12.dp, bottom = 4.dp)) }
                 }
-                items(p.tracks.size, key = { p.tracks[it].key + "#" + it }) { i ->
-                    Box(Modifier.padding(horizontal = 4.dp)) {
+                val keys = app.nocturne.ui.components.occurrenceKeys(p.tracks)
+                items(p.tracks.size, key = { keys[it] }) { i ->
+                    Box(rowMotion().padding(horizontal = 4.dp)) {
                         TrackRow(
                             p.tracks[i],
                             onClick = { graph.player.play(p.tracks, i, header.displayTitle()) },

@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.ui.components.likePop
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -159,7 +160,7 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
                 val liked = library.liked.any { it.key == track.key }
                 TransportButton(
                     if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", { graph.toggleLike(track) },
-                    tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.likePop(liked), tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TransportButton(Icons.Rounded.SkipPrevious, "Previous", graph.player::previous, glassIcon = Icons.Rounded.FastRewind)
             }

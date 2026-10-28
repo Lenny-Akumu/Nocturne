@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.ui.components.rowMotion
 import androidx.compose.ui.zIndex
 import androidx.compose.material.icons.rounded.Fullscreen
 import app.nocturne.i18n.t
@@ -137,12 +138,14 @@ fun QueueView() {
             IconButton(onClick = graph.player::clearQueue) { Icon(Icons.Rounded.ClearAll, "Clear queue") }
         }
         val settings by graph.settings.state.collectAsState()
+        val keys = remember(state.queue) { app.nocturne.ui.components.occurrenceKeys(state.queue) }
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            itemsIndexed(state.queue, key = { i, qt -> qt.key + "#" + i }) { i, qt ->
+            itemsIndexed(state.queue, key = { i, _ -> keys[i] }) { i, qt ->
+                val dim by androidx.compose.animation.core.animateFloatAsState(if (i < state.index) 0.5f else 1f, label = "played")
                 TrackRow(
                     qt,
                     onClick = { graph.player.skipTo(i) },
-                    modifier = Modifier.alpha(if (i < state.index) 0.5f else 1f),
+                    modifier = rowMotion().alpha(dim),
                     menuContext = TrackMenuContext(queueIndex = i),
                 )
             }

@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.ui.components.likePop
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import app.nocturne.i18n.t
@@ -386,7 +387,7 @@ private fun Controls(compact: Boolean = false, cards: Boolean = false) {
         val liked = library.liked.any { it.key == track.key }
         TransportButton(
             if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", { graph.toggleLike(track) },
-            iconSize = 28.dp, tint = if (liked) cs.primary else cs.onSurface, circle = true,
+            modifier = Modifier.likePop(liked), iconSize = 28.dp, tint = if (liked) cs.primary else cs.onSurface, circle = true,
         )
     }
 

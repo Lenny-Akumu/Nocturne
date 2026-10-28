@@ -478,7 +478,7 @@ class PlayerController(
     fun ensureAutoplay() {
         val s = _state.value
         val cur = s.current ?: return
-        if (s.index >= s.queue.lastIndex - 1) fetchRadio(cur, replace = false)
+        if (!synced && s.index >= s.queue.lastIndex - 1) fetchRadio(cur, replace = false)
     }
 
     fun dismissError() = _state.update { it.copy(error = null) }
@@ -625,6 +625,8 @@ class PlayerController(
                 }
                 return@launch
             }
+            // listen-together guest: the host decides what plays next
+            if (synced) { _state.update { it.copy(isPlaying = false) }; return@launch }
             if (s.repeat == RepeatMode.ONE) loadCurrent(0, true) else next()
         }
     }
