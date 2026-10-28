@@ -57,7 +57,7 @@ fun CaptionBar(window: java.awt.Window, state: WindowState) {
                 .background(glass, shape),
         ) {
             val maximized = state.placement == WindowPlacement.Maximized
-            CaptionButton(Icons.Rounded.Remove, cs.onSurface.copy(alpha = 0.1f)) { WindowMorph.minimize(window, state) }
+            CaptionButton(Icons.Rounded.Remove, cs.onSurface.copy(alpha = 0.1f)) { (window as? java.awt.Frame)?.let { WindowMorph.minimize(it, state) } ?: run { state.isMinimized = true } }
             CaptionButton(if (maximized) Icons.Rounded.FilterNone else Icons.Rounded.CropSquare, cs.onSurface.copy(alpha = 0.1f), small = true) {
                 state.placement = if (maximized) WindowPlacement.Floating else WindowPlacement.Maximized
             }
