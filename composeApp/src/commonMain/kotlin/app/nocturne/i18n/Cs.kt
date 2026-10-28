@@ -695,5 +695,7 @@ internal object Cs {
         "YouTube didn't answer in time" to "YouTube neodpověděl včas",
         "YouTube is slow to answer…" to "YouTube odpovídá pomalu…",
         "Open on YouTube" to "Otevřít na YouTube",
+        "Seasonal" to "Sezónní",
+        "Halloween" to "Halloween",
     )
 }

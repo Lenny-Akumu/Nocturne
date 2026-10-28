@@ -194,13 +194,14 @@ private fun launchApp() {
                 java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(listener, java.awt.AWTEvent.MOUSE_EVENT_MASK)
                 onDispose { java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(listener) }
             }
-            LaunchedEffect(settings.iconBackground, settings.iconPalette) {
-                val images = AppIcon.update(settings.iconBackground, settings.iconPalette)
+            LaunchedEffect(settings.iconBackground, settings.iconPalette, settings.halloweenIcon) {
+                val spooky = settings.halloweenIcon && app.nocturne.ui.isHalloween()
+                val images = AppIcon.update(settings.iconBackground, settings.iconPalette, spooky)
                 images.takeIf { it.isNotEmpty() }?.let { window.iconImages = it }
                 // Start menu / desktop shortcuts follow too (Windows)
-                val isDefault = settings.iconBackground == app.nocturne.data.IconBackground.SQUARE && settings.iconPalette == app.nocturne.data.IconPalette.STANDARD
+                val isDefault = !spooky && settings.iconBackground == app.nocturne.data.IconBackground.SQUARE && settings.iconPalette == app.nocturne.data.IconPalette.STANDARD
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    ShellIcon.sync("${settings.iconBackground}-${settings.iconPalette}", isDefault, images)
+                    ShellIcon.sync(if (spooky) "halloween" else "${settings.iconBackground}-${settings.iconPalette}", isDefault, images)
                 }
             }
             MainWindow.window = window

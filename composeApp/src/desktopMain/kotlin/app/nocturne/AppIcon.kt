@@ -33,8 +33,7 @@ internal object AppIcon {
         private set
 
     /** Renders the chosen icon (the default uses the bundled PNGs) and returns it. */
-    fun update(background: IconBackground, palette: IconPalette): List<BufferedImage> {
-        val spooky = app.nocturne.ui.isHalloween()
+    fun update(background: IconBackground, palette: IconPalette, spooky: Boolean = false): List<BufferedImage> {
         images = if (!spooky && background == IconBackground.SQUARE && palette == IconPalette.STANDARD) bundled
         else runCatching { SIZES.map { render(it, background, palette, spooky) } }.getOrDefault(bundled)
         return images

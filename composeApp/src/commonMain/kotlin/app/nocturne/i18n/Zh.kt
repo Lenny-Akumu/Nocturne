@@ -695,5 +695,7 @@ internal object Zh {
         "YouTube didn't answer in time" to "YouTube 未及时响应",
         "YouTube is slow to answer…" to "YouTube 响应较慢…",
         "Open on YouTube" to "在 YouTube 上打开",
+        "Seasonal" to "季节限定",
+        "Halloween" to "万圣节",
     )
 }

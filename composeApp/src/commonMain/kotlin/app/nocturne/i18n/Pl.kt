@@ -695,5 +695,7 @@ internal object Pl {
         "YouTube didn't answer in time" to "YouTube nie odpowiedział na czas",
         "YouTube is slow to answer…" to "YouTube odpowiada powoli…",
         "Open on YouTube" to "Otwórz w YouTube",
+        "Seasonal" to "Sezonowa",
+        "Halloween" to "Halloween",
     )
 }

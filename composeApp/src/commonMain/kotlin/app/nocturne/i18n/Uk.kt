@@ -701,5 +701,7 @@ internal object Uk {
         "YouTube didn't answer in time" to "YouTube не відповів вчасно",
         "YouTube is slow to answer…" to "YouTube повільно відповідає…",
         "Open on YouTube" to "Відкрити на YouTube",
+        "Seasonal" to "Сезонна",
+        "Halloween" to "Хелловін",
     )
 }

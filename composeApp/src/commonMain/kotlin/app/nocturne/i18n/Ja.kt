@@ -695,5 +695,7 @@ internal object Ja {
         "YouTube didn't answer in time" to "YouTube から時間内に応答がありません",
         "YouTube is slow to answer…" to "YouTube の応答が遅れています…",
         "Open on YouTube" to "YouTube で開く",
+        "Seasonal" to "季節限定",
+        "Halloween" to "ハロウィン",
     )
 }

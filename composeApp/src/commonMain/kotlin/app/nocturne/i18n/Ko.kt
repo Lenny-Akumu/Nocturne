@@ -695,5 +695,7 @@ internal object Ko {
         "YouTube didn't answer in time" to "YouTube가 제때 응답하지 않았어요",
         "YouTube is slow to answer…" to "YouTube 응답이 느려요…",
         "Open on YouTube" to "YouTube에서 열기",
+        "Seasonal" to "시즌",
+        "Halloween" to "핼러윈",
     )
 }

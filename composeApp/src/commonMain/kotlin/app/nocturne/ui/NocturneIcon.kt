@@ -49,7 +49,7 @@ fun iconColorsFrom(accent: Color) = IconColors(
 expect fun systemIconColors(): IconColors?
 
 /** Switches the launcher / home-screen icon where the OS allows it. */
-expect fun applyAppIcon(background: IconBackground, palette: IconPalette)
+expect fun applyAppIcon(background: IconBackground, palette: IconPalette, halloween: Boolean = false)
 
 fun IconPalette.colors(): IconColors = when (this) {
     IconPalette.STANDARD -> Standard

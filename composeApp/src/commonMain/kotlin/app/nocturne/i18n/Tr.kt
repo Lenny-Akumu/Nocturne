@@ -695,5 +695,7 @@ internal object Tr {
         "YouTube didn't answer in time" to "YouTube zamanında yanıt vermedi",
         "YouTube is slow to answer…" to "YouTube yavaş yanıt veriyor…",
         "Open on YouTube" to "YouTube'da aç",
+        "Seasonal" to "Mevsimlik",
+        "Halloween" to "Cadılar Bayramı",
     )
 }

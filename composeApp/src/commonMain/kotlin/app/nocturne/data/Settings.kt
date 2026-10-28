@@ -93,6 +93,7 @@ data class Settings(
     val seasonalEffects: Boolean = true,
     val customTitleBar: Boolean = true,
     val downloadFolder: String = "",
+    val halloweenIcon: Boolean = false,
     val showVideo: Boolean = false,
     val crossfadeSec: Int = 0,
     val releaseAlerts: Boolean = true,

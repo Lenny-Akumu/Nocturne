@@ -27,13 +27,15 @@ private fun alias(b: IconBackground, p: IconPalette) = "app.nocturne.Icon${cap(b
 
 private val DEFAULT_ALIAS = alias(IconBackground.SQUARE, IconPalette.STANDARD)
 
-actual fun applyAppIcon(background: IconBackground, palette: IconPalette) {
+private const val HALLOWEEN_ALIAS = "app.nocturne.IconHalloween"
+
+actual fun applyAppIcon(background: IconBackground, palette: IconPalette, halloween: Boolean) {
     runCatching {
         val ctx = AndroidContext.app
         val pm = ctx.packageManager
-        val target = alias(background, palette)
+        val target = if (halloween) HALLOWEEN_ALIAS else alias(background, palette)
         // Enable the target first so exactly one launcher entry always stays enabled.
-        val all = listOf(target) + IconBackground.entries.flatMap { b -> IconPalette.entries.map { alias(b, it) } }.filter { it != target }
+        val all = listOf(target) + IconBackground.entries.flatMap { b -> IconPalette.entries.map { alias(b, it) } }.plus(HALLOWEEN_ALIAS).filter { it != target }
         all.forEach { name ->
             val cn = ComponentName(ctx, name)
             val want = if (name == target) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED

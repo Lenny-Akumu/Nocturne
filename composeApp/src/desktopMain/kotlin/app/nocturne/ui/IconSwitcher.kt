@@ -7,4 +7,4 @@ import app.nocturne.ui.theme.platformAccentColor
 actual fun systemIconColors(): IconColors? = platformAccentColor()?.let(::iconColorsFrom)
 
 // Window, floating player, tray and (Windows) Start menu / desktop shortcut icons follow the settings in Main.kt.
-actual fun applyAppIcon(background: IconBackground, palette: IconPalette) = Unit
+actual fun applyAppIcon(background: IconBackground, palette: IconPalette, halloween: Boolean) = Unit

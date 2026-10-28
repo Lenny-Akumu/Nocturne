@@ -156,6 +156,14 @@ fun App(backdrop: Boolean = false) {
                         UpdateBanner(Modifier.align(Alignment.TopCenter))
                         WhatsNewDialog()
                         StartupIntro()
+                        // seasonal launcher icon goes back to the regular one once the season is over
+                        androidx.compose.runtime.LaunchedEffect(Unit) {
+                            val s0 = graph.settings.value
+                            if (s0.halloweenIcon && !isHalloween()) {
+                                graph.settings.update { it.copy(halloweenIcon = false) }
+                                applyAppIcon(s0.iconBackground, s0.iconPalette, false)
+                            }
+                        }
                         if (Demo.flash) Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.White))
                         // Opened by a nocturne://join link.
                         val partySheet by graph.party.sheet.collectAsState()

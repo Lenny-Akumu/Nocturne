@@ -695,5 +695,7 @@ internal object Es {
         "YouTube didn't answer in time" to "YouTube no respondió a tiempo",
         "YouTube is slow to answer…" to "YouTube tarda en responder…",
         "Open on YouTube" to "Abrir en YouTube",
+        "Seasonal" to "De temporada",
+        "Halloween" to "Halloween",
     )
 }

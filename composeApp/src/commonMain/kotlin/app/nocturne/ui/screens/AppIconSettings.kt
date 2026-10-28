@@ -27,25 +27,36 @@ import app.nocturne.i18n.t
 import app.nocturne.platformKind
 import app.nocturne.ui.NocturneIcon
 import app.nocturne.ui.applyAppIcon
+import app.nocturne.ui.isHalloween
 import app.nocturne.ui.kit.optionRow
 
 /** Settings → Appearance → App icon: background and colour pickers with live previews. */
 @Composable
 fun AppIconSettings(s: Settings, set: ((Settings) -> Settings) -> Unit) {
     fun choose(bg: IconBackground, pal: IconPalette) {
-        set { it.copy(iconBackground = bg, iconPalette = pal) }
+        set { it.copy(iconBackground = bg, iconPalette = pal, halloweenIcon = false) }
         applyAppIcon(bg, pal)
+    }
+    // only offered 28 Oct – 1 Nov; the regular icon comes back by itself afterwards
+    if (isHalloween()) {
+        IconRow("Seasonal") {
+            IconTile("Halloween", s.halloweenIcon, {
+                val on = !s.halloweenIcon
+                set { it.copy(halloweenIcon = on) }
+                applyAppIcon(s.iconBackground, s.iconPalette, on)
+            }) { NocturneIcon(IconBackground.SQUARE, s.iconPalette, it, halloween = true) }
+        }
     }
     // iOS has no system accent to follow.
     val palettes = IconPalette.entries.filter { it != IconPalette.SYSTEM || platformKind != PlatformKind.IOS }
     IconRow("Background") {
         IconBackground.entries.forEach { bg ->
-            IconTile(bg.label, bg == s.iconBackground, { choose(bg, s.iconPalette) }) { NocturneIcon(bg, s.iconPalette, it) }
+            IconTile(bg.label, !s.halloweenIcon && bg == s.iconBackground, { choose(bg, s.iconPalette) }) { NocturneIcon(bg, s.iconPalette, it) }
         }
     }
     IconRow("Color") {
         palettes.forEach { pal ->
-            IconTile(pal.label, pal == s.iconPalette, { choose(s.iconBackground, pal) }) { NocturneIcon(s.iconBackground, pal, it) }
+            IconTile(pal.label, !s.halloweenIcon && pal == s.iconPalette, { choose(s.iconBackground, pal) }) { NocturneIcon(s.iconBackground, pal, it) }
         }
     }
 }

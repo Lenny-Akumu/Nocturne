@@ -695,5 +695,7 @@ internal object De {
         "YouTube didn't answer in time" to "YouTube hat nicht rechtzeitig geantwortet",
         "YouTube is slow to answer…" to "YouTube antwortet langsam…",
         "Open on YouTube" to "Auf YouTube öffnen",
+        "Seasonal" to "Saisonal",
+        "Halloween" to "Halloween",
     )
 }
