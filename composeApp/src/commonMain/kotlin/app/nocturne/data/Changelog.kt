@@ -5,6 +5,17 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.1",
+        en = listOf(
+            "Halloween app icon: pick it in Appearance → App icon (until 1 November)",
+            "A cuter, clearer voice when you tap the logo 10 times",
+        ),
+        uk = listOf(
+            "Хелловінська іконка застосунку: оберіть її в Оформлення → Іконка (до 1 листопада)",
+            "Миліший і зрозуміліший голос, якщо натиснути логотип 10 разів",
+        ),
+    ),
+    ChangelogEntry(
         "1.10.0",
         en = listOf(
             "Linux version with a one-command installer",
