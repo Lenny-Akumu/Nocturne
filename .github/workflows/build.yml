@@ -192,6 +192,43 @@ jobs:
           name: Nocturne-windows
           path: dist/*
 
+  linux:
+    name: Linux build
+    needs: meta
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build app image
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:createDistributable --continue 2>&1 | tee build.log
+      - name: Show compile errors
+        if: failure()
+        run: grep -E '^e:|error:|What went wrong' -A3 build.log | head -150
+      - name: Smoke test
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb vlc >/dev/null
+          out="$RUNNER_TEMP/smoke.txt"
+          timeout 150 xvfb-run -a composeApp/build/compose/binaries/main/app/Nocturne/bin/Nocturne --smoke-test="$out" || true
+          cat "$out" 2>/dev/null || echo "No smoke report written"
+          grep -q "SMOKE OK" "$out"
+      - name: Package
+        run: |
+          mkdir dist
+          tar -C composeApp/build/compose/binaries/main/app -czf "dist/Nocturne-${{ needs.meta.outputs.version }}-linux-x64.tar.gz" Nocturne
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nocturne-linux
+          path: dist/*
+
   ios:
     name: iOS app
     needs: meta
@@ -303,7 +340,7 @@ jobs:
   release:
     name: GitHub release
     if: always() && needs.android.result == 'success' && needs.windows.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release))
-    needs: [meta, android, windows]
+    needs: [meta, android, windows, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -316,6 +353,7 @@ jobs:
           files: |
             dist/**/*.apk
             dist/**/*.exe
+            dist/**/*.tar.gz
             dist/**/*.ipa
           tag_name: v${{ needs.meta.outputs.version }}
           name: Nocturne ${{ needs.meta.outputs.version }}

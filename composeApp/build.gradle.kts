@@ -180,6 +180,9 @@ compose.desktop {
             includeAllModules = true
             appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
 
+            linux {
+                iconFile.set(project.file("icons/nocturne-transparent-1024.png"))
+            }
             windows {
                 iconFile.set(project.file("icons/nocturne.ico"))
                 menuGroup = "Nocturne"

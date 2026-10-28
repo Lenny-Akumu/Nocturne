@@ -5,6 +5,43 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.0",
+        en = listOf(
+            "Linux version with a one-command installer",
+            "Frameless window on PC: window buttons live in a frosted capsule",
+            "Startup animation with a short chime (can be turned off)",
+            "Seasonal effects on Home: autumn leaves, snow, spring leaves, summer sun rays",
+            "Tap the logo to jump Home and refresh it (and try tapping it 10 times)",
+            "Halloween icon from 28 October to 1 November",
+            "Smooth list animations: removed tracks fade out and the queue slides up",
+            "Pick the downloads folder and move the app to another drive",
+            "Comments load from several sources at once and no longer spin forever",
+            "Listen Together: guests no longer jump to their own queue",
+            "iPhone: fixed the time bar drifting in Speed up / Slowed",
+            "Player keys no longer fire while typing",
+            "Smoother floating player when it opens to the left",
+            "App icon in the Android media notification",
+            "Credits in About",
+        ),
+        uk = listOf(
+            "Версія для Linux з установкою однією командою",
+            "Вікно без рамки на ПК: кнопки вікна в розмитій капсулі",
+            "Анімація запуску з коротким музичним звуком (можна вимкнути)",
+            "Сезонні ефекти на головній: осіннє листя, сніг, весняне листя, літні промені",
+            "Натисніть логотип, щоб перейти на головну й оновити її (і спробуйте натиснути 10 разів)",
+            "Хелловінська іконка з 28 жовтня по 1 листопада",
+            "Плавні анімації списків: видалений трек зникає, а черга підтягується вгору",
+            "Вибір папки завантажень і перенесення застосунку на інший диск",
+            "Коментарі вантажаться з кількох джерел одночасно й більше не крутяться вічно",
+            "Слухати разом: гості більше не перемикаються на свою чергу",
+            "iPhone: виправлено розсинхрон смуги часу в Speed up / Slowed",
+            "Клавіші плеєра не спрацьовують під час введення тексту",
+            "Плавніший плаваючий плеєр при розгортанні вліво",
+            "Іконка застосунку в медіа-сповіщенні Android",
+            "Автори в «Про застосунок»",
+        ),
+    ),
+    ChangelogEntry(
         "1.9.7",
         en = listOf(
             "“What's new” after every update",

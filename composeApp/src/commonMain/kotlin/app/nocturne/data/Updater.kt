@@ -52,11 +52,7 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
         if (!manual && settings.value.skippedVersion == version) return null
         val asset = release.path("assets").arr.orEmpty().firstOrNull { a ->
             val name = a.path("name").str.orEmpty()
-            when (platformKind) {
-                PlatformKind.ANDROID -> name.endsWith(".apk")
-                PlatformKind.IOS -> name.endsWith(".ipa")
-                PlatformKind.DESKTOP -> name.contains("Setup", ignoreCase = true) && name.endsWith(".exe")
-            }
+            isUpdateAsset(name)
         } ?: return null
         val info = UpdateInfo(
             version = version,
@@ -113,3 +109,6 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
         }
     }
 }
+
+/** The release asset this build installs updates from. */
+expect fun isUpdateAsset(name: String): Boolean

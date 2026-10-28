@@ -1,6 +1,8 @@
 package app.nocturne.ui.screens
 
 import app.nocturne.ui.demo
+import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Web
 import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.MusicNote
@@ -442,6 +444,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Download quality", Icons.Rounded.HighQuality, s.downloadQuality, AudioQuality.entries, { it.label }) { v -> set { it.copy(downloadQuality = v) } }
                         val dlItems by graph.downloads.items.collectAsState()
                         Action("Downloads", t("%s songs · %s MB", dlItems.size, (dlItems.values.sumOf { it.bytes } / (1024 * 1024)).toString()), Icons.Rounded.Storage) {}
+                        if (desktop) Locations(dlItems.size)
                         Action("Clear listening history", null, Icons.Rounded.History) { graph.library.clearHistory() }
                         Action("Clear search history", null, Icons.Rounded.Search) { graph.library.clearSearchHistory() }
                         Action("Reset all settings", null, Icons.Rounded.Restore) { graph.settings.reset() }
@@ -493,6 +496,61 @@ private fun sourceSummary(src: Source, s: Settings) = when (src) {
 
 @Composable
 private fun Header(text: String) = OptionHeader(t(text))
+
+@Composable
+private fun Locations(downloads: Int) {
+    val graph = AppGraph.instance
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var askDownloads by remember { mutableStateOf<String?>(null) }
+    var askApp by remember { mutableStateOf<String?>(null) }
+    var status by remember { mutableStateOf<String?>(null) }
+    val installDir = remember { app.nocturne.data.appInstallDir() }
+    Action("Downloads folder", status ?: app.nocturne.data.downloadsDir(), Icons.Rounded.FolderOpen) {
+        app.nocturne.data.pickFolder(t("Downloads folder"))?.let { askDownloads = it }
+    }
+    if (installDir != null) {
+        Action("App location", installDir, Icons.Rounded.Computer) {
+            app.nocturne.data.pickFolder(t("App location"))?.let { askApp = it }
+        }
+    }
+    askDownloads?.let { dir ->
+        AlertDialog(
+            onDismissRequest = { askDownloads = null },
+            title = { Text(t("Move downloads?")) },
+            text = { Text(t("New downloads will be saved to %s.", dir) + if (downloads > 0) "\n\n" + t("%s downloaded songs will be moved there.", downloads) else "") },
+            confirmButton = {
+                TextButton(onClick = {
+                    askDownloads = null
+                    graph.settings.update { it.copy(downloadFolder = dir) }
+                    if (downloads > 0) scope.launch {
+                        val n = graph.downloads.moveAll(dir) { i, total -> status = t("Moving %s / %s…", i, total) }
+                        status = null
+                        graph.toast(t("Moved %s songs", n))
+                    }
+                }) { Text(t("Move")) }
+            },
+            dismissButton = { TextButton(onClick = { askDownloads = null }) { Text(t("Cancel")) } },
+        )
+    }
+    askApp?.let { dir ->
+        var busy by remember { mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { if (busy == null) askApp = null },
+            title = { Text(t("Move Nocturne?")) },
+            text = { Text(busy ?: t("Nocturne will reinstall itself into %s and restart. Your library, settings and downloads stay as they are.", dir)) },
+            confirmButton = {
+                TextButton(enabled = busy == null, onClick = {
+                    busy = t("Preparing…")
+                    scope.launch {
+                        runCatching { app.nocturne.data.relocateApp(dir) { busy = it } }
+                            .onFailure { e -> busy = null; askApp = null; graph.toast(e.message ?: t("Couldn't move the app")) }
+                    }
+                }) { Text(t("Move and restart")) }
+            },
+            dismissButton = { TextButton(enabled = busy == null, onClick = { askApp = null }) { Text(t("Cancel")) } },
+        )
+    }
+}
 
 private val credits = listOf(
     "Developer" to listOf("Lenny" to "581182871969071115"),

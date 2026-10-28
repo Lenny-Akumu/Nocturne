@@ -1,5 +1,6 @@
 package app.nocturne.data
 
+import kotlinx.coroutines.withContext
 import app.nocturne.FileStore
 import app.nocturne.model.ResolvedStream
 import app.nocturne.model.Track
@@ -23,6 +24,7 @@ expect fun downloadsDir(): String
 expect fun fileUri(path: String): String
 expect fun deleteFile(path: String)
 expect fun fileExists(path: String): Boolean
+expect fun moveFile(from: String, to: String): Boolean
 expect suspend fun downloadToFile(url: String, path: String, onProgress: (Float) -> Unit): Long
 
 class Downloads(private val scope: CoroutineScope, private val resolve: suspend (Track) -> ResolvedStream) {
@@ -71,6 +73,22 @@ class Downloads(private val scope: CoroutineScope, private val resolve: suspend 
                 }
             }
         }
+    }
+
+    /** Moves every downloaded file into [dir]; returns how many moved. */
+    suspend fun moveAll(dir: String, onProgress: (Int, Int) -> Unit = { _, _ -> }): Int = withContext(Dispatchers.Default) {
+        val all = _items.value.values.toList()
+        var moved = 0
+        all.forEachIndexed { i, e ->
+            val target = dir.trimEnd('/', '\\') + "/" + e.path.substringAfterLast('/').substringAfterLast('\\')
+            if (target != e.path && moveFile(e.path, target)) {
+                moved++
+                _items.update { it + (e.track.key to e.copy(path = target)) }
+            }
+            onProgress(i + 1, all.size)
+        }
+        save()
+        moved
     }
 
     fun remove(track: Track) {

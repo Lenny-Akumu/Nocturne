@@ -94,3 +94,5 @@ actual fun notifyRelease(title: String, text: String) {
         .build()
     runCatching { nm.notify(4300 + (title.hashCode() and 0xff), n) }
 }
+
+actual fun isUpdateAsset(name: String): Boolean = name.endsWith(".apk")

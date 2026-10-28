@@ -162,15 +162,37 @@ fun FloatingPlayerWindow() {
                 if (window.x != x + dx || window.y != ay + dy || window.width != w || window.height != h) window.setBounds(x + dx, ay + dy, w, h)
             }
             launch { snapshotFlow { slide.value }.collect { if (!hidden && lastRect.width > 0) place(lastRect.width, lastRect.height) } }
-            snapshotFlow<IntSize?> { if (editing || busy.value) null else pillPx.value }.collectLatest { px ->
+            val fw = (base0.width.value * scale).toInt()
+            val fh = (base0.height.value * scale).toInt()
+            // Preferred: the window keeps its full size and never moves; a shape trims it to the pill so
+            // clicks around it fall through. Without shape support it shrinks to the pill instead.
+            var shaped = true
+            fun trim(px: IntSize?) {
+                if (!shaped) return
+                runCatching {
+                    window.shape = px?.let {
+                        val pw = it.width / k + margin * 2
+                        val ph = it.height / k + margin * 2
+                        val x = when (anchor) { 0 -> 0.0; 2 -> fw - pw; else -> (fw - pw) / 2 }
+                        java.awt.geom.Rectangle2D.Double(x, 0.0, pw, ph)
+                    }
+                }.onFailure { shaped = false }
+            }
+            snapshotFlow<IntSize?> { if (editing || busy.value) null else if (hidden) IntSize.Zero else pillPx.value }.collectLatest { px ->
                 if (px == null) {
-                    place((base0.width.value * scale).toInt(), (base0.height.value * scale).toInt())
+                    trim(null)
+                    place(fw, fh)
                     full = true
                     return@collectLatest
                 }
                 if (px == IntSize.Zero) return@collectLatest
                 // Collapse already finished (busy=false); short grace period against hover flicker.
                 if (full) delay(160)
+                if (shaped) {
+                    place(fw, fh)
+                    trim(px)
+                    if (shaped) { full = true; return@collectLatest }
+                }
                 full = false
                 place((px.width / k).toInt() + margin * 2, (px.height / k).toInt() + margin * 2)
             }
@@ -219,6 +241,7 @@ fun FloatingPlayerWindow() {
                                         slide.animateTo(1f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
                                         hidden = true
                                         val t = tabRect(edge, lastRect, bounds)
+                                        runCatching { window.shape = null }
                                         window.setBounds(t.x, t.y, t.width, t.height)
                                         tabIn.snapTo(0f)
                                         tabIn.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 420f))

@@ -44,6 +44,8 @@ actual fun deleteFile(path: String) {
 
 actual fun fileExists(path: String): Boolean = NSFileManager.defaultManager.fileExistsAtPath(path)
 
+actual fun moveFile(from: String, to: String): Boolean = NSFileManager.defaultManager.moveItemAtPath(from, to, null)
+
 private const val CHUNK = 4L * 1024 * 1024
 
 actual suspend fun downloadToFile(url: String, path: String, onProgress: (Float) -> Unit): Long {
@@ -104,3 +106,5 @@ actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress:
         UIApplication.sharedApplication.openURL(it, emptyMap<Any?, Any>(), null)
     }
 }
+
+actual fun isUpdateAsset(name: String): Boolean = name.endsWith(".ipa")

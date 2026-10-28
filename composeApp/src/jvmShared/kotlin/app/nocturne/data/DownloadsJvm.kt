@@ -9,7 +9,17 @@ import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
 
-actual fun downloadsDir(): String = File(AppDirs.root, "downloads").apply { mkdirs() }.absolutePath
+actual fun downloadsDir(): String {
+    val custom = runCatching { app.nocturne.AppGraph.instance.settings.value.downloadFolder }.getOrDefault("")
+    if (custom.isNotBlank()) File(custom).takeIf { it.mkdirs() || it.isDirectory }?.takeIf { it.canWrite() }?.let { return it.absolutePath }
+    return File(AppDirs.root, "downloads").apply { mkdirs() }.absolutePath
+}
+
+actual fun moveFile(from: String, to: String): Boolean = runCatching {
+    File(to).parentFile?.mkdirs()
+    java.nio.file.Files.move(File(from).toPath(), File(to).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+    true
+}.getOrDefault(false)
 
 actual fun fileUri(path: String): String = File(path).toPath().toUri().toString()
 

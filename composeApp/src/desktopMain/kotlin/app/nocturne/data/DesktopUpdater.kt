@@ -12,8 +12,12 @@ actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress:
     val file = File(File(System.getProperty("java.io.tmpdir"), "nocturne-update"), fileName)
     withContext(Dispatchers.IO) { downloadFile(url, file, onProgress) }
     if (isWindows) {
-        ProcessBuilder(file.absolutePath, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS").start()
+        // stays wherever the user moved it (the installer defaults to %LOCALAPPDATA%\Programs)
+        val dir = appInstallDir()?.let { "/DIR=$it" }
+        ProcessBuilder(listOfNotNull(file.absolutePath, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", dir)).start()
         exitProcess(0)
+    } else if (file.name.endsWith(".tar.gz")) {
+        installLinux(file)
     } else {
         Desktop.getDesktop().open(file)
     }
@@ -47,4 +51,27 @@ actual fun notifyUpdateProgress(version: String, progress: Float?) = Unit
 
 actual fun notifyRelease(title: String, text: String) {
     runCatching { Tray.show(title, text) }
+}
+
+actual fun isUpdateAsset(name: String): Boolean =
+    if (isWindows) name.contains("Setup", ignoreCase = true) && name.endsWith(".exe")
+    else name.endsWith("-linux-x64.tar.gz")
+
+// Unpacks next to the running copy, swaps it in once we exit, then starts the new one.
+private fun installLinux(archive: File) {
+    val bin = ProcessHandle.current().info().command().orElse(null)?.let(::File) ?: error("Can't find the running app")
+    val root = bin.parentFile?.parentFile ?: error("Unexpected install layout")
+    val stage = File(root.parentFile, ".nocturne-update").apply { deleteRecursively(); mkdirs() }
+    val tar = ProcessBuilder("tar", "-xzf", archive.absolutePath, "-C", stage.absolutePath).inheritIO().start()
+    if (tar.waitFor() != 0) error("Couldn't unpack the update")
+    val fresh = stage.listFiles()?.firstOrNull { it.isDirectory } ?: error("Empty update")
+    val pid = ProcessHandle.current().pid()
+    val script = """
+        while kill -0 $pid 2>/dev/null; do sleep 0.3; done
+        rm -rf '${root.absolutePath}.old'
+        mv '${root.absolutePath}' '${root.absolutePath}.old' && mv '${fresh.absolutePath}' '${root.absolutePath}' && rm -rf '${root.absolutePath}.old' '${stage.absolutePath}'
+        nohup '${File(root, "bin/" + bin.name).absolutePath}' >/dev/null 2>&1 &
+    """.trimIndent()
+    ProcessBuilder("sh", "-c", script).start()
+    exitProcess(0)
 }

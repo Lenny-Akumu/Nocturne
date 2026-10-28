@@ -81,6 +81,14 @@ Material You 3 на Android · Mica / Acrylic на Windows 11 · одна код
 
 > **Windows:** аудіодвижок (libVLC) вже вбудований в інсталятор, нічого додатково ставити не треба.
 
+- **Linux** (x86_64): одна команда в терміналі — завантажить останню версію, за потреби поставить VLC, додасть Nocturne у меню застосунків і команду `nocturne`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Lenny-Akumu/Nocturne/main/install.sh | sh
+```
+
+Видалити: `curl -fsSL https://raw.githubusercontent.com/Lenny-Akumu/Nocturne/main/install.sh | sh -s -- --uninstall`. Оновлення з самого застосунку теж працюють.
+
 ### Акаунти
 **Налаштування → Accounts** — вхід, щоб підтягнути вподобані треки, плейлисти, альбоми й артистів:
 

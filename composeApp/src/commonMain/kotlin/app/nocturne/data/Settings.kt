@@ -92,6 +92,7 @@ data class Settings(
     val startupSound: Boolean = true,
     val seasonalEffects: Boolean = true,
     val customTitleBar: Boolean = true,
+    val downloadFolder: String = "",
     val showVideo: Boolean = false,
     val crossfadeSec: Int = 0,
     val releaseAlerts: Boolean = true,
