@@ -35,6 +35,7 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: app.nocturne
             CFBundleURLSchemes: [nocturne]
+        LSApplicationQueriesSchemes: [apple-magnifier, sidestore, altstore]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.nocturne

@@ -5,6 +5,23 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.2",
+        en = listOf(
+            "PC: Mica / Acrylic transparency finally works",
+            "PC: cleaner frameless title bar and rounder window corners",
+            "PC: the window shrinks into the floating player when minimized and grows out of it on restore",
+            "iPhone: updates install right from the app via TrollStore, SideStore or AltStore",
+            "Fixed the Discord icon in About",
+        ),
+        uk = listOf(
+            "ПК: прозорість Mica / Acrylic нарешті працює",
+            "ПК: охайніший заголовок без рамки й більш заокруглені кути вікна",
+            "ПК: вікно згортається в плаваючий плеєр і виростає з нього при відкритті",
+            "iPhone: оновлення ставляться прямо з застосунку через TrollStore, SideStore або AltStore",
+            "Виправлено іконку Discord у «Про застосунок»",
+        ),
+    ),
+    ChangelogEntry(
         "1.10.1",
         en = listOf(
             "Halloween app icon: pick it in Appearance → App icon (until 1 November)",

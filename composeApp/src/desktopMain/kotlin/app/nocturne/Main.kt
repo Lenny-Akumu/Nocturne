@@ -137,6 +137,7 @@ private fun launchApp() {
         }
         val playing by graph.player.state.collectAsState()
         if (settings.floatingPlayer && (playing.current != null || app.nocturne.ui.FloatingEdit.editing)) app.nocturne.ui.FloatingPlayerWindow()
+        if (isWindows && settings.customTitleBar) app.nocturne.ui.WindowMorphOverlay(settings.iconPalette)
 
         Window(
             onCloseRequest = {
@@ -206,11 +207,15 @@ private fun launchApp() {
             }
             MainWindow.window = window
             LaunchedEffect(Unit) {
-                if (settings.customTitleBar && CustomFrame.install(window)) app.nocturne.ui.WindowChrome.bar = { app.nocturne.ui.CaptionBar(window, windowState) }
+                if (settings.customTitleBar && CustomFrame.install(window)) {
+                    app.nocturne.ui.WindowChrome.bar = { app.nocturne.ui.CaptionBar(window, windowState) }
+                    app.nocturne.ui.WindowMorph.install(window)
+                }
             }
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
             LaunchedEffect(Unit) { DiscordRpc.start() }
             val dark = isDark(settings)
+            app.nocturne.ui.WindowMorph.dark = dark
             var backdrop by remember { mutableStateOf(false) }
             LaunchedEffect(settings.windowBackdrop, dark) {
                 backdrop = runCatching { WindowEffects.apply(window, settings.windowBackdrop, dark) }.getOrDefault(false)

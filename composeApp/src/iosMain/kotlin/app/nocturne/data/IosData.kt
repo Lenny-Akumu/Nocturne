@@ -101,9 +101,19 @@ actual fun notifyUpdateAvailable(version: String, notes: String) = notify(app.no
 
 actual fun notifyUpdateProgress(version: String, progress: Float?) = Unit
 
+// iOS can't install an .ipa itself: hand it to the sideloader that installed us (TrollStore, SideStore, AltStore),
+// which updates in place and keeps the app's data; GitHub only when none of them is there.
 actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress: (Float) -> Unit) {
+    val app = UIApplication.sharedApplication
+    for (scheme in listOf("apple-magnifier", "sidestore", "altstore")) {
+        val target = NSURL.URLWithString("$scheme://install?url=$url") ?: continue
+        if (app.canOpenURL(target)) {
+            app.openURL(target, emptyMap<Any?, Any>(), null)
+            return
+        }
+    }
     NSURL.URLWithString("https://github.com/Lenny-Akumu/Nocturne/releases/latest")?.let {
-        UIApplication.sharedApplication.openURL(it, emptyMap<Any?, Any>(), null)
+        app.openURL(it, emptyMap<Any?, Any>(), null)
     }
 }
 

@@ -22,9 +22,27 @@ private interface U32 : StdCallLibrary {
     fun GetSystemMetricsForDpi(index: Int, dpi: Int): Int
     fun GetDpiForWindow(hwnd: HWND): Int
     fun SetWindowPos(hwnd: HWND, after: HWND?, x: Int, y: Int, cx: Int, cy: Int, flags: Int): Boolean
+    fun SetWindowRgn(hwnd: HWND, rgn: Pointer?, redraw: Boolean): Int
+    fun IsIconic(hwnd: HWND): Boolean
 
     companion object {
         val INSTANCE: U32? = runCatching { Native.load("user32", U32::class.java) }.getOrNull()
+    }
+}
+
+private interface Gdi : StdCallLibrary {
+    fun CreateRoundRectRgn(x1: Int, y1: Int, x2: Int, y2: Int, w: Int, h: Int): Pointer?
+
+    companion object {
+        val INSTANCE: Gdi? = runCatching { Native.load("gdi32", Gdi::class.java) }.getOrNull()
+    }
+}
+
+private interface DwmApi : StdCallLibrary {
+    fun DwmSetWindowAttribute(hwnd: HWND, attribute: Int, value: Pointer, size: Int): Int
+
+    companion object {
+        val INSTANCE: DwmApi? = runCatching { Native.load("dwmapi", DwmApi::class.java) }.getOrNull()
     }
 }
 
@@ -39,6 +57,16 @@ object CustomFrame {
     val installed: Boolean get() = proc != null
     private var prev: Pointer? = null
 
+    /** Corner radius in dp; DWM's own rounding is only ~8 px. */
+    const val RADIUS_DP = 14
+    /** Set by the window morph: system minimize / restore go through it instead. */
+    @Volatile var onMinimize: (() -> Boolean)? = null
+    @Volatile var onRestore: (() -> Boolean)? = null
+
+    private const val WM_SIZE = 0x0005
+    private const val WM_SYSCOMMAND = 0x0112
+    private const val SC_MINIMIZE = 0xF020
+    private const val SC_RESTORE = 0xF120
     private const val WM_NCCALCSIZE = 0x0083
     private const val WM_NCHITTEST = 0x0084
     private const val HTCLIENT = 1
@@ -72,15 +100,41 @@ object CustomFrame {
                         return LRESULT(0)
                     }
                     WM_NCHITTEST -> return LRESULT(hitTest(u, hwnd, lParam).toLong())
+                    WM_SYSCOMMAND -> when (wParam.toInt() and 0xFFF0) {
+                        SC_MINIMIZE -> if (onMinimize?.invoke() == true) return LRESULT(0)
+                        SC_RESTORE -> if (u.IsIconic(hwnd) && onRestore?.invoke() == true) return LRESULT(0)
+                    }
+                    WM_SIZE -> {
+                        val r = u.CallWindowProcW(prev!!, hwnd, msg, wParam, lParam)
+                        round(u, hwnd)
+                        return r
+                    }
                 }
                 return u.CallWindowProcW(prev!!, hwnd, msg, wParam, lParam)
             }
         }
         prev = u.SetWindowLongPtrW(hwnd, -4, p) ?: return false
         proc = p
+        DwmApi.INSTANCE?.let { d ->
+            // our own morph replaces the system minimize/restore animation; corners come from the region
+            d.DwmSetWindowAttribute(hwnd, 3, com.sun.jna.ptr.IntByReference(1).pointer, 4)
+            d.DwmSetWindowAttribute(hwnd, 33, com.sun.jna.ptr.IntByReference(1).pointer, 4)
+        }
         // SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED
         u.SetWindowPos(hwnd, null, 0, 0, 0, 0, 0x0002 or 0x0001 or 0x0004 or 0x0020)
+        round(u, hwnd)
         return true
+    }
+
+    private fun round(u: U32, hwnd: HWND) {
+        val g = Gdi.INSTANCE ?: return
+        if (u.IsZoomed(hwnd) || u.IsIconic(hwnd)) { u.SetWindowRgn(hwnd, null, true); return }
+        val r = WinDef.RECT()
+        u.GetWindowRect(hwnd, r)
+        val dpi = u.GetDpiForWindow(hwnd).takeIf { it > 0 } ?: 96
+        val d = 2 * RADIUS_DP * dpi / 96
+        // the system owns the region after this call
+        u.SetWindowRgn(hwnd, g.CreateRoundRectRgn(0, 0, r.right - r.left + 1, r.bottom - r.top + 1, d, d), true)
     }
 
     private fun hitTest(u: U32, hwnd: HWND, lParam: LPARAM): Int {

@@ -2,7 +2,6 @@ package app.nocturne.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -44,23 +43,22 @@ fun CaptionBar(window: java.awt.Window, state: WindowState) {
     val density = LocalDensity.current
     CustomFrame.captionPx = with(density) { WindowChrome.height.roundToPx() }
     Box(Modifier.fillMaxWidth().height(WindowChrome.height)) {
-        val shape = RoundedCornerShape(12.dp)
+        val shape = RoundedCornerShape(8.dp)
         val dark = LocalDarkTheme.current
         val cs = MaterialTheme.colorScheme
+        val glass = cs.onSurface.copy(alpha = if (dark) 0.07f else 0.05f)
         Row(
-            Modifier.align(Alignment.TopEnd).padding(top = 5.dp, end = 8.dp)
+            Modifier.align(Alignment.CenterEnd).padding(end = 6.dp)
                 .onGloballyPositioned { c ->
                     val b = c.boundsInWindow()
                     CustomFrame.buttons = java.awt.Rectangle(b.left.toInt(), b.top.toInt(), b.width.toInt(), b.height.toInt())
                 }
-                .liquidGlass(shape, 6.dp)
-                .background(cs.surface.copy(alpha = if (dark) 0.35f else 0.45f), shape)
-                .border(1.dp, Color.White.copy(alpha = if (dark) 0.10f else 0.35f), shape)
-                .clip(shape),
+                .clip(shape)
+                .background(glass, shape),
         ) {
             val maximized = state.placement == WindowPlacement.Maximized
-            CaptionButton(Icons.Rounded.Remove, cs.onSurface.copy(alpha = 0.12f)) { state.isMinimized = true }
-            CaptionButton(if (maximized) Icons.Rounded.FilterNone else Icons.Rounded.CropSquare, cs.onSurface.copy(alpha = 0.12f), small = true) {
+            CaptionButton(Icons.Rounded.Remove, cs.onSurface.copy(alpha = 0.1f)) { WindowMorph.minimize(window, state) }
+            CaptionButton(if (maximized) Icons.Rounded.FilterNone else Icons.Rounded.CropSquare, cs.onSurface.copy(alpha = 0.1f), small = true) {
                 state.placement = if (maximized) WindowPlacement.Floating else WindowPlacement.Maximized
             }
             CaptionButton(Icons.Rounded.Close, Color(0xFFE5484D), hoverTint = Color.White) {
@@ -77,9 +75,9 @@ private fun CaptionButton(icon: ImageVector, hoverBg: Color, small: Boolean = fa
     val bg by animateColorAsState(if (hovered) hoverBg else Color.Transparent, label = "cap")
     val fg = if (hovered && hoverTint != null) hoverTint else MaterialTheme.colorScheme.onSurface
     Box(
-        Modifier.size(42.dp, 26.dp).background(bg).hoverable(src).clickable(interactionSource = src, indication = null, onClick = onClick),
+        Modifier.size(40.dp, 26.dp).background(bg).hoverable(src).clickable(interactionSource = src, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, null, Modifier.size(if (small) 13.dp else 16.dp), tint = fg)
+        Icon(icon, null, Modifier.size(if (small) 12.dp else 15.dp), tint = fg.copy(alpha = if (hovered) 1f else 0.8f))
     }
 }

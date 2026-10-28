@@ -149,6 +149,7 @@ fun FloatingPlayerWindow() {
         focusable = false,
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
+        androidx.compose.runtime.DisposableEffect(Unit) { onDispose { WindowMorph.pill = null } }
         LaunchedEffect(settings.iconBackground, settings.iconPalette, settings.halloweenIcon) { app.nocturne.AppIcon.update(settings.iconBackground, settings.iconPalette, settings.halloweenIcon && isHalloween()).takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
         val base0 = if (settings.floatingVertical) BASE_VERTICAL else BASE
         LaunchedEffect(ax, ay, anchor, editing, scale, base0) {
@@ -174,6 +175,7 @@ fun FloatingPlayerWindow() {
                         val pw = it.width / k + margin * 2
                         val ph = it.height / k + margin * 2
                         val x = when (anchor) { 0 -> 0.0; 2 -> fw - pw; else -> (fw - pw) / 2 }
+                        WindowMorph.pill = java.awt.Rectangle(window.x + x.toInt(), window.y, pw.toInt(), ph.toInt())
                         java.awt.geom.Rectangle2D.Double(x, 0.0, pw, ph)
                     }
                 }.onFailure { shaped = false }
@@ -185,7 +187,7 @@ fun FloatingPlayerWindow() {
                     full = true
                     return@collectLatest
                 }
-                if (px == IntSize.Zero) return@collectLatest
+                if (px == IntSize.Zero) { WindowMorph.pill = null; return@collectLatest }
                 // Collapse already finished (busy=false); short grace period against hover flicker.
                 if (full) delay(160)
                 if (shaped) {
@@ -195,6 +197,7 @@ fun FloatingPlayerWindow() {
                 }
                 full = false
                 place((px.width / k).toInt() + margin * 2, (px.height / k).toInt() + margin * 2)
+                WindowMorph.pill = window.bounds
             }
         }
         val base = LocalDensity.current

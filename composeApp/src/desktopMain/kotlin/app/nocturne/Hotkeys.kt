@@ -91,6 +91,7 @@ object MainWindow {
     fun show() {
         val w = window ?: return
         javax.swing.SwingUtilities.invokeLater {
+            if (w.extendedState and java.awt.Frame.ICONIFIED != 0 && app.nocturne.ui.WindowMorph.restore(w)) return@invokeLater
             if (w.extendedState and java.awt.Frame.ICONIFIED != 0) w.extendedState = w.extendedState and java.awt.Frame.ICONIFIED.inv()
             w.isVisible = true
             w.toFront()
