@@ -35,6 +35,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.abs
 import kotlin.random.Random
 
+/** Chat line or emoji reaction in a listen-together session. */
+@Serializable
+data class ChatMsg(val id: String, val from: String, val text: String, val at: Long, val reaction: Boolean = false)
+
 /** Host's version (speed), EQ and effects; guests play with these while in the session. */
 @Serializable
 data class PartyAudio(
@@ -174,6 +178,70 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private fun mqttTopic(code: String) = "nocturne/party/${code.lowercase()}"
     private val brokers get() = Relay.entries.filter { it != Relay.NTFY }
 
+    // ---- chat & reactions: every broker at once (both sides may reach different ones), deduped by id ----
+    private val _chat = MutableStateFlow<List<ChatMsg>>(emptyList())
+    val chat: StateFlow<List<ChatMsg>> = _chat.asStateFlow()
+    private var chatJob: Job? = null
+    private var chatCode: String? = null
+    private val chatOut = MutableStateFlow<ChatMsg?>(null)
+    private fun chatTopic(code: String) = "nocturne/party/${code.lowercase()}/chat"
+    private val myName get() = graph.settings.value.deviceName.ifBlank { app.nocturne.deviceName() }
+
+    private fun startChat(code: String) {
+        if (chatCode == code && chatJob?.isActive == true) return
+        stopChat()
+        chatCode = code
+        chatJob = scope.launch {
+            brokers.forEach { r ->
+                launch {
+                    var fails = 0
+                    while (isActive) {
+                        try {
+                            wsHttp.mqtt(r.url, onMessage = { _, b, _ -> receiveChat(b.decodeToString()) }) {
+                                subscribe(chatTopic(code))
+                                fails = 0
+                                var sent: String? = null
+                                chatOut.collect { m ->
+                                    if (m != null && m.id != sent) {
+                                        sent = m.id
+                                        publish(chatTopic(code), json.encodeToString(ChatMsg.serializer(), m).encodeToByteArray(), retain = false)
+                                    }
+                                }
+                            }
+                        } catch (e: Throwable) {
+                            currentCoroutineContext().ensureActive()
+                        }
+                        delay(backoff(fails++))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun stopChat() {
+        chatJob?.cancel()
+        chatJob = null
+        chatCode = null
+        _chat.value = emptyList()
+    }
+
+    private fun receiveChat(text: String) {
+        val m = runCatching { json.decodeFromString(ChatMsg.serializer(), text) }.getOrNull() ?: return
+        if (_chat.value.any { it.id == m.id }) return
+        _chat.value = (_chat.value + m).takeLast(80)
+    }
+
+    val chatAvailable: Boolean get() = chatCode != null
+
+    /** Sends a message (or an emoji reaction) to everyone in the session. */
+    fun say(text: String, reaction: Boolean = false) {
+        val t = text.trim().take(300)
+        if (t.isEmpty() || chatCode == null) return
+        val m = ChatMsg(Random.nextLong().toString(36) + nowMillis().toString(36), myName, t, nowMillis(), reaction)
+        receiveChat(json.encodeToString(ChatMsg.serializer(), m))
+        chatOut.value = m
+    }
+
     private fun resetRelays(): Int {
         relayOk.clear()
         relayErr.clear()
@@ -264,6 +332,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         val gen = resetRelays()
         val out = MutableStateFlow<PartyState?>(lanState)
         hostOut = out
+        startChat(code)
         relayJob = scope.launch {
             brokers.forEach { b -> launch { hostMqtt(gen, b, mqttTopic(code), out) } }
             launch { hostNtfy(gen, code, out) }
@@ -339,6 +408,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     }
 
     fun stopHosting() {
+        stopChat()
         publishJob?.cancel()
         publishJob = null
         // Null tells the broker links to clear the retained state and disconnect; cut them off if that stalls.
@@ -383,6 +453,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     // Subscribes on every broker at once (duplicates are dropped by seq) with ntfy.sh as the last fallback.
     private fun joinOnline(code: String) {
         _joined.value = code
+        startChat(code)
         _status.value = null
         val gen = resetRelays()
         joinJob = scope.launch {
@@ -509,6 +580,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     }
 
     fun leave() {
+        if (_code.value == null) stopChat()
         joinJob?.cancel()
         joinJob = null
         latest = null

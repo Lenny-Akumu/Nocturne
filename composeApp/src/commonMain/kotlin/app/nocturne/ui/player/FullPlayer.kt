@@ -172,6 +172,7 @@ fun FullPlayer(onCollapse: () -> Unit) {
                 FlowingColors(listOf(cs.primary, cs.tertiary, cs.secondary, cs.primaryContainer), Modifier.fillMaxSize(), 0.32f)
             }
             PlayerContent(onCollapse)
+            PartyReactions()
         }
     }
 }
