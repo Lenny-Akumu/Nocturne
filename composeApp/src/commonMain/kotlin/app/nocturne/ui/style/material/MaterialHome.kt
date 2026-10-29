@@ -122,6 +122,7 @@ fun MaterialHome(
                 HeroCarousel(mostPlayed) { i -> onPlay(mostPlayed, i, t("Your top tracks")) }
             }
             item { MixesRow { list, title -> onPlay(list, 0, title) } }
+            item { app.nocturne.ui.components.MoodRow() }
             if (library.saved.isNotEmpty()) item {
                 Shelf(t("From your library"), library.saved.take(20).map { MediaEntry.Collection(it) }) { _, _ -> }
             }

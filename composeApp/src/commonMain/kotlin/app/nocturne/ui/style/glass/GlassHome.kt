@@ -136,6 +136,7 @@ fun GlassHome(
                 }
             }
             if (mixes.isNotEmpty()) item(key = "mixes") { MixCarousel(mixes) { m -> play(m.tracks, 0, m.title) } }
+            item(key = "moods") { app.nocturne.ui.components.MoodRow() }
             if (recs.isNotEmpty()) item(key = "recs") {
                 GroupedGrid(recs.take(24), t("Recommended for you")) { i -> play(recs, i, t("Recommended for you")) }
             }

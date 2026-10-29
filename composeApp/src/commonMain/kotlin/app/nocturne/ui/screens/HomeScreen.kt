@@ -143,6 +143,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
                 }
             }
             item { SmartMixes { list, title -> playTrack(list, 0, title) } }
+            item { app.nocturne.ui.components.MoodRow() }
             val mostPlayed = graph.library.mostPlayed(16)
             if (mostPlayed.size >= 4) {
                 item {
