@@ -697,5 +697,6 @@ internal object Zh {
         "Open on YouTube" to "在 YouTube 上打开",
         "Seasonal" to "季节限定",
         "Halloween" to "万圣节",
+        "Spotify charts & playlists" to "Spotify 榜单与歌单",
     )
 }

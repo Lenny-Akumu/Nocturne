@@ -114,14 +114,14 @@ fun HomeScreen(contentPadding: PaddingValues) {
         app.nocturne.ui.style.material.MaterialHome(
             contentPadding, listState, refreshing, { reload++ }, greeting(), recommended, sections, errors,
             onPlay = { list, i, title -> playTrack(list, i, title) },
-        ) { ConnectSpotifyCard() }
+        ) {}
         return
     }
     if (app.nocturne.ui.kit.LocalDesignStyle.current == app.nocturne.data.DesignStyle.GLASS) {
         app.nocturne.ui.style.glass.GlassHome(
             contentPadding, listState, sections, recommended, errors, refreshing, { reload++ },
             play = { list, i, title -> playTrack(list, i, title) },
-        ) { if (Source.SPOTIFY in settings.enabledSources && !graph.spotify.isConfigured) ConnectSpotifyCard() }
+        ) {}
         return
     }
     app.nocturne.ui.components.RefreshBox(isRefreshing = refreshing, onRefresh = { reload++ }, modifier = Modifier.fillMaxSize()) {
@@ -156,9 +156,6 @@ fun HomeScreen(contentPadding: PaddingValues) {
                 item {
                     SectionView(Section("From your library", library.saved.take(20).map { MediaEntry.Collection(it) })) { _, _ -> }
                 }
-            }
-            if (Source.SPOTIFY in settings.enabledSources && !graph.spotify.isConfigured) {
-                item { ConnectSpotifyCard() }
             }
             val s = sections
             when {

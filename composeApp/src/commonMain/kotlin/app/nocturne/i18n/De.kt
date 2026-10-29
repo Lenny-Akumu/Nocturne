@@ -697,5 +697,6 @@ internal object De {
         "Open on YouTube" to "Auf YouTube öffnen",
         "Seasonal" to "Saisonal",
         "Halloween" to "Halloween",
+        "Spotify charts & playlists" to "Spotify-Charts & Playlists",
     )
 }

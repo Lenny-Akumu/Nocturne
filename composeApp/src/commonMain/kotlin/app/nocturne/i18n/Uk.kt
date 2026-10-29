@@ -703,5 +703,6 @@ internal object Uk {
         "Open on YouTube" to "Відкрити на YouTube",
         "Seasonal" to "Сезонна",
         "Halloween" to "Хелловін",
+        "Spotify charts & playlists" to "Чарти й плейлисти Spotify",
     )
 }

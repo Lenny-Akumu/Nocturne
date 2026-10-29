@@ -697,5 +697,6 @@ internal object Tr {
         "Open on YouTube" to "YouTube'da aç",
         "Seasonal" to "Mevsimlik",
         "Halloween" to "Cadılar Bayramı",
+        "Spotify charts & playlists" to "Spotify listeleri ve çalma listeleri",
     )
 }

@@ -697,5 +697,6 @@ internal object Cs {
         "Open on YouTube" to "Otevřít na YouTube",
         "Seasonal" to "Sezónní",
         "Halloween" to "Halloween",
+        "Spotify charts & playlists" to "Žebříčky a playlisty Spotify",
     )
 }

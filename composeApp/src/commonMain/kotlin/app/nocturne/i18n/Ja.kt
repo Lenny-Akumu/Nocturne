@@ -697,5 +697,6 @@ internal object Ja {
         "Open on YouTube" to "YouTube で開く",
         "Seasonal" to "季節限定",
         "Halloween" to "ハロウィン",
+        "Spotify charts & playlists" to "Spotify のチャートとプレイリスト",
     )
 }

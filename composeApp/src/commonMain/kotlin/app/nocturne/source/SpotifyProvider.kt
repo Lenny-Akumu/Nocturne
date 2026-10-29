@@ -45,6 +45,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -405,6 +406,12 @@ class SpotifyProvider(
     }
 
     override suspend fun search(query: String, filter: SearchFilter): List<MediaEntry> {
+        // Spotify has no public search page to fall back on: blocked API = no Spotify results, no error
+        if (!apiUsable) return emptyList()
+        return viaApi({ apiSearch(query, filter) }, { emptyList() })
+    }
+
+    private suspend fun apiSearch(query: String, filter: SearchFilter): List<MediaEntry> {
         val type = when (filter) {
             SearchFilter.SONGS -> "track"
             SearchFilter.ALBUMS -> "album"
@@ -424,7 +431,7 @@ class SpotifyProvider(
     }
 
     override suspend fun home(): List<Section> {
-        if (!isConfigured) return emptyList()
+        if (!apiUsable) return publicHome()
         val sections = mutableListOf<Section>()
         if (isSignedIn) coroutineScope {
             val top = async { runCatching { api("me/top/tracks?limit=24&time_range=short_term").path("items").arr.orEmpty().mapNotNull { parseTrack(it) } }.getOrNull() }
@@ -449,10 +456,19 @@ class SpotifyProvider(
         }.getOrNull()?.takeIf { it.isNotEmpty() }?.let {
             sections += Section("New releases on Spotify", it.map { a -> MediaEntry.Collection(a) }, source = source)
         }
+        // nothing came back from the API (blocked app): fall back to the public charts
+        if (sections.isEmpty()) {
+            apiBlocked = true
+            return publicHome()
+        }
         return sections
     }
 
-    override suspend fun collection(ref: CollectionRef): CollectionPage = when (ref.type) {
+    override suspend fun collection(ref: CollectionRef): CollectionPage =
+        if (ref.id == LikedRef.id || ref.type == CollectionType.LOCAL) apiCollection(ref)
+        else viaApi({ apiCollection(ref) }, { publicPage(ref) })
+
+    private suspend fun apiCollection(ref: CollectionRef): CollectionPage = when (ref.type) {
         CollectionType.ALBUM -> {
             val album = api("albums/${ref.id}?market=${market()}")
             val fullRef = parseAlbumRef(album) ?: ref
@@ -509,7 +525,10 @@ class SpotifyProvider(
         val m = Regex("(track|album|playlist|artist)[/:]([A-Za-z0-9]{22})").find(url) ?: return null
         val (type, id) = m.destructured
         return when (type) {
-            "track" -> parseTrack(api("tracks/$id?market=${market()}"))?.let { MediaEntry.Song(it) }
+            "track" -> viaApi(
+                { parseTrack(api("tracks/$id?market=${market()}")) },
+                { publicEntity("track", id).tracks.firstOrNull() },
+            )?.let { MediaEntry.Song(it) }
             "album" -> MediaEntry.Collection(CollectionRef(id, source, CollectionType.ALBUM, "Album"))
             "playlist" -> MediaEntry.Collection(CollectionRef(id, source, CollectionType.PLAYLIST, "Playlist"))
             else -> MediaEntry.Collection(CollectionRef(id, source, CollectionType.ARTIST, "Artist"))
@@ -518,13 +537,18 @@ class SpotifyProvider(
 
     private fun images(e: JsonElement?): String? = e.path("images").arr?.firstOrNull().path("url").str
 
-    // Public playlist/album without the Web API: scrapes the embed page.
-    private suspend fun importLink(url: String): Pair<String, List<Track>> {
-        val m = Regex("(album|playlist|track)[/:]([A-Za-z0-9]{22})").find(url) ?: throw SourceUnavailableException(t("Paste a link to a Spotify playlist or album"))
-        val (type, id) = m.destructured
-        val html = http.get("https://open.spotify.com/embed/$type/$id") {
-            header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
-        }.bodyAsText()
+    private class PublicEntity(val ref: CollectionRef, val tracks: List<Track>)
+
+    private val publicCache = mutableMapOf<String, Pair<Long, PublicEntity>>()
+    private val artCache = mutableMapOf<String, String?>()
+    private val cacheLock = Mutex()
+    private val browserUa = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+
+    // Public album / playlist / artist / track without the Web API: reads the embed page.
+    private suspend fun publicEntity(type: String, id: String): PublicEntity {
+        val key = "$type:$id"
+        cacheLock.withLock { publicCache[key] }?.let { (at, e) -> if (nowMillis() - at < 30 * 60_000) return e }
+        val html = http.get("https://open.spotify.com/embed/$type/$id") { header("User-Agent", browserUa) }.bodyAsText()
         val raw = Regex("<script id=\"__NEXT_DATA__\"[^>]*>(.*?)</script>", RegexOption.DOT_MATCHES_ALL).find(html)?.groupValues?.get(1)
             ?: throw SourceUnavailableException(t("Spotify didn't return this playlist. Make sure it's public."))
         val entity = json.parseToJsonElement(raw).findAll("entity").firstOrNull() ?: throw SourceUnavailableException("Nothing to import")
@@ -547,10 +571,89 @@ class SpotifyProvider(
                 durationMs = t.path("duration").num ?: t.path("duration_ms").num ?: 0,
                 artworkUrl = if (type == "album" || type == "track") cover else null,
                 explicit = t.path("isExplicit").bool ?: false,
+                url = "https://open.spotify.com/track/$tid",
             )
+        }.let { if (type == "album" || type == "track") it else withArtwork(it) }
+        val kind = when (type) { "album" -> CollectionType.ALBUM; "artist" -> CollectionType.ARTIST; else -> CollectionType.PLAYLIST }
+        val subtitle = entity.path("subtitle").str?.takeIf { type != "artist" } ?: if (type == "artist") "Artist" else "Spotify"
+        val e = PublicEntity(CollectionRef(id, source, kind, name, subtitle, cover), tracks)
+        cacheLock.withLock { publicCache[key] = nowMillis() to e }
+        return e
+    }
+
+    // Playlist embeds carry no per-track covers: oEmbed has them (cached, a few at a time).
+    private suspend fun withArtwork(tracks: List<Track>, max: Int = 60): List<Track> = coroutineScope {
+        val gate = kotlinx.coroutines.sync.Semaphore(6)
+        tracks.mapIndexed { i, tr ->
+            async {
+                if (i >= max) return@async tr
+                val art = cacheLock.withLock { artCache[tr.id] } ?: gate.withPermit {
+                    runCatching {
+                        val body = http.get("https://open.spotify.com/oembed?url=https://open.spotify.com/track/${tr.id}") { header("User-Agent", browserUa) }.bodyAsText()
+                        json.parseToJsonElement(body).path("thumbnail_url").str
+                    }.getOrNull()
+                }.also { a -> cacheLock.withLock { artCache[tr.id] = a } }
+                if (art != null) tr.copy(artworkUrl = art) else tr
+            }
+        }.map { it.await() }
+    }
+
+    private suspend fun importLink(url: String): Pair<String, List<Track>> {
+        val m = Regex("(album|playlist|track)[/:]([A-Za-z0-9]{22})").find(url) ?: throw SourceUnavailableException(t("Paste a link to a Spotify playlist or album"))
+        val (type, id) = m.destructured
+        val e = publicEntity(type, id)
+        if (e.tracks.isEmpty()) throw SourceUnavailableException(t("This playlist is empty or private"))
+        return e.ref.title to e.tracks
+    }
+
+    /** Web API when this install can use it, else the public pages. */
+    private val apiUsable: Boolean get() = isConfigured && !apiBlocked
+    @kotlin.concurrent.Volatile private var apiBlocked = false
+
+    private suspend fun <T> viaApi(block: suspend () -> T, fallback: suspend () -> T): T {
+        if (!apiUsable) return fallback()
+        return try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // 403 = app blocked (no Premium / not in User Management): stop asking the API this session
+            if (e.message?.contains("403") == true || e.message?.contains("User Management") == true) apiBlocked = true
+            runCatching { fallback() }.getOrElse { throw e }
         }
-        if (tracks.isEmpty()) throw SourceUnavailableException(t("This playlist is empty or private"))
-        return name to tracks
+    }
+
+    private suspend fun publicPage(ref: CollectionRef): CollectionPage {
+        val type = when (ref.type) { CollectionType.ALBUM -> "album"; CollectionType.ARTIST -> "artist"; else -> "playlist" }
+        val e = publicEntity(type, ref.id)
+        return CollectionPage(e.ref, e.tracks)
+    }
+
+    // Spotify's public charts and editorial lists; country chart follows the market.
+    private val countryTop50 = mapOf(
+        "UA" to "37i9dQZEVXbKkidEfWYRuD", "US" to "37i9dQZEVXbLRQDuF5jeBp", "GB" to "37i9dQZEVXbLnolsZ8PSNw",
+        "DE" to "37i9dQZEVXbJiZcmkrIHGU", "PL" to "37i9dQZEVXbN6itCcaL3Tt", "FR" to "37i9dQZEVXbIPWwFssbupI",
+    )
+
+    private suspend fun publicHome(): List<Section> = coroutineScope {
+        val ids = listOfNotNull(
+            "37i9dQZEVXbMDoHDwVN2tF", // Top 50 Global
+            countryTop50[market().uppercase()],
+            "37i9dQZF1DXcBWIGoYBM5M", // Today's Top Hits
+            "37i9dQZEVXbLiRSasKsNU9", // Viral 50 Global
+            "37i9dQZF1DX0XUsuxWHRQd", // RapCaviar
+            "37i9dQZF1DX4dyzvuaRJ0n", // mint
+        )
+        val lists = ids.map { id -> async { runCatching { publicEntity("playlist", id) }.getOrNull() } }.map { it.await() }.filterNotNull()
+        val sections = mutableListOf<Section>()
+        lists.firstOrNull()?.takeIf { it.tracks.isNotEmpty() }?.let {
+            sections += Section(it.ref.title, it.tracks.take(24).map { t -> MediaEntry.Song(t) }, SectionLayout.QUICK_PICKS, source)
+        }
+        lists.getOrNull(1)?.takeIf { it.tracks.isNotEmpty() && it.ref.id != ids.first() }?.let {
+            sections += Section(it.ref.title, it.tracks.take(20).map { t -> MediaEntry.Song(t) }, source = source)
+        }
+        if (lists.size > 1) sections += Section(t("Spotify charts & playlists"), lists.map { MediaEntry.Collection(it.ref.copy(subtitle = t("%s songs", it.tracks.size))) }, source = source)
+        sections
     }
 
     private fun parseTrack(e: JsonElement?, fallbackArt: String? = null, album: String? = null, albumId: String? = null): Track? {

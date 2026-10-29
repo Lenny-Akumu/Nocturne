@@ -697,5 +697,6 @@ internal object Ko {
         "Open on YouTube" to "YouTube에서 열기",
         "Seasonal" to "시즌",
         "Halloween" to "핼러윈",
+        "Spotify charts & playlists" to "Spotify 차트 & 플레이리스트",
     )
 }
