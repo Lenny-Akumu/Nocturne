@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
 import kotlinx.coroutines.delay
+import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.animation.core.animateFloatAsState
@@ -182,7 +183,8 @@ internal class Overlays {
     var connect by mutableStateOf(false)
     var carMode by mutableStateOf(false)
     var comments by mutableStateOf(false)
-    val any: Boolean get() = audio || sleep || connect || carMode || comments
+    var visualizer by mutableStateOf(false)
+    val any: Boolean get() = audio || sleep || connect || carMode || comments || visualizer
 }
 
 internal val LocalOverlays = staticCompositionLocalOf { Overlays() }
@@ -236,7 +238,10 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                     val s = graph.player.state.value
                     val sleep = s.sleepAtMs?.let { t("Sleep timer · %s min", ((it - nowMillis()) / 60_000).coerceAtLeast(0) + 1) }
                         ?: if (s.sleepAfterTrack) t("Sleep timer") + " · " + t("End of track") else t("Sleep timer")
-                    menu(track, TrackMenuContext(extras = listOf(MenuExtra(Icons.Rounded.Bedtime, sleep) { overlays.sleep = true })))
+                    menu(track, TrackMenuContext(extras = listOf(
+                        MenuExtra(Icons.Rounded.Bedtime, sleep) { overlays.sleep = true },
+                        MenuExtra(Icons.Rounded.BlurOn, t("Visualizer")) { overlays.visualizer = true },
+                    )))
                 })
             }
 
@@ -282,6 +287,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     if (overlays.carMode) CarModeDialog { overlays.carMode = false }
     if (overlays.connect) ConnectSheet(onDismiss = { overlays.connect = false }, onCarMode = { overlays.carMode = true })
     if (overlays.sleep) SleepTimerDialog { overlays.sleep = false }
+    if (overlays.visualizer) VisualizerScreen { overlays.visualizer = false }
     if (overlays.audio) AudioSheet { overlays.audio = false }
     if (overlays.comments) CommentsSheet(track) { overlays.comments = false }
 }
