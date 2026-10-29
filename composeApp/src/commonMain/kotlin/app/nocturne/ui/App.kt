@@ -121,6 +121,8 @@ private val settingsTab = Tab(Screen.Settings, "Settings", Icons.Outlined.Settin
 object WindowChrome {
     var bar: (@Composable () -> Unit)? by androidx.compose.runtime.mutableStateOf(null)
     val height = 34.dp
+    /** Desktop: what happened when the window effect was applied (shown in Settings). */
+    var effectStatus: String? by androidx.compose.runtime.mutableStateOf(null)
 }
 
 @Composable

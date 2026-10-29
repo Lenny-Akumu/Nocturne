@@ -46,7 +46,10 @@ object WindowEffects {
         val dwm = Dwm.INSTANCE ?: return false
         val hwnd = runCatching { WinDef.HWND(Native.getComponentPointer(window)) }.getOrNull() ?: return false
         dwm.set(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, if (dark) 1 else 0)
-        dwm.set(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, if (CustomFrame.installed) 1 else 2)
+        val glass = supportsBackdrop && backdrop != WindowBackdrop.NONE && window.findSkiaLayer()?.transparency == true
+        CustomFrame.regionCorners = !glass
+        dwm.set(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, if (CustomFrame.installed && !glass) 1 else 2)
+        if (!supportsBackdrop) report("Windows build $build: Mica / Acrylic need Windows 11 (22000+)")
         if (!supportsBackdrop || backdrop == WindowBackdrop.NONE) {
             if (supportsBackdrop) dwm.set(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, 1)
             // keeps the DWM shadow on a window without a title bar
@@ -54,17 +57,19 @@ object WindowEffects {
             return false
         }
         // not prepared before the first show: stay opaque rather than paint black
-        if (window.findSkiaLayer()?.transparency != true) return false
+        if (window.findSkiaLayer()?.transparency != true) { report("Off: $prepared (restart to apply)"); return false }
         // the Swing panes under the Compose layer paint an opaque fill that hides the backdrop
         window.makePanesTransparent()
-        dwm.DwmExtendFrameIntoClientArea(hwnd, Margins())
         val type = when (backdrop) {
             WindowBackdrop.MICA -> 2
             WindowBackdrop.ACRYLIC -> 3
             WindowBackdrop.MICA_ALT -> 4
             WindowBackdrop.NONE -> 1
         }
-        return dwm.set(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, type) == 0
+        val ext = dwm.DwmExtendFrameIntoClientArea(hwnd, Margins())
+        val hr = dwm.set(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, type)
+        report("$prepared · DWM extend 0x${Integer.toHexString(ext)}, backdrop 0x${Integer.toHexString(hr)}, frame ${if (CustomFrame.installed) "custom" else "system"}")
+        return hr == 0
     }
 
     private fun Dwm.set(hwnd: WinDef.HWND, attr: Int, value: Int): Int {
@@ -114,9 +119,15 @@ object WindowEffects {
      */
     fun prepare(window: ComposeWindow, backdrop: WindowBackdrop) {
         if (!supportsBackdrop || backdrop == WindowBackdrop.NONE) return
-        val layer = window.findSkiaLayer() ?: return
+        val layer = window.findSkiaLayer()
+        if (layer == null) { prepared = "no Skia layer"; return }
         if (!layer.isDisplayable) layer.transparency = true
+        prepared = "layer ${if (layer.transparency) "transparent" else "opaque (already shown)"}, ${layer.renderApi}"
     }
+
+    private var prepared = "not prepared"
+
+    private fun report(s: String) { app.nocturne.ui.WindowChrome.effectStatus = s }
 
     private fun Container.findSkiaLayer(): SkiaLayer? {
         for (c in components) {

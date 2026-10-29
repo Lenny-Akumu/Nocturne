@@ -54,6 +54,10 @@ object CustomFrame {
     @Volatile var captionPx = 0
     @Volatile var buttons = Rectangle()
     private var proc: WndProc? = null
+    private var hwndRef: HWND? = null
+    /** Our own rounded region; off while a DWM backdrop is on (regions can switch it off). */
+    @Volatile var regionCorners = true
+        set(v) { field = v; hwndRef?.let { h -> U32.INSTANCE?.let { round(it, h) } } }
     val installed: Boolean get() = proc != null
     private var prev: Pointer? = null
 
@@ -114,6 +118,7 @@ object CustomFrame {
             }
         }
         prev = u.SetWindowLongPtrW(hwnd, -4, p) ?: return false
+        hwndRef = hwnd
         proc = p
         DwmApi.INSTANCE?.let { d ->
             // our own morph replaces the system minimize/restore animation; corners come from the region
@@ -128,7 +133,7 @@ object CustomFrame {
 
     private fun round(u: U32, hwnd: HWND) {
         val g = Gdi.INSTANCE ?: return
-        if (u.IsZoomed(hwnd) || u.IsIconic(hwnd)) { u.SetWindowRgn(hwnd, null, true); return }
+        if (!regionCorners || u.IsZoomed(hwnd) || u.IsIconic(hwnd)) { u.SetWindowRgn(hwnd, null, true); return }
         val r = WinDef.RECT()
         u.GetWindowRect(hwnd, r)
         val dpi = u.GetDpiForWindow(hwnd).takeIf { it > 0 } ?: 96

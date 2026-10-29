@@ -351,6 +351,10 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         }
                         if (desktop) {
                             Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) }; graph.toast(t("Restart Nocturne to apply the window effect")) }
+                            app.nocturne.ui.WindowChrome.effectStatus?.let { st ->
+                                Text(st, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 56.dp, end = 16.dp, bottom = 8.dp))
+                            }
                         }
                         Header("App icon")
                         AppIconSettings(s, set)
