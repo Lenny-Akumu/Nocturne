@@ -704,5 +704,6 @@ internal object Uk {
         "Seasonal" to "Сезонна",
         "Halloween" to "Хелловін",
         "Spotify charts & playlists" to "Чарти й плейлисти Spotify",
+        "Restart Nocturne to apply the window effect" to "Перезапустіть Nocturne, щоб застосувати ефект вікна",
     )
 }

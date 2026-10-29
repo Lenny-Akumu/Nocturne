@@ -698,5 +698,6 @@ internal object Cs {
         "Seasonal" to "Sezónní",
         "Halloween" to "Halloween",
         "Spotify charts & playlists" to "Žebříčky a playlisty Spotify",
+        "Restart Nocturne to apply the window effect" to "Restartujte Nocturne pro použití efektu okna",
     )
 }

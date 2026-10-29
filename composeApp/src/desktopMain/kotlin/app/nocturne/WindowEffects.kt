@@ -51,10 +51,10 @@ object WindowEffects {
             if (supportsBackdrop) dwm.set(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, 1)
             // keeps the DWM shadow on a window without a title bar
             if (CustomFrame.installed) dwm.DwmExtendFrameIntoClientArea(hwnd, Margins(0, 0, 1, 0))
-            window.findSkiaLayer()?.setTransparent(false)
             return false
         }
-        window.findSkiaLayer()?.setTransparent(true)
+        // not prepared before the first show: stay opaque rather than paint black
+        if (window.findSkiaLayer()?.transparency != true) return false
         // the Swing panes under the Compose layer paint an opaque fill that hides the backdrop
         window.makePanesTransparent()
         dwm.DwmExtendFrameIntoClientArea(hwnd, Margins())
@@ -107,17 +107,15 @@ object WindowEffects {
         }
     }
 
-    // Direct3D picks the swap chain's alpha mode when the device is created, so flipping the flag
-    // on a live layer does nothing: re-attach it so skiko builds a new redrawer with alpha.
-    private fun SkiaLayer.setTransparent(on: Boolean) {
-        if (transparency == on) return
-        transparency = on
-        if (isDisplayable) {
-            removeNotify()
-            addNotify()
-            revalidate()
-            repaint()
-        }
+    /**
+     * Direct3D fixes the swap chain's alpha mode when the layer is first attached, and re-attaching a live
+     * layer leaves Compose's GPU layers pointing at a dead context (native crash). So transparency is only
+     * switched on before the window is shown; a backdrop picked later takes effect after a restart.
+     */
+    fun prepare(window: ComposeWindow, backdrop: WindowBackdrop) {
+        if (!supportsBackdrop || backdrop == WindowBackdrop.NONE) return
+        val layer = window.findSkiaLayer() ?: return
+        if (!layer.isDisplayable) layer.transparency = true
     }
 
     private fun Container.findSkiaLayer(): SkiaLayer? {

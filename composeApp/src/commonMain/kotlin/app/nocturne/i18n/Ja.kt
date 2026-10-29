@@ -698,5 +698,6 @@ internal object Ja {
         "Seasonal" to "季節限定",
         "Halloween" to "ハロウィン",
         "Spotify charts & playlists" to "Spotify のチャートとプレイリスト",
+        "Restart Nocturne to apply the window effect" to "ウィンドウ効果を適用するには Nocturne を再起動してください",
     )
 }

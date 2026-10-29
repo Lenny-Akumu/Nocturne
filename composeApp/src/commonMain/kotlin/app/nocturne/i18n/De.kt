@@ -698,5 +698,6 @@ internal object De {
         "Seasonal" to "Saisonal",
         "Halloween" to "Halloween",
         "Spotify charts & playlists" to "Spotify-Charts & Playlists",
+        "Restart Nocturne to apply the window effect" to "Starte Nocturne neu, um den Fenstereffekt anzuwenden",
     )
 }

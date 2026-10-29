@@ -698,5 +698,6 @@ internal object Tr {
         "Seasonal" to "Mevsimlik",
         "Halloween" to "Cadılar Bayramı",
         "Spotify charts & playlists" to "Spotify listeleri ve çalma listeleri",
+        "Restart Nocturne to apply the window effect" to "Pencere efektini uygulamak için Nocturne'u yeniden başlatın",
     )
 }

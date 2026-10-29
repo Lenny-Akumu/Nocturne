@@ -350,7 +350,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             Choice("Refresh rate", Icons.Rounded.Speed, s.refreshRate, listOf(0, 60, 90, 120), { if (it == 0) "Auto" else "$it Hz" }) { v -> set { it.copy(refreshRate = v) } }
                         }
                         if (desktop) {
-                            Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) } }
+                            Choice("Window effect", Icons.Rounded.Window, s.windowBackdrop, WindowBackdrop.entries, { it.label }) { v -> set { it.copy(windowBackdrop = v) }; graph.toast(t("Restart Nocturne to apply the window effect")) }
                         }
                         Header("App icon")
                         AppIconSettings(s, set)

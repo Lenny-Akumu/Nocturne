@@ -5,6 +5,17 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.3",
+        en = listOf(
+            "PC: fixed a crash on start with Mica / Acrylic",
+            "Spotify works without the Web API: charts on Home, playlists and albums from links",
+        ),
+        uk = listOf(
+            "ПК: виправлено виліт при запуску з Mica / Acrylic",
+            "Spotify без Web API: чарти на головній, плейлисти й альбоми за посиланням",
+        ),
+    ),
+    ChangelogEntry(
         "1.10.2",
         en = listOf(
             "PC: Mica / Acrylic transparency finally works",

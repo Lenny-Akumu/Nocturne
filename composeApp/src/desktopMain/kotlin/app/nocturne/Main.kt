@@ -181,6 +181,8 @@ private fun launchApp() {
             // plain player keys only if nothing focused (e.g. a text field) used them
             onKeyEvent = { e -> !Hotkeys.capturing && app.nocturne.ui.handleAppKey(e) },
         ) {
+            // runs during the first composition, before the window is shown
+            remember { WindowEffects.prepare(window, settings.windowBackdrop) }
             window.minimumSize = java.awt.Dimension(420, 600)
             // mouse side buttons (X1 = back, X2 = forward), like a browser
             androidx.compose.runtime.DisposableEffect(Unit) {

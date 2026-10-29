@@ -698,5 +698,6 @@ internal object It {
         "Seasonal" to "Stagionale",
         "Halloween" to "Halloween",
         "Spotify charts & playlists" to "Classifiche e playlist di Spotify",
+        "Restart Nocturne to apply the window effect" to "Riavvia Nocturne per applicare l'effetto finestra",
     )
 }
