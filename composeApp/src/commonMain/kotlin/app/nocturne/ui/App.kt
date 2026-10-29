@@ -149,12 +149,9 @@ fun App(backdrop: Boolean = false) {
                             else Modifier.focusRequester(keyFocus).focusable().onKeyEvent { handleAppKey(it) },
                         ),
                     ) {
-                        val chrome = WindowChrome.bar
-                        Box(
-                            if (chrome == null) Modifier.fillMaxSize()
-                            else Modifier.fillMaxSize().background(if (backdrop) Color.Transparent else MaterialTheme.colorScheme.background).padding(top = WindowChrome.height),
-                        ) { TrackMenuHost { AppScaffold() } }
-                        chrome?.invoke()
+                        TrackMenuHost { AppScaffold() }
+                        // window buttons float over the content, like a Windows 11 app
+                        WindowChrome.bar?.invoke()
                         UpdateBanner(Modifier.align(Alignment.TopCenter))
                         WhatsNewDialog()
                         StartupIntro()
@@ -189,6 +186,8 @@ private fun AppScaffold() {
     PlatformBackHandler(enabled = nav.canGoBack) { nav.back() }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(bg)) {
+        // desktop without a title bar: the top strip drags the window, keep content clear of it
+        val caption = if (WindowChrome.bar != null) WindowChrome.height else 0.dp
         val wide = maxWidth >= 720.dp
         val hasPlayer = player.current != null
         if (wide) {
@@ -197,7 +196,7 @@ private fun AppScaffold() {
                     containerColor = if (backdrop) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier.fillMaxHeight().statusBarsPadding(),
                     header = {
-                        NocturneLogo(Modifier.padding(top = 12.dp, bottom = 16.dp).size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).clickable { LogoTaps.tap() })
+                        NocturneLogo(Modifier.padding(top = 12.dp + caption, bottom = 16.dp).size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).clickable { LogoTaps.tap() })
                     },
                 ) {
                     tabs.forEach { RailItem(it, nav) }
@@ -206,7 +205,7 @@ private fun AppScaffold() {
                     Spacer(Modifier.height(16.dp))
                 }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
-                    val pad = PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 8.dp, bottom = if (hasPlayer) 100.dp else 16.dp)
+                    val pad = PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + caption + 8.dp, bottom = if (hasPlayer) 100.dp else 16.dp)
                     ScreenHost(pad)
                 }
             } }
@@ -221,7 +220,7 @@ private fun AppScaffold() {
             GlassSource(Modifier.fillMaxSize().then(if (glass) Modifier.nestedScroll(app.nocturne.ui.style.glass.GlassChrome.scroll) else Modifier)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
-                        ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(), bottom = bottomPad))
+                        ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + caption, bottom = bottomPad))
                     }
                 }
             }

@@ -127,6 +127,11 @@ fun FloatingPlayerWindow() {
     val ax = if (settings.floatingX < 0) bounds.x + bounds.width / 2 + when (anchor) { 0 -> -180; 2 -> 180; else -> 0 } else settings.floatingX
     val ay = if (settings.floatingX < 0) bounds.y + 6 else settings.floatingY
     val state = rememberDialogState(position = WindowPosition((ax - 200).dp, ay.dp), size = DpSize(400.dp, 80.dp))
+    run {
+        val gw = (340 * scale).toInt()
+        val gh = (64 * scale).toInt()
+        WindowMorph.pillGuess = java.awt.Rectangle(when (anchor) { 0 -> ax; 2 -> ax - gw; else -> ax - gw / 2 }, ay, gw, gh)
+    }
     // Read only from snapshotFlow: per-frame size changes must not recompose the window.
     val pillPx = remember { mutableStateOf(IntSize.Zero) }
     val busy = remember { mutableStateOf(false) }
@@ -139,7 +144,21 @@ fun FloatingPlayerWindow() {
     val tabIn = remember { androidx.compose.animation.core.Animatable(0f) }
     var lastRect by remember { mutableStateOf(java.awt.Rectangle(0, 0, 0, 0)) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    // steps aside while the app window is in front, pops back in when it goes away (Alt+Tab, minimize)
+    val show = editing || (app.nocturne.MainWindow.seen && !app.nocturne.MainWindow.active && WindowMorph.spec == null)
+    var winVisible by remember { mutableStateOf(show) }
+    val appear = remember { androidx.compose.animation.core.Animatable(if (show) 1f else 0f) }
+    LaunchedEffect(show) {
+        if (show) {
+            winVisible = true
+            appear.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 420f))
+        } else {
+            appear.animateTo(0f, androidx.compose.animation.core.tween(130))
+            winVisible = false
+        }
+    }
     DialogWindow(
+        visible = winVisible,
         onCloseRequest = { graph.settings.update { it.copy(floatingPlayer = false) } },
         state = state,
         title = "Nocturne",
@@ -149,7 +168,7 @@ fun FloatingPlayerWindow() {
         focusable = false,
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
-        androidx.compose.runtime.DisposableEffect(Unit) { onDispose { WindowMorph.pill = null } }
+        androidx.compose.runtime.DisposableEffect(Unit) { onDispose { WindowMorph.pill = null; WindowMorph.pillGuess = null } }
         LaunchedEffect(settings.iconBackground, settings.iconPalette, settings.halloweenIcon) { app.nocturne.AppIcon.update(settings.iconBackground, settings.iconPalette, settings.halloweenIcon && isHalloween()).takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
         val base0 = if (settings.floatingVertical) BASE_VERTICAL else BASE
         LaunchedEffect(ax, ay, anchor, editing, scale, base0) {
@@ -236,7 +255,14 @@ fun FloatingPlayerWindow() {
                             }
                         }
                     } else {
-                        Box(pillModifier) {
+                        Box(pillModifier.graphicsLayer {
+                            val a = appear.value
+                            alpha = a.coerceIn(0f, 1f)
+                            scaleX = 0.72f + 0.28f * a
+                            scaleY = scaleX
+                            translationY = -14.dp.toPx() * (1f - a)
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(when (anchor) { 0 -> 0f; 2 -> 1f; else -> 0.5f }, 0f)
+                        }) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 HideHandle {
                                     scope.launch {

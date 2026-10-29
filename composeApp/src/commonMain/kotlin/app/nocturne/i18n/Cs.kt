@@ -699,5 +699,7 @@ internal object Cs {
         "Halloween" to "Halloween",
         "Spotify charts & playlists" to "Žebříčky a playlisty Spotify",
         "Restart Nocturne to apply the window effect" to "Restartujte Nocturne pro použití efektu okna",
+        "Fluent icons" to "Ikony Fluent",
+        "Cleaner icon set from Windows 11" to "Čistší sada ikon z Windows 11",
     )
 }

@@ -705,5 +705,7 @@ internal object Uk {
         "Halloween" to "Хелловін",
         "Spotify charts & playlists" to "Чарти й плейлисти Spotify",
         "Restart Nocturne to apply the window effect" to "Перезапустіть Nocturne, щоб застосувати ефект вікна",
+        "Fluent icons" to "Іконки Fluent",
+        "Cleaner icon set from Windows 11" to "Охайніший набір іконок із Windows 11",
     )
 }

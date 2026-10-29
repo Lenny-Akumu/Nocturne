@@ -336,6 +336,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Color style", Icons.Rounded.Palette, s.colorStyle, listOf("TonalSpot", "Vibrant", "Expressive", "Fidelity", "Content", "Rainbow", "FruitSalad", "Neutral", "Monochrome"), {
                             when (it) { "TonalSpot" -> "Balanced"; "FruitSalad" -> "Fruit salad"; else -> it }
                         }) { v -> set { it.copy(colorStyle = v) } }
+                        Toggle("Fluent icons", "Cleaner icon set from Windows 11", Icons.Rounded.Palette, s.fluentIcons) { v -> set { it.copy(fluentIcons = v) } }
                         Header("Atmosphere")
                         Toggle("Startup animation", null, Icons.Rounded.AutoAwesome, s.startupIntro) { v -> set { it.copy(startupIntro = v) } }
                         Toggle("Startup sound", "A short chime when the app opens", Icons.Rounded.MusicNote, s.startupSound) { v -> set { it.copy(startupSound = v) } }

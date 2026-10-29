@@ -699,5 +699,7 @@ internal object Tr {
         "Halloween" to "Cadılar Bayramı",
         "Spotify charts & playlists" to "Spotify listeleri ve çalma listeleri",
         "Restart Nocturne to apply the window effect" to "Pencere efektini uygulamak için Nocturne'u yeniden başlatın",
+        "Fluent icons" to "Fluent simgeleri",
+        "Cleaner icon set from Windows 11" to "Windows 11'in sade simgeleri",
     )
 }

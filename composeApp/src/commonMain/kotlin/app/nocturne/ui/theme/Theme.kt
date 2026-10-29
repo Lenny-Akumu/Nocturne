@@ -254,6 +254,7 @@ fun NocturneTheme(
     CompositionLocalProvider(
         LocalDarkTheme provides dark, LocalBackdrop provides backdrop, LocalDesignStyle provides style,
         LocalPixelIcons provides (settings.fontStyle == "minecraft"),
+        app.nocturne.ui.kit.LocalFluentIcons provides settings.fluentIcons,
     ) {
         MaterialTheme(colorScheme = scheme, typography = typography, shapes = shapes) {
             if (style != DesignStyle.MATERIAL) {

@@ -699,5 +699,7 @@ internal object Pt {
         "Halloween" to "Halloween",
         "Spotify charts & playlists" to "Paradas e playlists do Spotify",
         "Restart Nocturne to apply the window effect" to "Reinicie o Nocturne para aplicar o efeito da janela",
+        "Fluent icons" to "Ícones Fluent",
+        "Cleaner icon set from Windows 11" to "Ícones mais limpos do Windows 11",
     )
 }

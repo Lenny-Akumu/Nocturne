@@ -210,6 +210,7 @@ private fun launchApp() {
                 }
             }
             MainWindow.window = window
+            remember { MainWindow.track(window) }
             LaunchedEffect(Unit) {
                 if (settings.customTitleBar && CustomFrame.install(window)) {
                     app.nocturne.ui.WindowChrome.bar = { app.nocturne.ui.CaptionBar(window, windowState) }

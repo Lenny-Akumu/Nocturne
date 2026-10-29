@@ -94,6 +94,7 @@ data class Settings(
     val customTitleBar: Boolean = true,
     val downloadFolder: String = "",
     val halloweenIcon: Boolean = false,
+    val fluentIcons: Boolean = true,
     val showVideo: Boolean = false,
     val crossfadeSec: Int = 0,
     val releaseAlerts: Boolean = true,

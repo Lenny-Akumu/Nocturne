@@ -699,5 +699,7 @@ internal object Zh {
         "Halloween" to "万圣节",
         "Spotify charts & playlists" to "Spotify 榜单与歌单",
         "Restart Nocturne to apply the window effect" to "重启 Nocturne 以应用窗口效果",
+        "Fluent icons" to "Fluent 图标",
+        "Cleaner icon set from Windows 11" to "来自 Windows 11 的简洁图标",
     )
 }

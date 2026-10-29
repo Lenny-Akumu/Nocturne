@@ -1,5 +1,7 @@
 package app.nocturne
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -87,6 +89,24 @@ fun performHotkey(action: HotkeyAction): Boolean {
 
 object MainWindow {
     @Volatile var window: java.awt.Frame? = null
+
+    /** Focused and not minimized: the floating player steps aside meanwhile. */
+    var active by androidx.compose.runtime.mutableStateOf(true)
+    /** The window has been in front at least once (no pill flash during launch). */
+    var seen by androidx.compose.runtime.mutableStateOf(false)
+
+    fun track(w: java.awt.Frame) {
+        fun update() {
+            active = w.isActive && w.extendedState and java.awt.Frame.ICONIFIED == 0 && w.isVisible
+            if (active) seen = true
+        }
+        w.addWindowFocusListener(object : java.awt.event.WindowFocusListener {
+            override fun windowGainedFocus(e: java.awt.event.WindowEvent) = update()
+            override fun windowLostFocus(e: java.awt.event.WindowEvent) = update()
+        })
+        w.addWindowStateListener { update() }
+        update()
+    }
 
     fun show() {
         val w = window ?: return

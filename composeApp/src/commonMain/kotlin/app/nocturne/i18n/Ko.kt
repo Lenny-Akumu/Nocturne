@@ -699,5 +699,7 @@ internal object Ko {
         "Halloween" to "핼러윈",
         "Spotify charts & playlists" to "Spotify 차트 & 플레이리스트",
         "Restart Nocturne to apply the window effect" to "창 효과를 적용하려면 Nocturne를 다시 시작하세요",
+        "Fluent icons" to "Fluent 아이콘",
+        "Cleaner icon set from Windows 11" to "Windows 11 스타일의 깔끔한 아이콘",
     )
 }

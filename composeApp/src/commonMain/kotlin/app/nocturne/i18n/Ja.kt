@@ -699,5 +699,7 @@ internal object Ja {
         "Halloween" to "ハロウィン",
         "Spotify charts & playlists" to "Spotify のチャートとプレイリスト",
         "Restart Nocturne to apply the window effect" to "ウィンドウ効果を適用するには Nocturne を再起動してください",
+        "Fluent icons" to "Fluent アイコン",
+        "Cleaner icon set from Windows 11" to "Windows 11 のすっきりしたアイコン",
     )
 }
