@@ -10,6 +10,7 @@ import kotlinx.cinterop.usePinned
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
+import platform.Foundation.create
 import platform.UIKit.UIApplication
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
 import platform.UIKit.UIGraphicsEndImageContext
@@ -29,7 +30,7 @@ private class PickerDelegate(val onImage: (UIImage?, NSData?) -> Unit) : NSObjec
     override fun imagePickerController(picker: UIImagePickerController, didFinishPickingMediaWithInfo: Map<Any?, *>) {
         picker.dismissViewControllerAnimated(true, null)
         val url = didFinishPickingMediaWithInfo[platform.UIKit.UIImagePickerControllerImageURL] as? platform.Foundation.NSURL
-        onImage(didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage, url?.let { NSData.dataWithContentsOfURL(it) })
+        onImage(didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage, url?.let { NSData.create(contentsOfURL = it) })
     }
 
     override fun imagePickerControllerDidCancel(picker: UIImagePickerController) {
