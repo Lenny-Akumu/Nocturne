@@ -741,5 +741,10 @@ internal object Ja {
         "Send" to "送信",
         "Black cat on like" to "いいねで黒猫",
         "50/50 chance of a spooky cat when you like a song" to "いいねすると 50% の確率で怖い猫が現れます",
+        "App background" to "アプリの背景",
+        "Pick an image or a GIF" to "画像か GIF を選択",
+        "Custom image · tap to change" to "カスタム画像 · タップで変更",
+        "Background blur" to "背景のぼかし",
+        "Remove background" to "背景を削除",
     )
 }

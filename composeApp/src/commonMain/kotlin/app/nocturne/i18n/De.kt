@@ -741,5 +741,10 @@ internal object De {
         "Send" to "Senden",
         "Black cat on like" to "Schwarze Katze beim Liken",
         "50/50 chance of a spooky cat when you like a song" to "Mit 50/50-Chance springt beim Liken eine gruselige Katze heraus",
+        "App background" to "App-Hintergrund",
+        "Pick an image or a GIF" to "Bild oder GIF auswählen",
+        "Custom image · tap to change" to "Eigenes Bild · tippen zum Ändern",
+        "Background blur" to "Hintergrund-Unschärfe",
+        "Remove background" to "Hintergrund entfernen",
     )
 }

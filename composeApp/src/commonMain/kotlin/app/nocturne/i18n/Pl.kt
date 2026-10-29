@@ -741,5 +741,10 @@ internal object Pl {
         "Send" to "Wyślij",
         "Black cat on like" to "Czarny kot przy polubieniu",
         "50/50 chance of a spooky cat when you like a song" to "Szansa 50/50 na strasznego kota przy polubieniu",
+        "App background" to "Tło aplikacji",
+        "Pick an image or a GIF" to "Wybierz obraz lub GIF",
+        "Custom image · tap to change" to "Własny obraz · dotknij, aby zmienić",
+        "Background blur" to "Rozmycie tła",
+        "Remove background" to "Usuń tło",
     )
 }

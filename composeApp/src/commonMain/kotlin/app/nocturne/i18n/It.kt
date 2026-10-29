@@ -741,5 +741,10 @@ internal object It {
         "Send" to "Invia",
         "Black cat on like" to "Gatto nero al like",
         "50/50 chance of a spooky cat when you like a song" to "50/50 che spunti un gatto spaventoso al like",
+        "App background" to "Sfondo dell'app",
+        "Pick an image or a GIF" to "Scegli un'immagine o una GIF",
+        "Custom image · tap to change" to "Immagine personale · tocca per cambiare",
+        "Background blur" to "Sfocatura sfondo",
+        "Remove background" to "Rimuovi sfondo",
     )
 }

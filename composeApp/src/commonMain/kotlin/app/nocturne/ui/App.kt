@@ -1,5 +1,6 @@
 package app.nocturne.ui
 
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.foundation.focusable
@@ -130,8 +131,16 @@ object WindowChrome {
 fun App(backdrop: Boolean = false) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
-    NocturneTheme(settings, seedOverride = app.nocturne.ui.style.material.rememberMaterialSeed(settings), backdrop = backdrop) {
+    val wallpaper by app.nocturne.data.AppBackground.state.collectAsState()
+    // a custom background makes the chrome translucent the same way a window backdrop does
+    NocturneTheme(settings, seedOverride = app.nocturne.ui.style.material.rememberMaterialSeed(settings), backdrop = backdrop || wallpaper != null) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
+            wallpaper?.let { bytes ->
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    AnimatedImage(bytes, Modifier.fillMaxSize().then(if (settings.backgroundBlur > 0.5f) Modifier.blur(settings.backgroundBlur.dp) else Modifier))
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.45f)))
+                }
+            }
             val base = androidx.compose.ui.platform.LocalDensity.current
             val landscapePhone = app.nocturne.platformKind != app.nocturne.PlatformKind.DESKTOP && maxHeight < 480.dp && maxWidth > maxHeight
             val k = settings.uiScale.coerceIn(0.5f, 2f) * if (landscapePhone) 0.82f else 1f

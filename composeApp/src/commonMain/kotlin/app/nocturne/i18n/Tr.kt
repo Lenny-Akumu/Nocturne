@@ -741,5 +741,10 @@ internal object Tr {
         "Send" to "Gönder",
         "Black cat on like" to "Beğenide kara kedi",
         "50/50 chance of a spooky cat when you like a song" to "Beğenince %50 ihtimalle korkunç bir kedi çıkar",
+        "App background" to "Uygulama arka planı",
+        "Pick an image or a GIF" to "Bir resim ya da GIF seçin",
+        "Custom image · tap to change" to "Özel resim · değiştirmek için dokunun",
+        "Background blur" to "Arka plan bulanıklığı",
+        "Remove background" to "Arka planı kaldır",
     )
 }

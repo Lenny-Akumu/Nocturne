@@ -15,7 +15,7 @@ import java.io.File
 import javax.imageio.ImageIO
 
 @Composable
-actual fun rememberImagePicker(onPicked: (ByteArray) -> Unit): () -> Unit {
+actual fun rememberImagePicker(large: Boolean, onPicked: (ByteArray) -> Unit): () -> Unit {
     val scope = rememberCoroutineScope()
     val cb = rememberUpdatedState(onPicked)
     return {
@@ -27,7 +27,11 @@ actual fun rememberImagePicker(onPicked: (ByteArray) -> Unit): () -> Unit {
                     isVisible = true
                 }
                 val name = dialog.file ?: return@withContext null
-                runCatching { shrink(File(dialog.directory, name)) }.getOrNull()
+                val f = File(dialog.directory, name)
+                runCatching {
+                    val raw = f.readBytes()
+                    if (large && isGif(raw)) raw.takeIf { it.size <= 40_000_000 } else shrink(f, if (large) 1920 else 512)
+                }.getOrNull()
             }
             bytes?.let { cb.value(it) }
         }

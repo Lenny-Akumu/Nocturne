@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
 @Composable
-actual fun rememberImagePicker(onPicked: (ByteArray) -> Unit): () -> Unit {
+actual fun rememberImagePicker(large: Boolean, onPicked: (ByteArray) -> Unit): () -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val cb = rememberUpdatedState(onPicked)
@@ -25,7 +25,7 @@ actual fun rememberImagePicker(onPicked: (ByteArray) -> Unit): () -> Unit {
             val bytes = withContext(Dispatchers.IO) {
                 runCatching {
                     val raw = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
-                    shrink(raw)
+                    if (large && isGif(raw)) raw.takeIf { it.size <= 40_000_000 } else shrink(raw, if (large) 1600 else 512)
                 }.getOrNull()
             }
             bytes?.let { cb.value(it) }

@@ -741,5 +741,10 @@ internal object Pt {
         "Send" to "Enviar",
         "Black cat on like" to "Gato preto ao curtir",
         "50/50 chance of a spooky cat when you like a song" to "50/50 de aparecer um gato assustador ao curtir",
+        "App background" to "Fundo do app",
+        "Pick an image or a GIF" to "Escolha uma imagem ou GIF",
+        "Custom image · tap to change" to "Imagem própria · toque para mudar",
+        "Background blur" to "Desfoque do fundo",
+        "Remove background" to "Remover fundo",
     )
 }

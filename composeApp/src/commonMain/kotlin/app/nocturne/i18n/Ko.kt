@@ -741,5 +741,10 @@ internal object Ko {
         "Send" to "보내기",
         "Black cat on like" to "좋아요 시 검은 고양이",
         "50/50 chance of a spooky cat when you like a song" to "좋아요를 누르면 50% 확률로 무서운 고양이가 나타나요",
+        "App background" to "앱 배경",
+        "Pick an image or a GIF" to "이미지 또는 GIF 선택",
+        "Custom image · tap to change" to "사용자 이미지 · 눌러서 변경",
+        "Background blur" to "배경 흐림",
+        "Remove background" to "배경 제거",
     )
 }

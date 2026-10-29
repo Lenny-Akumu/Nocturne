@@ -741,5 +741,10 @@ internal object Cs {
         "Send" to "Odeslat",
         "Black cat on like" to "Černá kočka při lajku",
         "50/50 chance of a spooky cat when you like a song" to "Při lajku se s šancí 50/50 objeví strašidelná kočka",
+        "App background" to "Pozadí aplikace",
+        "Pick an image or a GIF" to "Vyberte obrázek nebo GIF",
+        "Custom image · tap to change" to "Vlastní obrázek · klepnutím změníte",
+        "Background blur" to "Rozmazání pozadí",
+        "Remove background" to "Odebrat pozadí",
     )
 }

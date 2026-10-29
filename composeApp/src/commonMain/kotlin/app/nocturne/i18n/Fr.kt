@@ -741,5 +741,10 @@ internal object Fr {
         "Send" to "Envoyer",
         "Black cat on like" to "Chat noir au like",
         "50/50 chance of a spooky cat when you like a song" to "Une chance sur deux qu'un chat effrayant surgisse au like",
+        "App background" to "Fond de l'app",
+        "Pick an image or a GIF" to "Choisissez une image ou un GIF",
+        "Custom image · tap to change" to "Image perso · touchez pour changer",
+        "Background blur" to "Flou de l'arrière-plan",
+        "Remove background" to "Retirer le fond",
     )
 }

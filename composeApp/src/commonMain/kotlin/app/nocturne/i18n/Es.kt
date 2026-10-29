@@ -741,5 +741,10 @@ internal object Es {
         "Send" to "Enviar",
         "Black cat on like" to "Gato negro al dar like",
         "50/50 chance of a spooky cat when you like a song" to "50/50 de que salte un gato aterrador al dar like",
+        "App background" to "Fondo de la app",
+        "Pick an image or a GIF" to "Elige una imagen o un GIF",
+        "Custom image · tap to change" to "Imagen propia · toca para cambiar",
+        "Background blur" to "Desenfoque del fondo",
+        "Remove background" to "Quitar fondo",
     )
 }

@@ -1,6 +1,7 @@
 package app.nocturne.ui.screens
 
 import app.nocturne.ui.demo
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -345,6 +346,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             when (it) { "TonalSpot" -> "Balanced"; "FruitSalad" -> "Fruit salad"; else -> it }
                         }) { v -> set { it.copy(colorStyle = v) } }
                         Toggle("Fluent icons", "Cleaner icon set from Windows 11", Icons.Rounded.Palette, s.fluentIcons) { v -> set { it.copy(fluentIcons = v) } }
+                        AppBackgroundRow(s, set)
                         Header("Atmosphere")
                         Toggle("Startup animation", null, Icons.Rounded.AutoAwesome, s.startupIntro) { v -> set { it.copy(startupIntro = v) } }
                         Toggle("Startup sound", "A short chime when the app opens", Icons.Rounded.MusicNote, s.startupSound) { v -> set { it.copy(startupSound = v) } }
@@ -563,6 +565,17 @@ private fun Locations(downloads: Int) {
             },
             dismissButton = { TextButton(enabled = busy == null, onClick = { askApp = null }) { Text(t("Cancel")) } },
         )
+    }
+}
+
+@Composable
+private fun AppBackgroundRow(s: Settings, set: ((Settings) -> Settings) -> Unit) {
+    val bg by app.nocturne.data.AppBackground.state.collectAsState()
+    val pick = app.nocturne.ui.rememberImagePicker(large = true) { app.nocturne.data.AppBackground.set(it) }
+    Action("App background", if (bg == null) "Pick an image or a GIF" else t("Custom image · tap to change"), Icons.Rounded.Wallpaper) { pick() }
+    if (bg != null) {
+        SliderPref("Background blur", "${s.backgroundBlur.roundToInt()} dp", s.backgroundBlur, 0f..40f, 39) { v -> set { it.copy(backgroundBlur = v) } }
+        Action("Remove background", null, Icons.Rounded.DeleteOutline) { app.nocturne.data.AppBackground.clear() }
     }
 }
 

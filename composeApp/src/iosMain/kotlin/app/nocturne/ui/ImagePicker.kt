@@ -25,15 +25,16 @@ import platform.UIKit.UIViewController
 import platform.darwin.NSObject
 import platform.posix.memcpy
 
-private class PickerDelegate(val onImage: (UIImage?) -> Unit) : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
+private class PickerDelegate(val onImage: (UIImage?, NSData?) -> Unit) : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
     override fun imagePickerController(picker: UIImagePickerController, didFinishPickingMediaWithInfo: Map<Any?, *>) {
         picker.dismissViewControllerAnimated(true, null)
-        onImage(didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage)
+        val url = didFinishPickingMediaWithInfo[platform.UIKit.UIImagePickerControllerImageURL] as? platform.Foundation.NSURL
+        onImage(didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage, url?.let { NSData.dataWithContentsOfURL(it) })
     }
 
     override fun imagePickerControllerDidCancel(picker: UIImagePickerController) {
         picker.dismissViewControllerAnimated(true, null)
-        onImage(null)
+        onImage(null, null)
     }
 }
 
@@ -68,15 +69,17 @@ private fun NSData.toBytes(): ByteArray {
 }
 
 @Composable
-actual fun rememberImagePicker(onPicked: (ByteArray) -> Unit): () -> Unit {
+actual fun rememberImagePicker(large: Boolean, onPicked: (ByteArray) -> Unit): () -> Unit {
     val cb = rememberUpdatedState(onPicked)
     return remember<() -> Unit> {
         {
             val picker = UIImagePickerController()
             picker.sourceType = UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypePhotoLibrary
-            val d = PickerDelegate { img ->
+            val d = PickerDelegate { img, data ->
                 activeDelegate = null
-                img?.let(::shrink)?.let { cb.value(it) }
+                val raw = data?.toBytes()
+                if (large && raw != null && isGif(raw)) cb.value(raw)
+                else img?.let { shrink(it, if (large) 1600.0 else 512.0) }?.let { cb.value(it) }
             }
             activeDelegate = d
             picker.delegate = d

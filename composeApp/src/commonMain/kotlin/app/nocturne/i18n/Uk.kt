@@ -747,5 +747,10 @@ internal object Uk {
         "Send" to "Надіслати",
         "Black cat on like" to "Чорний кіт на лайк",
         "50/50 chance of a spooky cat when you like a song" to "З шансом 50/50 вискакує страшний кіт, коли лайкаєш пісню",
+        "App background" to "Фон застосунку",
+        "Pick an image or a GIF" to "Оберіть зображення або GIF",
+        "Custom image · tap to change" to "Своє зображення · натисніть, щоб змінити",
+        "Background blur" to "Розмиття фону",
+        "Remove background" to "Прибрати фон",
     )
 }

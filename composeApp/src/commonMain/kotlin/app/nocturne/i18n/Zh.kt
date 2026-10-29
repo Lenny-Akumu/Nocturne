@@ -741,5 +741,10 @@ internal object Zh {
         "Send" to "发送",
         "Black cat on like" to "点赞时黑猫",
         "50/50 chance of a spooky cat when you like a song" to "点赞时有 50% 概率跳出一只吓人的猫",
+        "App background" to "应用背景",
+        "Pick an image or a GIF" to "选择图片或 GIF",
+        "Custom image · tap to change" to "自定义图片 · 点按更换",
+        "Background blur" to "背景模糊",
+        "Remove background" to "移除背景",
     )
 }
