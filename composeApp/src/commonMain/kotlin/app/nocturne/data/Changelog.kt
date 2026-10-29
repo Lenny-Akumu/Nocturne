@@ -5,6 +5,11 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.4",
+        en = listOf("PC: Mica / Acrylic transparency now switches on at launch"),
+        uk = listOf("ПК: прозорість Mica / Acrylic тепер вмикається при запуску"),
+    ),
+    ChangelogEntry(
         "1.10.3",
         en = listOf(
             "PC: fixed a crash on start with Mica / Acrylic",

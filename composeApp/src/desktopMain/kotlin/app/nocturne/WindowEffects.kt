@@ -126,6 +126,22 @@ object WindowEffects {
     }
 
     private var prepared = "not prepared"
+    private var armed = false
+
+    /**
+     * Compose builds and attaches the window before our content runs, so the layer is caught as it is added
+     * to its container (still not displayable) and made transparent there.
+     */
+    fun arm(backdrop: WindowBackdrop) {
+        if (armed || !supportsBackdrop || backdrop == WindowBackdrop.NONE) return
+        armed = true
+        java.awt.Toolkit.getDefaultToolkit().addAWTEventListener({ e ->
+            val ce = e as? java.awt.event.ContainerEvent ?: return@addAWTEventListener
+            if (ce.id != java.awt.event.ContainerEvent.COMPONENT_ADDED) return@addAWTEventListener
+            val layer = ce.child as? SkiaLayer ?: (ce.child as? Container)?.findSkiaLayer() ?: return@addAWTEventListener
+            if (!layer.isDisplayable && !layer.transparency) layer.transparency = true
+        }, java.awt.AWTEvent.CONTAINER_EVENT_MASK)
+    }
 
     private fun report(s: String) { app.nocturne.ui.WindowChrome.effectStatus = s }
 
