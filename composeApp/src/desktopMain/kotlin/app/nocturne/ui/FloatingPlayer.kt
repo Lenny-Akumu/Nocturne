@@ -145,15 +145,20 @@ fun FloatingPlayerWindow() {
     var lastRect by remember { mutableStateOf(java.awt.Rectangle(0, 0, 0, 0)) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     // steps aside while the app window is in front, pops back in when it goes away (Alt+Tab, minimize)
-    val show = editing || (app.nocturne.MainWindow.seen && !app.nocturne.MainWindow.active && WindowMorph.spec == null)
+    val show = editing || (app.nocturne.MainWindow.seen && !app.nocturne.MainWindow.active && (WindowMorph.spec == null || WindowMorph.handoff))
     var winVisible by remember { mutableStateOf(show) }
     val appear = remember { androidx.compose.animation.core.Animatable(if (show) 1f else 0f) }
+    // taking over from the minimize morph: plain fade, the overlay already did the motion
+    var soft by remember { mutableStateOf(false) }
     LaunchedEffect(show) {
         if (show) {
+            soft = WindowMorph.handoff
             winVisible = true
-            appear.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 420f))
+            if (soft) appear.animateTo(1f, androidx.compose.animation.core.tween(90))
+            else appear.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 420f))
         } else {
-            appear.animateTo(0f, androidx.compose.animation.core.tween(130))
+            soft = WindowMorph.spec != null
+            if (soft) appear.snapTo(0f) else appear.animateTo(0f, androidx.compose.animation.core.tween(130))
             winVisible = false
         }
     }
@@ -258,9 +263,11 @@ fun FloatingPlayerWindow() {
                         Box(pillModifier.graphicsLayer {
                             val a = appear.value
                             alpha = a.coerceIn(0f, 1f)
-                            scaleX = 0.72f + 0.28f * a
-                            scaleY = scaleX
-                            translationY = -14.dp.toPx() * (1f - a)
+                            if (!soft) {
+                                scaleX = 0.72f + 0.28f * a
+                                scaleY = scaleX
+                                translationY = -14.dp.toPx() * (1f - a)
+                            }
                             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(when (anchor) { 0 -> 0f; 2 -> 1f; else -> 0.5f }, 0f)
                         }) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {

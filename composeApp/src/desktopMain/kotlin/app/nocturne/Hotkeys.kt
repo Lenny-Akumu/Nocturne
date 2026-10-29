@@ -100,11 +100,18 @@ object MainWindow {
             active = w.isActive && w.extendedState and java.awt.Frame.ICONIFIED == 0 && w.isVisible
             if (active) seen = true
         }
+        // focus flags settle only after the event, so look again on the next tick
+        fun later() { update(); javax.swing.SwingUtilities.invokeLater { update() } }
         w.addWindowFocusListener(object : java.awt.event.WindowFocusListener {
-            override fun windowGainedFocus(e: java.awt.event.WindowEvent) = update()
-            override fun windowLostFocus(e: java.awt.event.WindowEvent) = update()
+            override fun windowGainedFocus(e: java.awt.event.WindowEvent) = later()
+            override fun windowLostFocus(e: java.awt.event.WindowEvent) = later()
         })
-        w.addWindowStateListener { update() }
+        w.addWindowListener(object : java.awt.event.WindowAdapter() {
+            override fun windowActivated(e: java.awt.event.WindowEvent) = later()
+            override fun windowDeactivated(e: java.awt.event.WindowEvent) = later()
+        })
+        w.addWindowStateListener { later() }
+        javax.swing.Timer(400) { update() }.start()
         update()
     }
 

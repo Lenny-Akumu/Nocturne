@@ -39,7 +39,17 @@ import androidx.compose.ui.window.rememberDialogState
 import app.nocturne.CustomFrame
 import app.nocturne.data.IconBackground
 import app.nocturne.data.IconPalette
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.awt.Frame
+import java.awt.image.BufferedImage
 import java.awt.Rectangle
 import javax.swing.SwingUtilities
 
@@ -52,9 +62,20 @@ object WindowMorph {
     private val target get() = pill ?: pillGuess
     @Volatile var dark = true
 
-    internal class Spec(val from: Rectangle, val to: Rectangle, val grow: Boolean, val done: () -> Unit)
+    internal class Spec(val from: Rectangle, val to: Rectangle, val grow: Boolean, val shot: ImageBitmap?, val start: () -> Unit, val done: () -> Unit)
     internal var spec by mutableStateOf<Spec?>(null)
+    /** Shrink is nearly over: the floating player fades in under the overlay. */
+    internal var handoff by mutableStateOf(false)
     private var normal: Rectangle? = null
+    private var shot: ImageBitmap? = null
+
+    private fun capture(r: Rectangle): ImageBitmap? = runCatching {
+        val img = java.awt.Robot().createMultiResolutionScreenCapture(r).resolutionVariants.maxBy { it.getWidth(null) }
+        val buf = img as? BufferedImage ?: BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB).also {
+            it.createGraphics().apply { drawImage(img, 0, 0, null); dispose() }
+        }
+        buf.toComposeImageBitmap()
+    }.getOrNull()
 
     fun install(window: Frame) {
         CustomFrame.onMinimize = { target != null && spec == null && SwingUtilities.invokeLater { minimize(window) }.let { true } }
@@ -69,8 +90,9 @@ object WindowMorph {
         }
         val from = window.bounds
         normal = from
-        spec = Spec(from, p, grow = false) {}
-        window.extendedState = window.extendedState or Frame.ICONIFIED
+        shot = capture(from)
+        // iconify only once the overlay has painted, so there's no empty frame
+        spec = Spec(from, p, grow = false, shot, start = { window.extendedState = window.extendedState or Frame.ICONIFIED }) {}
     }
 
     /** Grows out of the pill, then shows the window; false when there's nothing to grow from. */
@@ -78,7 +100,7 @@ object WindowMorph {
         val p = target ?: return false
         if (spec != null || !CustomFrame.installed) return false
         val to = normal ?: window.bounds
-        spec = Spec(p, to, grow = true) {
+        spec = Spec(p, to, grow = true, shot.takeIf { normal != null }, start = {}) {
             window.extendedState = window.extendedState and Frame.ICONIFIED.inv()
             window.isVisible = true
             window.toFront()
@@ -110,15 +132,27 @@ fun WindowMorphOverlay(palette: IconPalette) {
         focusable = false,
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
-        LaunchedEffect(area) {
-            if (area == null) window.setBounds(-40, -40, 1, 1) else window.setBounds(area.x, area.y, area.width, area.height)
-        }
         val t = remember { Animatable(0f) }
         LaunchedEffect(spec) {
-            if (spec == null) return@LaunchedEffect
+            if (spec == null || area == null) {
+                window.setBounds(-40, -40, 1, 1)
+                return@LaunchedEffect
+            }
             t.snapTo(0f)
-            t.animateTo(1f, tween(if (spec.grow) 300 else 250, easing = Swoosh))
+            WindowMorph.handoff = false
+            window.setBounds(area.x, area.y, area.width, area.height)
+            withFrameNanos {}
+            withFrameNanos {}
+            spec.start()
+            launch {
+                snapshotFlow { t.value }.first { it >= 0.72f }
+                if (!spec.grow) WindowMorph.handoff = true
+            }
+            t.animateTo(1f, tween(if (spec.grow) 320 else 280, easing = Swoosh))
             spec.done()
+            // let the restored window paint before the overlay goes
+            delay(if (spec.grow) 70 else 0)
+            WindowMorph.handoff = false
             WindowMorph.spec = null
         }
         if (spec == null || area == null) return@DialogWindow
@@ -140,7 +174,7 @@ fun WindowMorphOverlay(palette: IconPalette) {
                     val k = 4f * p * (1f - p)
                     scaleX = 1f + 0.03f * k
                     scaleY = 1f - 0.03f * k
-                    alpha = if (spec.grow) 0.75f + 0.25f * p else 1f - 0.25f * p
+                    alpha = if (spec.grow) (p / 0.15f).coerceIn(0f, 1f) else 1f - ((p - 0.72f) / 0.28f).coerceIn(0f, 1f)
                 }
                 .shadow(28.dp, shape, ambientColor = Color.Black.copy(alpha = 0.4f), spotColor = Color.Black.copy(alpha = 0.5f))
                 .clip(shape)
@@ -154,6 +188,7 @@ fun WindowMorphOverlay(palette: IconPalette) {
                 )
             }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.35f)))))
+            val shotAlpha = 1f - ((pillness - 0.45f) / 0.4f).coerceIn(0f, 1f)
             val side = (minOf(w, h) * (0.42f + 0.38f * pillness)).dp
             Box(
                 Modifier.align(if (pillness > 0.5f) Alignment.CenterStart else Alignment.Center)
@@ -165,6 +200,10 @@ fun WindowMorphOverlay(palette: IconPalette) {
             ) {
                 if (art != null) coil3.compose.AsyncImage(art, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                 else NocturneIcon(IconBackground.SQUARE, palette, Modifier.fillMaxSize())
+            }
+            val img = spec.shot
+            if (img != null && shotAlpha > 0f) {
+                Image(img, null, Modifier.fillMaxSize().graphicsLayer { alpha = shotAlpha }, contentScale = ContentScale.Crop)
             }
         }
     }

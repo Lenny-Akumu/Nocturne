@@ -5,6 +5,19 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.5",
+        en = listOf(
+            "PC: minimize / restore animates the actual window, seamlessly",
+            "PC: the floating player takes over smoothly from the minimize animation",
+            "PC: the floating player now shows up when you switch to another window",
+        ),
+        uk = listOf(
+            "ПК: згортання й розгортання анімує саме вікно, безшовно",
+            "ПК: плаваючий плеєр плавно підхоплює анімацію згортання",
+            "ПК: плаваючий плеєр тепер з'являється, коли перемикаєшся на інше вікно",
+        ),
+    ),
+    ChangelogEntry(
         "1.10.4",
         en = listOf(
             "PC: Mica / Acrylic transparency now switches on at launch",
