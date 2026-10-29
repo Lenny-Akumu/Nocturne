@@ -105,7 +105,11 @@ actual fun notifyUpdateProgress(version: String, progress: Float?) = Unit
 // which updates in place and keeps the app's data; GitHub only when none of them is there.
 actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress: (Float) -> Unit) {
     val app = UIApplication.sharedApplication
-    for (scheme in listOf("apple-magnifier", "sidestore", "altstore")) {
+    // apple-magnifier is also the stock Magnifier's scheme: only use it when TrollStore really installed us
+    val bundle = platform.Foundation.NSBundle.mainBundle
+    val troll = NSFileManager.defaultManager.fileExistsAtPath(bundle.bundlePath.substringBeforeLast('/') + "/_TrollStore")
+    val schemes = if (troll) listOf("apple-magnifier", "sidestore", "altstore") else listOf("sidestore", "altstore")
+    for (scheme in schemes) {
         val target = NSURL.URLWithString("$scheme://install?url=$url") ?: continue
         if (app.canOpenURL(target)) {
             app.openURL(target, emptyMap<Any?, Any>(), null)
