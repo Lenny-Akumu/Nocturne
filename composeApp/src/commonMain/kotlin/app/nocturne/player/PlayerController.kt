@@ -93,20 +93,39 @@ class PlayerController(
         restore()
         scope.launch {
             var applied = -1f
+            var advancedFor: String? = null
             while (isActive) {
-                delay(80)
+                delay(50)
                 val s = settings.value
+                val st = _state.value
                 val cf = s.crossfadeSec * 1000L
-                val target = if (muted) 0f else if (cf <= 0 || !_state.value.isPlaying) s.volume else {
-                    val d = engine.durationMs
+                val target = if (muted) 0f else if (cf <= 0 || !st.isPlaying || remote != null) s.volume else {
+                    // some streams report no length until late: fall back to the track's own
+                    val d = engine.durationMs.takeIf { it > 0 } ?: st.current?.durationMs ?: 0L
                     val p = engine.positionMs
-                    val fadeOut = if (d > cf * 2) ((d - p).toFloat() / cf).coerceIn(0f, 1f) else 1f
-                    val fadeIn = (p.toFloat() / (cf / 2f)).coerceIn(0f, 1f)
-                    s.volume * minOf(fadeOut, fadeIn)
+                    val left = d - p
+                    val out = if (d > cf * 2 && st.repeat != RepeatMode.ONE) (left.toFloat() / cf).coerceIn(0f, 1f) else 1f
+                    val inn = (p.toFloat() / (cf / 2f)).coerceIn(0f, 1f)
+                    // faded out: skip the silent tail and bring the next song in
+                    val key = st.current?.key
+                    if (d > cf * 2 && left in 1..250 && key != null && advancedFor != key && !synced && loadingKey == null) {
+                        advancedFor = key
+                        onEnded()
+                    }
+                    // equal-power curves sound smoother than linear
+                    s.volume * kotlin.math.sin(minOf(out, inn) * kotlin.math.PI.toFloat() / 2)
                 }
-                if (kotlin.math.abs(target - applied) > 0.01f) {
-                    engine.setVolume(target)
-                    applied = target
+                // sleep timer: the last 30 s fade out instead of a sudden stop
+                val sleepLeft = st.sleepAtMs?.let { it - nowMillis() }
+                var level = if (sleepLeft != null && sleepLeft < SLEEP_FADE_MS) target * (sleepLeft.toFloat() / SLEEP_FADE_MS).coerceIn(0f, 1f) else target
+                // wake-up alarm: a gentle one-minute swell
+                if (wakeAt > 0) {
+                    val k = (nowMillis() - wakeAt).toFloat() / WAKE_FADE_MS
+                    if (k >= 1f) wakeAt = 0 else level *= k.coerceIn(0.03f, 1f)
+                }
+                if (kotlin.math.abs(level - applied) > 0.005f) {
+                    engine.setVolume(level)
+                    applied = level
                 }
             }
         }
@@ -337,6 +356,19 @@ class PlayerController(
     fun cycleRepeat() {
         _state.update { it.copy(repeat = RepeatMode.entries[(it.repeat.ordinal + 1) % RepeatMode.entries.size]) }
         queueChanged()
+    }
+
+    private var wakeAt = 0L
+
+    /** Alarm: resumes the queue (or starts the user's music) and fades it in. */
+    fun wake(fallback: List<Track>) {
+        wakeAt = nowMillis()
+        val s = _state.value
+        when {
+            s.isPlaying -> Unit
+            s.current != null -> resume()
+            fallback.isNotEmpty() -> play(fallback.shuffled(), 0, app.nocturne.i18n.t("Wake-up alarm"))
+        }
     }
 
     fun setVolume(v: Float) {
@@ -678,5 +710,7 @@ class PlayerController(
     companion object {
         private const val QUEUE_FILE = "queue.json"
         private const val STREAM_TTL = 3 * 60 * 60 * 1000L
+        private const val SLEEP_FADE_MS = 30_000L
+        private const val WAKE_FADE_MS = 60_000L
     }
 }

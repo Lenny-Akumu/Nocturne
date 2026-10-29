@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import app.nocturne.i18n.t
 import androidx.compose.animation.AnimatedContent
 import kotlinx.coroutines.delay
+import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -504,6 +505,37 @@ private fun ActionsRow(modifier: Modifier, pane: Pane, onPane: (Pane) -> Unit, h
 }
 
 @Composable
+private fun AlarmRow() {
+    val graph = AppGraph.instance
+    val st by graph.settings.state.collectAsState()
+    fun shift(by: Int) = graph.settings.update { it.copy(alarmMinute = ((it.alarmMinute + by) % 1440 + 1440) % 1440, alarmOn = true) }
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.NotificationsActive, null, Modifier.size(20.dp))
+            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                Text(t("Wake-up alarm"), style = MaterialTheme.typography.titleSmall)
+                Text(t("Your music, fading in over a minute"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            app.nocturne.ui.kit.Switch(checked = st.alarmOn, onCheckedChange = { v -> graph.settings.update { it.copy(alarmOn = v) } })
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { shift(-60) }) { Text("−1h") }
+            TextButton(onClick = { shift(-5) }) { Text("−5") }
+            val h = st.alarmMinute / 60
+            val m = st.alarmMinute % 60
+            Text(
+                "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}",
+                style = MaterialTheme.typography.headlineSmall,
+                color = if (st.alarmOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+            TextButton(onClick = { shift(5) }) { Text("+5") }
+            TextButton(onClick = { shift(60) }) { Text("+1h") }
+        }
+    }
+}
+
+@Composable
 private fun SleepTimerDialog(onDismiss: () -> Unit) {
     val player = AppGraph.instance.player
     val state by player.state.collectAsState()
@@ -517,6 +549,7 @@ private fun SleepTimerDialog(onDismiss: () -> Unit) {
                     TextButton(onClick = { player.setSleepTimer(m); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text(t("%s minutes", m)) }
                 }
                 TextButton(onClick = { player.sleepAfterCurrentTrack(); onDismiss() }, modifier = Modifier.fillMaxWidth()) { Text(t("End of track")) }
+                AlarmRow()
             }
         },
         confirmButton = {

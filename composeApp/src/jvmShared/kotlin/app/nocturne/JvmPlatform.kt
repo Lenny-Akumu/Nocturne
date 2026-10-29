@@ -13,6 +13,8 @@ actual fun currentHour(): Int = LocalTime.now().hour
 
 actual fun currentMonthDay(): Pair<Int, Int> = java.time.LocalDate.now().let { it.monthValue to it.dayOfMonth }
 
+actual fun minuteOfDay(): Int = LocalTime.now().let { it.hour * 60 + it.minute }
+
 actual object FileStore {
     private val lock = Any()
 

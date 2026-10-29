@@ -16,6 +16,9 @@ expect fun currentHour(): Int
 /** Local (month 1..12, day of month). */
 expect fun currentMonthDay(): Pair<Int, Int>
 
+/** Local minutes since midnight. */
+expect fun minuteOfDay(): Int
+
 expect fun sha1Hex(text: String): String
 
 expect fun sha256(bytes: ByteArray): ByteArray

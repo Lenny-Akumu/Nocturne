@@ -116,6 +116,20 @@ class AppGraph(val engine: AudioEngine) {
             settings.state.distinctUntilChangedBy { it.uiLanguage }.drop(1).collect { app.nocturne.i18n.I18n.apply(it.uiLanguage) }
         }
         scope.launch { kotlinx.coroutines.delay(3000); refreshYouTubeAvatar() }
+        // wake-up alarm while the app runs (minute resolution, once per day)
+        scope.launch {
+            var firedOn = -1L
+            while (true) {
+                kotlinx.coroutines.delay(15_000)
+                val st = settings.value
+                val day = nowMillis() / 86_400_000L
+                if (st.alarmOn && minuteOfDay() == st.alarmMinute && firedOn != day) {
+                    firedOn = day
+                    val lib = library.state.value
+                    player.wake((lib.liked + lib.history.map { it.track }).distinctBy { it.key }.take(200))
+                }
+            }
+        }
         scope.launch {
             kotlinx.coroutines.delay(4000)
             while (true) {

@@ -95,6 +95,8 @@ data class Settings(
     val downloadFolder: String = "",
     val halloweenIcon: Boolean = false,
     val fluentIcons: Boolean = true,
+    val alarmOn: Boolean = false,
+    val alarmMinute: Int = 7 * 60,
     val showVideo: Boolean = false,
     val crossfadeSec: Int = 0,
     val releaseAlerts: Boolean = true,

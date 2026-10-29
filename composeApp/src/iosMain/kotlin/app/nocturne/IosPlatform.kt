@@ -45,6 +45,10 @@ actual fun nowMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
 actual fun currentHour(): Int = NSCalendar.currentCalendar.component(NSCalendarUnitHour, NSDate()).toInt()
 
+actual fun minuteOfDay(): Int = NSCalendar.currentCalendar.let {
+    it.component(NSCalendarUnitHour, NSDate()).toInt() * 60 + it.component(platform.Foundation.NSCalendarUnitMinute, NSDate()).toInt()
+}
+
 actual fun currentMonthDay(): Pair<Int, Int> = NSCalendar.currentCalendar.let {
     it.component(platform.Foundation.NSCalendarUnitMonth, NSDate()).toInt() to it.component(platform.Foundation.NSCalendarUnitDay, NSDate()).toInt()
 }
