@@ -145,6 +145,21 @@ fun FullPlayer(onCollapse: () -> Unit) {
                     AsyncImage(track.artworkUrl, null, Modifier.fillMaxSize().blur(80.dp), contentScale = ContentScale.Crop)
                     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
                 }
+                PlayerBackground.LIVE -> {
+                    // Canvas-style: the music video, muted and dimmed, behind the whole player
+                    AsyncImage(track.artworkUrl, null, Modifier.fillMaxSize().blur(80.dp), contentScale = ContentScale.Crop)
+                    val clip by produceState<String?>(null, track.key, settings.showVideo) {
+                        value = null
+                        if (!settings.showVideo) value = runCatching { graph.provider(track.source).videoStream(track) }.getOrNull()
+                    }
+                    val st by graph.player.state.collectAsState()
+                    clip?.takeIf { graph.navigator.playerExpanded }?.let { url ->
+                        androidx.compose.animation.AnimatedVisibility(true, enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(900))) {
+                            app.nocturne.ui.player.VideoSurface(url, st.positionMs, st.isPlaying, settings.playbackSpeed, Modifier.fillMaxSize())
+                        }
+                    }
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Black.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.8f)))))
+                }
                 PlayerBackground.GRADIENT -> Box(
                     Modifier.fillMaxSize().background(
                         Brush.verticalGradient(listOf(cs.primaryContainer.copy(alpha = 0.95f), cs.surfaceContainerLowest, cs.surfaceContainerLowest))

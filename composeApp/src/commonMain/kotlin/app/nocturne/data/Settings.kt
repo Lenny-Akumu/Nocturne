@@ -17,7 +17,7 @@ import kotlinx.serialization.json.jsonPrimitive
 enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"), DARK("Dark") }
 
 @Serializable
-enum class PlayerBackground(val label: String) { GRADIENT("Gradient"), BLUR("Blurred artwork"), SOLID("Solid") }
+enum class PlayerBackground(val label: String) { GRADIENT("Gradient"), BLUR("Blurred artwork"), LIVE("Live video"), SOLID("Solid") }
 
 @Serializable
 enum class WindowBackdrop(val label: String) { MICA("Mica"), MICA_ALT("Mica Alt"), ACRYLIC("Acrylic"), NONE("None") }

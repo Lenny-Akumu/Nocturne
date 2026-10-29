@@ -135,7 +135,7 @@ fun MiniPlayer(onExpand: () -> Unit, wide: Boolean, modifier: Modifier = Modifie
                 }
             },
     ) {
-        if (!glass && settings.playerBackground == PlayerBackground.BLUR) {
+        if (!glass && settings.playerBackground.let { it == PlayerBackground.BLUR || it == PlayerBackground.LIVE }) {
             Box(Modifier.matchParentSize()) {
                 AsyncImage(track.artworkUrl, null, Modifier.matchParentSize().blur(40.dp), contentScale = ContentScale.Crop)
                 Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.5f)))

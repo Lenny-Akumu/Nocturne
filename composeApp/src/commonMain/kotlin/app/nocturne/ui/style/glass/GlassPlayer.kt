@@ -103,7 +103,7 @@ fun GlassPlayerBackground(artworkUrl: String?) {
     val settings by AppGraph.instance.settings.state.collectAsState()
     val cs = MaterialTheme.colorScheme
     val dark = LocalDarkTheme.current
-    if (settings.playerBackground == PlayerBackground.BLUR) {
+    if (settings.playerBackground.let { it == PlayerBackground.BLUR || it == PlayerBackground.LIVE }) {
         AsyncImage(artworkUrl, null, Modifier.fillMaxSize().blur(80.dp), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.3f), Color.Black.copy(alpha = 0.45f), Color.Black.copy(alpha = 0.7f)))))
         return
