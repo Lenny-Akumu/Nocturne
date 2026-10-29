@@ -1,5 +1,7 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -69,16 +71,16 @@ fun StatsView(padding: PaddingValues) {
                 items(periods.size) { i -> FilterChip(selected = i == period, onClick = { period = i }, label = { Text(t(periods[i].first)) }) }
             }
         }
-        if (days == 365L) item {
-            Text(t("Your year in music"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 18.dp, top = 16.dp))
-        }
+        item { HeroCard(periods[period].first, minutes, plays.size, topTracks.firstOrNull()) }
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatCard(t("Minutes"), "$minutes", Modifier.weight(1f))
-                StatCard(t("Plays"), "${plays.size}", Modifier.weight(1f))
-                StatCard(t("Artists"), "${topArtists.size.coerceAtLeast(plays.map { it.a }.distinct().size)}", Modifier.weight(1f))
+                StatCard(t("Day streak"), "${streak(library.plays)}", Modifier.weight(1f))
+                StatCard(t("Artists"), "${plays.flatMap { it.a.split(", ") }.filter { it.isNotBlank() }.distinct().size}", Modifier.weight(1f))
+                StatCard(t("New artists"), "${newArtists(library.plays, from)}", Modifier.weight(1f))
             }
         }
+        item { ActivityChart(plays, days) }
+        item { ListeningClock(plays) }
         if (topArtists.isNotEmpty()) {
             item { Text(t("Top artists"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 8.dp)) }
             item {
@@ -104,6 +106,115 @@ fun StatsView(padding: PaddingValues) {
                 }
             }
         }
+    }
+}
+
+// Local offset from the device clock (minutes), so hours and days follow the user's time zone.
+private fun tzOffsetMin(): Long {
+    val utc = (nowMillis() / 60_000L) % 1440
+    var d = app.nocturne.minuteOfDay() - utc
+    if (d > 840) d -= 1440
+    if (d < -720) d += 1440
+    return d
+}
+
+private fun localDay(t: Long, off: Long) = (t / 60_000L + off) / 1440
+private fun localHour(t: Long, off: Long) = (((t / 60_000L + off) % 1440 + 1440) % 1440 / 60).toInt()
+
+private fun streak(plays: List<app.nocturne.data.PlayEvent>): Int {
+    val off = tzOffsetMin()
+    val days = plays.map { localDay(it.t, off) }.toSet()
+    var d = localDay(nowMillis(), off)
+    if (d !in days) d -= 1
+    var n = 0
+    while (d in days) { n++; d-- }
+    return n
+}
+
+private fun newArtists(plays: List<app.nocturne.data.PlayEvent>, from: Long): Int {
+    if (from == 0L) return 0
+    val before = plays.filter { it.t < from }.flatMap { it.a.split(", ") }.toSet()
+    return plays.filter { it.t >= from }.flatMap { it.a.split(", ") }.filter { it.isNotBlank() && it !in before }.distinct().size
+}
+
+@Composable
+private fun HeroCard(period: String, minutes: Long, plays: Int, top: Pair<app.nocturne.model.Track, Int>?) {
+    val cs = MaterialTheme.colorScheme
+    Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp).height(190.dp).clip(RoundedCornerShape(26.dp)).background(cs.primaryContainer)) {
+        top?.first?.artworkUrl?.let { art ->
+            Artwork(art, Modifier.matchParentSize().blur(28.dp))
+        }
+        Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.15f), androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.65f)))))
+        Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+            Text(t(period).uppercase(), style = MaterialTheme.typography.labelMedium, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.75f))
+            Text(t("%s minutes of music", minutes), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = androidx.compose.ui.graphics.Color.White)
+            Text(t("%s plays", plays) + (top?.let { " · " + t("#1: %s", it.first.title) } ?: ""), style = MaterialTheme.typography.bodyMedium, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        top?.first?.artworkUrl?.let { art ->
+            Artwork(art, Modifier.align(Alignment.TopEnd).padding(16.dp).size(84.dp).clip(RoundedCornerShape(16.dp)))
+        }
+    }
+}
+
+@Composable
+private fun Bars(values: List<Float>, labels: List<String>, highlight: Int, modifier: Modifier) {
+    val cs = MaterialTheme.colorScheme
+    val max = values.maxOrNull()?.takeIf { it > 0f } ?: 1f
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
+            values.forEachIndexed { i, v ->
+                val h by androidx.compose.animation.core.animateFloatAsState((v / max).coerceIn(0.02f, 1f), androidx.compose.animation.core.tween(600, delayMillis = i * 12), label = "bar")
+                Box(Modifier.weight(1f).fillMaxHeight(h).clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                    .background(if (i == highlight) cs.primary else cs.primary.copy(alpha = 0.35f)))
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            labels.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 1) }
+        }
+    }
+}
+
+@Composable
+private fun ActivityChart(plays: List<app.nocturne.data.PlayEvent>, days: Long) {
+    if (plays.isEmpty()) return
+    val off = tzOffsetMin()
+    val today = localDay(nowMillis(), off)
+    val n = when (days) { 7L -> 7; 30L -> 30; else -> 12 }
+    val values: List<Float>
+    val labels: List<String>
+    if (n == 12) {
+        // last 12 months, 30-day buckets
+        values = (11 downTo 0).map { k -> plays.filter { (today - localDay(it.t, off)) / 30 == k.toLong() }.sumOf { it.d }.toFloat() }
+        labels = (11 downTo 0).map { if (it % 3 == 0) "-${it}" else "" }
+    } else {
+        values = (n - 1 downTo 0).map { k -> plays.filter { today - localDay(it.t, off) == k.toLong() }.sumOf { it.d }.toFloat() }
+        labels = (n - 1 downTo 0).map { if (n == 7 || it % 5 == 0) (if (it == 0) t("Today") else "-$it") else "" }
+    }
+    val best = values.indices.maxByOrNull { values[it] } ?: -1
+    Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
+        Text(t("Activity"), style = MaterialTheme.typography.titleLarge)
+        Text(t("Minutes listened"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Bars(values, labels, best, Modifier.fillMaxWidth().padding(top = 10.dp))
+    }
+}
+
+@Composable
+private fun ListeningClock(plays: List<app.nocturne.data.PlayEvent>) {
+    if (plays.size < 5) return
+    val off = tzOffsetMin()
+    val hours = IntArray(24)
+    plays.forEach { hours[localHour(it.t, off)]++ }
+    val peak = hours.indices.maxByOrNull { hours[it] } ?: 0
+    val persona = when (peak) {
+        in 5..10 -> "Early bird"
+        in 11..16 -> "Daytime listener"
+        in 17..21 -> "Evening viber"
+        else -> "Night owl"
+    }
+    Column(Modifier.padding(horizontal = 18.dp, vertical = 12.dp)) {
+        Text(t("When you listen"), style = MaterialTheme.typography.titleLarge)
+        Text(t("You're a %s · most plays around %s:00", t(persona), peak), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Bars(hours.map { it.toFloat() }, (0 until 24).map { if (it % 6 == 0) "$it" else "" }, peak, Modifier.fillMaxWidth().padding(top = 10.dp))
     }
 }
 
