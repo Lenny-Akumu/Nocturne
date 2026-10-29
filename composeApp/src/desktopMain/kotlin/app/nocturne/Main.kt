@@ -139,6 +139,7 @@ private fun launchApp() {
         }
         val playing by graph.player.state.collectAsState()
         if (settings.floatingPlayer && (playing.current != null || app.nocturne.ui.FloatingEdit.editing)) app.nocturne.ui.FloatingPlayerWindow()
+        if (settings.lyricsWidget && playing.current != null) app.nocturne.ui.LyricsWidgetWindow()
         if (isWindows && settings.customTitleBar) app.nocturne.ui.WindowMorphOverlay(settings.iconPalette)
 
         Window(

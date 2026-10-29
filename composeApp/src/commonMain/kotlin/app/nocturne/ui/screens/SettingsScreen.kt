@@ -253,6 +253,13 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     SettingsCategory.SHORTCUTS -> ShortcutSettings()
                     SettingsCategory.FLOATING -> {
                         Toggle("Floating mini player", "Small always-on-top player on your screen", Icons.Rounded.PictureInPicture, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
+                        Toggle("Desktop lyrics widget", "Cover and the current lyric line in a screen corner", Icons.Rounded.Lyrics, s.lyricsWidget) { v -> set { it.copy(lyricsWidget = v) } }
+                        if (s.lyricsWidget) {
+                            Choice("Widget corner", Icons.Rounded.OpenWith, s.lyricsWidgetCorner, listOf(0, 1, 2, 3), {
+                                when (it) { 0 -> "Top left"; 1 -> "Top right"; 2 -> "Bottom left"; else -> "Bottom right" }
+                            }) { v -> set { it.copy(lyricsWidgetCorner = v) } }
+                            Toggle("Keep widget on top", null, Icons.Rounded.PictureInPicture, s.lyricsWidgetOnTop) { v -> set { it.copy(lyricsWidgetOnTop = v) } }
+                        }
                         SliderPref("Size", "${(s.floatingScale * 100).roundToInt()}%", s.floatingScale, 0.7f..1.6f, 8) { v -> set { it.copy(floatingScale = (v * 10).roundToInt() / 10f) } }
                         Choice("Style", Icons.Rounded.Palette, s.floatingStyle, listOf(0, 1), { if (it == 0) "Artwork colors" else "Subtle glass" }) { v -> set { it.copy(floatingStyle = v) } }
                         Choice("Orientation", Icons.Rounded.UnfoldMore, s.floatingVertical, listOf(false, true), { if (it) "Vertical" else "Horizontal" }) { v -> set { it.copy(floatingVertical = v) } }
