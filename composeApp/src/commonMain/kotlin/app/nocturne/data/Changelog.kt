@@ -9,12 +9,18 @@ val Changelog = listOf(
         en = listOf(
             "PC: minimize / restore animates the actual window, seamlessly",
             "PC: the floating player takes over smoothly from the minimize animation",
+            "PC: the frameless window can be dragged by the top edge and resized from any side again",
+            "PC: no light strip along the window edge",
             "PC: the floating player now shows up when you switch to another window",
+            "Phones: falling leaves and snow stop above the track list on Home",
         ),
         uk = listOf(
             "ПК: згортання й розгортання анімує саме вікно, безшовно",
             "ПК: плаваючий плеєр плавно підхоплює анімацію згортання",
+            "ПК: вікно без рамки знову тягається за верх і змінює розмір з будь-якого боку",
+            "ПК: прибрано світлу смугу по краю вікна",
             "ПК: плаваючий плеєр тепер з'являється, коли перемикаєшся на інше вікно",
+            "Телефони: листя й сніг на головній закінчуються над списком треків",
         ),
     ),
     ChangelogEntry(

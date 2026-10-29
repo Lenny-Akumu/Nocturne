@@ -24,6 +24,10 @@ private interface U32 : StdCallLibrary {
     fun SetWindowPos(hwnd: HWND, after: HWND?, x: Int, y: Int, cx: Int, cy: Int, flags: Int): Boolean
     fun SetWindowRgn(hwnd: HWND, rgn: Pointer?, redraw: Boolean): Int
     fun IsIconic(hwnd: HWND): Boolean
+    fun ScreenToClient(hwnd: HWND, p: WinDef.POINT): Boolean
+    fun GetClientRect(hwnd: HWND, rect: WinDef.RECT): Boolean
+    fun FillRect(hdc: Pointer, rect: WinDef.RECT, brush: Pointer): Int
+    fun GetWindow(hwnd: HWND, cmd: Int): HWND?
 
     companion object {
         val INSTANCE: U32? = runCatching { Native.load("user32", U32::class.java) }.getOrNull()
@@ -32,6 +36,7 @@ private interface U32 : StdCallLibrary {
 
 private interface Gdi : StdCallLibrary {
     fun CreateRoundRectRgn(x1: Int, y1: Int, x2: Int, y2: Int, w: Int, h: Int): Pointer?
+    fun GetStockObject(i: Int): Pointer?
 
     companion object {
         val INSTANCE: Gdi? = runCatching { Native.load("gdi32", Gdi::class.java) }.getOrNull()
@@ -68,6 +73,8 @@ object CustomFrame {
     @Volatile var onRestore: (() -> Boolean)? = null
 
     private const val WM_SIZE = 0x0005
+    private const val WM_ERASEBKGND = 0x0014
+    private const val HTTRANSPARENT = -1
     private const val WM_SYSCOMMAND = 0x0112
     private const val SC_MINIMIZE = 0xF020
     private const val SC_RESTORE = 0xF120
@@ -111,7 +118,19 @@ object CustomFrame {
                     WM_SIZE -> {
                         val r = u.CallWindowProcW(prev!!, hwnd, msg, wParam, lParam)
                         round(u, hwnd)
+                        hookChildren(u, hwnd)
                         return r
+                    }
+                    // black reads as clear under a DWM backdrop and never flashes white at the edges
+                    WM_ERASEBKGND -> {
+                        val brush = Gdi.INSTANCE?.GetStockObject(4)
+                        val hdc = Pointer(wParam.toLong())
+                        if (brush != null) {
+                            val r = WinDef.RECT()
+                            u.GetClientRect(hwnd, r)
+                            u.FillRect(hdc, r, brush)
+                            return LRESULT(1)
+                        }
                     }
                 }
                 return u.CallWindowProcW(prev!!, hwnd, msg, wParam, lParam)
@@ -120,6 +139,7 @@ object CustomFrame {
         prev = u.SetWindowLongPtrW(hwnd, -4, p) ?: return false
         hwndRef = hwnd
         proc = p
+        hookChildren(u, hwnd)
         DwmApi.INSTANCE?.let { d ->
             // our own morph replaces the system minimize/restore animation; corners come from the region
             d.DwmSetWindowAttribute(hwnd, 3, com.sun.jna.ptr.IntByReference(1).pointer, 4)
@@ -129,6 +149,34 @@ object CustomFrame {
         u.SetWindowPos(hwnd, null, 0, 0, 0, 0, 0x0002 or 0x0001 or 0x0004 or 0x0020)
         round(u, hwnd)
         return true
+    }
+
+    // Compose draws into a child HWND that covers the whole client area, so it gets the hit tests.
+    // It answers HTTRANSPARENT over the caption and the borders, which hands them to the frame.
+    private val children = HashMap<Long, Pair<WndProc, Pointer>>()
+
+    private fun hookChildren(u: U32, top: HWND) {
+        var c = u.GetWindow(top, 5) // GW_CHILD
+        while (c != null) {
+            hook(u, top, c)
+            var g = u.GetWindow(c, 5)
+            while (g != null) { hook(u, top, g); g = u.GetWindow(g, 2) }
+            c = u.GetWindow(c, 2) // GW_HWNDNEXT
+        }
+    }
+
+    private fun hook(u: U32, top: HWND, child: HWND) {
+        val key = Pointer.nativeValue(child.pointer)
+        if (key in children) return
+        lateinit var old: Pointer
+        val cp = object : WndProc {
+            override fun callback(hwnd: HWND, msg: Int, wParam: WPARAM, lParam: LPARAM): LRESULT {
+                if (msg == WM_NCHITTEST && hitTest(u, top, lParam) != HTCLIENT) return LRESULT(HTTRANSPARENT.toLong())
+                return u.CallWindowProcW(old, hwnd, msg, wParam, lParam)
+            }
+        }
+        old = u.SetWindowLongPtrW(child, -4, cp) ?: return
+        children[key] = cp to old
     }
 
     private fun round(u: U32, hwnd: HWND) {
@@ -168,7 +216,10 @@ object CustomFrame {
                 bottom -> return HTBOTTOM
             }
         }
-        if (y < captionPx && !buttons.contains(x, y)) return HTCAPTION
+        // caption and buttons are laid out in client pixels (a maximized window overhangs the screen)
+        val pt = WinDef.POINT(sx, sy)
+        u.ScreenToClient(hwnd, pt)
+        if (pt.y in 0 until captionPx && !buttons.contains(pt.x, pt.y)) return HTCAPTION
         return HTCLIENT
     }
 }

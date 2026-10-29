@@ -57,7 +57,7 @@ object WindowEffects {
             return false
         }
         // not prepared before the first show: stay opaque rather than paint black
-        if (window.findSkiaLayer()?.transparency != true) { report("Off: $prepared (restart to apply)"); return false }
+        if (window.findSkiaLayer()?.transparency != true) { report("Off: $prepared, now opaque (restart to apply)"); return false }
         // the Swing panes under the Compose layer paint an opaque fill that hides the backdrop
         window.makePanesTransparent()
         val type = when (backdrop) {
@@ -122,11 +122,12 @@ object WindowEffects {
         val layer = window.findSkiaLayer()
         if (layer == null) { prepared = "no Skia layer"; return }
         if (!layer.isDisplayable) layer.transparency = true
-        prepared = "layer ${if (layer.transparency) "transparent" else "opaque (already shown)"}, ${layer.renderApi}"
+        prepared = "layer ${if (layer.transparency) "transparent" else "opaque (already shown)"}, ${layer.renderApi}, armed ${if (armed) "$caught" else "no"}"
     }
 
     private var prepared = "not prepared"
     private var armed = false
+    private var caught = 0
 
     /**
      * Compose builds and attaches the window before our content runs, so the layer is caught as it is added
@@ -139,7 +140,7 @@ object WindowEffects {
             val ce = e as? java.awt.event.ContainerEvent ?: return@addAWTEventListener
             if (ce.id != java.awt.event.ContainerEvent.COMPONENT_ADDED) return@addAWTEventListener
             val layer = ce.child as? SkiaLayer ?: (ce.child as? Container)?.findSkiaLayer() ?: return@addAWTEventListener
-            if (!layer.isDisplayable && !layer.transparency) layer.transparency = true
+            if (!layer.isDisplayable && !layer.transparency) { layer.transparency = true; caught++ }
         }, java.awt.AWTEvent.CONTAINER_EVENT_MASK)
     }
 

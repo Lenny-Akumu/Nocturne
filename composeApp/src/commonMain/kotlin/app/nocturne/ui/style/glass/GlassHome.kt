@@ -1,5 +1,6 @@
 package app.nocturne.ui.style.glass
 
+import app.nocturne.ui.seasonalStop
 import app.nocturne.ui.demo
 import app.nocturne.ui.components.EdgeArrows
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -138,7 +139,7 @@ fun GlassHome(
             if (mixes.isNotEmpty()) item(key = "mixes") { MixCarousel(mixes) { m -> play(m.tracks, 0, m.title) } }
             item(key = "moods") { app.nocturne.ui.components.MoodRow() }
             if (recs.isNotEmpty()) item(key = "recs") {
-                GroupedGrid(recs.take(24), t("Recommended for you")) { i -> play(recs, i, t("Recommended for you")) }
+                Box(Modifier.seasonalStop()) { GroupedGrid(recs.take(24), t("Recommended for you")) { i -> play(recs, i, t("Recommended for you")) } }
             }
             if (mostPlayed.size >= 4) item(key = "top") {
                 ShelfHeader(t("Your top tracks"))

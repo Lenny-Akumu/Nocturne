@@ -6,6 +6,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -36,9 +44,16 @@ fun currentSeason(): Season = when (currentMonthDay().first) {
 
 private class Flake(var x: Float, var y: Float, val size: Float, val speed: Float, val sway: Float, val phase: Float, val spin: Float, val tint: Int)
 
+/** Where the ambience has to stop: top of the first track list on Home (root px). */
+internal object SeasonalStop {
+    var y by mutableFloatStateOf(Float.NaN)
+}
+
+fun Modifier.seasonalStop(): Modifier = onGloballyPositioned { SeasonalStop.y = it.positionInRoot().y }
+
 /** Light, non-interactive seasonal ambience over the top of Home. */
 @Composable
-fun SeasonalLayer(modifier: Modifier = Modifier) {
+fun SeasonalLayer(modifier: Modifier = Modifier, maxHeight: Dp = 320.dp) {
     val settings by AppGraph.instance.settings.state.collectAsState()
     if (!settings.seasonalEffects || Demo.enabled) return
     val season = remember { currentSeason() }
@@ -63,7 +78,11 @@ fun SeasonalLayer(modifier: Modifier = Modifier) {
             time.longValue = now
         }
     }
-    Canvas(modifier) {
+    var top by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val stop = SeasonalStop.y
+    val h = if (stop.isNaN()) maxHeight else with(density) { (stop - top).coerceAtLeast(0f).toDp() }.coerceAtMost(maxHeight)
+    Canvas(modifier.onGloballyPositioned { top = it.positionInRoot().y }.height(h)) {
         val t = time.longValue / 1e9f
         if (season == Season.SUMMER) return@Canvas drawRays(t)
         items.forEach { f ->

@@ -349,7 +349,7 @@ private fun ScreenHost(padding: PaddingValues) {
                 }
             }
         }
-        if (screen == Screen.Home) SeasonalLayer(Modifier.fillMaxWidth().height(320.dp))
+        if (screen == Screen.Home) SeasonalLayer(Modifier.fillMaxWidth())
         }
     }
 }

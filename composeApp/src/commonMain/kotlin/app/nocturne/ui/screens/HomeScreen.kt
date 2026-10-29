@@ -1,5 +1,7 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import app.nocturne.ui.seasonalStop
 import app.nocturne.i18n.t
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -136,10 +138,10 @@ fun HomeScreen(contentPadding: PaddingValues) {
             val recs = recommended.filterNot { graph.library.isBlocked(it) }
             if (recs.isNotEmpty()) {
                 item {
-                    SectionView(
+                    Box(Modifier.seasonalStop()) { SectionView(
                         Section("Recommended for you", recs.map { MediaEntry.Song(it) }, SectionLayout.QUICK_PICKS),
                         subtitle = t("Based on what you've been listening to"),
-                    ) { list, i -> playTrack(list, i, t("Recommended for you")) }
+                    ) { list, i -> playTrack(list, i, t("Recommended for you")) } }
                 }
             }
             item { SmartMixes { list, title -> playTrack(list, 0, title) } }
