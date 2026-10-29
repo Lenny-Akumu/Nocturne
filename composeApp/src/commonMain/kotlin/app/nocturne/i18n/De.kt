@@ -749,5 +749,7 @@ internal object De {
         "you" to "du",
         "Nickname" to "Spitzname",
         "Shown to friends in Listen together" to "Sehen Freunde beim gemeinsamen Hören",
+        "Copy invite link" to "Einladungslink kopieren",
+        "Invite link copied" to "Link kopiert",
     )
 }

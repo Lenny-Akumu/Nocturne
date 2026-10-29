@@ -749,5 +749,7 @@ internal object Cs {
         "you" to "ty",
         "Nickname" to "Přezdívka",
         "Shown to friends in Listen together" to "Uvidí přátelé ve Společném poslechu",
+        "Copy invite link" to "Kopírovat odkaz s pozvánkou",
+        "Invite link copied" to "Odkaz zkopírován",
     )
 }

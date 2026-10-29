@@ -749,5 +749,7 @@ internal object Pt {
         "you" to "você",
         "Nickname" to "Apelido",
         "Shown to friends in Listen together" to "Seus amigos veem em Ouvir juntos",
+        "Copy invite link" to "Copiar link de convite",
+        "Invite link copied" to "Link copiado",
     )
 }

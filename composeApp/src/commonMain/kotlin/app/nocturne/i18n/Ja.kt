@@ -749,5 +749,7 @@ internal object Ja {
         "you" to "あなた",
         "Nickname" to "ニックネーム",
         "Shown to friends in Listen together" to "「一緒に聴く」で友達に表示されます",
+        "Copy invite link" to "招待リンクをコピー",
+        "Invite link copied" to "リンクをコピーしました",
     )
 }

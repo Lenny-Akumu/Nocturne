@@ -749,5 +749,7 @@ internal object Es {
         "you" to "tú",
         "Nickname" to "Apodo",
         "Shown to friends in Listen together" to "Lo ven tus amigos en Escuchar juntos",
+        "Copy invite link" to "Copiar enlace de invitación",
+        "Invite link copied" to "Enlace copiado",
     )
 }

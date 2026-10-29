@@ -755,5 +755,7 @@ internal object Uk {
         "you" to "ти",
         "Nickname" to "Нік",
         "Shown to friends in Listen together" to "Бачать друзі у «Слухати разом»",
+        "Copy invite link" to "Скопіювати посилання-запрошення",
+        "Invite link copied" to "Посилання скопійовано",
     )
 }

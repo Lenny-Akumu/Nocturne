@@ -749,5 +749,7 @@ internal object Zh {
         "you" to "你",
         "Nickname" to "昵称",
         "Shown to friends in Listen together" to "在“一起听”中向好友显示",
+        "Copy invite link" to "复制邀请链接",
+        "Invite link copied" to "已复制链接",
     )
 }

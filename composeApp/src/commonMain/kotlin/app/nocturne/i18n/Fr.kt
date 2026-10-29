@@ -749,5 +749,7 @@ internal object Fr {
         "you" to "toi",
         "Nickname" to "Pseudo",
         "Shown to friends in Listen together" to "Visible par tes amis dans Écouter ensemble",
+        "Copy invite link" to "Copier le lien d'invitation",
+        "Invite link copied" to "Lien copié",
     )
 }

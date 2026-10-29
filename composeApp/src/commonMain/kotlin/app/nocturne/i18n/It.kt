@@ -749,5 +749,7 @@ internal object It {
         "you" to "tu",
         "Nickname" to "Nickname",
         "Shown to friends in Listen together" to "Lo vedono gli amici in Ascolta insieme",
+        "Copy invite link" to "Copia link di invito",
+        "Invite link copied" to "Link copiato",
     )
 }

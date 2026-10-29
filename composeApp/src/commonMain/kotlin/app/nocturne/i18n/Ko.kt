@@ -749,5 +749,7 @@ internal object Ko {
         "you" to "나",
         "Nickname" to "닉네임",
         "Shown to friends in Listen together" to "함께 듣기에서 친구에게 표시돼요",
+        "Copy invite link" to "초대 링크 복사",
+        "Invite link copied" to "링크를 복사했어요",
     )
 }

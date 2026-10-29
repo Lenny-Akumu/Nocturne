@@ -1,5 +1,7 @@
 package app.nocturne.ui.player
 
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -89,6 +91,31 @@ fun BoxScope.PartyReactions() {
     if (chatOpen) PartyChatSheet { chatOpen = false }
 }
 
+/** Invite link to this session (code-based sessions; plain LAN addresses have none). */
+@Composable
+fun PartyInviteLink(modifier: Modifier = Modifier) {
+    val party = AppGraph.instance.party
+    val code by party.code.collectAsState()
+    val joined by party.joined.collectAsState()
+    val room = code ?: joined?.takeIf { ':' !in it } ?: return
+    val link = app.nocturne.party.PartyLinks.joinUrl(room)
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) { if (copied) { kotlinx.coroutines.delay(1800); copied = false } }
+    Row(
+        modifier.clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clickable { clipboard.setText(androidx.compose.ui.text.AnnotatedString(link)); copied = true }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(if (copied) Icons.Rounded.Check else Icons.Rounded.Link, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.weight(1f).padding(start = 10.dp)) {
+            Text(t(if (copied) "Invite link copied" else "Copy invite link"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(link, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+    }
+}
+
 /** Everyone in the session: the host first (crown), you marked. */
 @Composable
 fun PartyMembers(modifier: Modifier = Modifier) {
@@ -149,6 +176,7 @@ fun PartyChatSheet(onDismiss: () -> Unit) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.7f).padding(horizontal = 16.dp)) {
             Text(t("Chat"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
             PartyMembers(Modifier.padding(bottom = 10.dp))
+            PartyInviteLink(Modifier.fillMaxWidth().padding(bottom = 10.dp))
             LazyColumn(Modifier.weight(1f), state = list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(chat, key = { it.id }) { m ->
                     Column(Modifier.clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 8.dp)) {

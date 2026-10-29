@@ -749,5 +749,7 @@ internal object Pl {
         "you" to "ty",
         "Nickname" to "Pseudonim",
         "Shown to friends in Listen together" to "Widzą znajomi w Słuchaj razem",
+        "Copy invite link" to "Kopiuj link z zaproszeniem",
+        "Invite link copied" to "Skopiowano link",
     )
 }

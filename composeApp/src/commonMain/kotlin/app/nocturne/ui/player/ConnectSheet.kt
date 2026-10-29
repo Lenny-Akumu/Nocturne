@@ -145,6 +145,7 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
                                 }
                             }
                         }
+                        app.nocturne.ui.player.PartyInviteLink(Modifier.optionRow().fillMaxWidth())
                         partyStatus?.let { Note(t(it), MaterialTheme.colorScheme.error) }
                         val lan = hosting.filter { it.isNotBlank() }
                         if (lan.isNotEmpty()) {
@@ -159,6 +160,8 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
                         Column(Modifier.optionRow().fillMaxWidth().padding(16.dp)) {
                             Text(t("Listening with %s", joined!!), color = MaterialTheme.colorScheme.primary)
                             partyStatus?.let { Text(t(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                            Spacer(Modifier.height(8.dp))
+                            app.nocturne.ui.player.PartyInviteLink(Modifier.fillMaxWidth())
                             Spacer(Modifier.height(8.dp))
                             FilledTonalButton(onClick = { party.leave() }) { Text(t("Leave")) }
                         }

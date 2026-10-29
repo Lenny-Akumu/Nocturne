@@ -749,5 +749,7 @@ internal object Tr {
         "you" to "sen",
         "Nickname" to "Takma ad",
         "Shown to friends in Listen together" to "Birlikte dinle'de arkadaşlarına görünür",
+        "Copy invite link" to "Davet bağlantısını kopyala",
+        "Invite link copied" to "Bağlantı kopyalandı",
     )
 }
