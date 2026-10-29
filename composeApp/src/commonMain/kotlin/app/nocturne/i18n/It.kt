@@ -739,5 +739,7 @@ internal object It {
         "Chat" to "Chat",
         "Message" to "Messaggio",
         "Send" to "Invia",
+        "Black cat on like" to "Gatto nero al like",
+        "50/50 chance of a spooky cat when you like a song" to "50/50 che spunti un gatto spaventoso al like",
     )
 }

@@ -243,6 +243,7 @@ class AppGraph(val engine: AudioEngine) {
     fun toggleLike(track: Track) {
         val nowLiked = !library.isLiked(track)
         library.toggleLike(track)
+        if (nowLiked && settings.value.likeScare && kotlin.random.Random.nextBoolean()) app.nocturne.ui.Scare.boo()
         scope.launch { runCatching { provider(track.source).rate(track, if (nowLiked) Rating.LIKE else Rating.NONE) } }
     }
 

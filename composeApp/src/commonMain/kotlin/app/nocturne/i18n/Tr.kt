@@ -739,5 +739,7 @@ internal object Tr {
         "Chat" to "Sohbet",
         "Message" to "Mesaj",
         "Send" to "Gönder",
+        "Black cat on like" to "Beğenide kara kedi",
+        "50/50 chance of a spooky cat when you like a song" to "Beğenince %50 ihtimalle korkunç bir kedi çıkar",
     )
 }

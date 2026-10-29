@@ -152,6 +152,7 @@ fun App(backdrop: Boolean = false) {
                         TrackMenuHost { AppScaffold() }
                         // window buttons float over the content, like a Windows 11 app
                         WindowChrome.bar?.invoke()
+                        ScareOverlay()
                         UpdateBanner(Modifier.align(Alignment.TopCenter))
                         WhatsNewDialog()
                         StartupIntro()

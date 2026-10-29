@@ -1,6 +1,7 @@
 package app.nocturne.ui.screens
 
 import app.nocturne.ui.demo
+import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Web
@@ -347,6 +348,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Header("Atmosphere")
                         Toggle("Startup animation", null, Icons.Rounded.AutoAwesome, s.startupIntro) { v -> set { it.copy(startupIntro = v) } }
                         Toggle("Startup sound", "A short chime when the app opens", Icons.Rounded.MusicNote, s.startupSound) { v -> set { it.copy(startupSound = v) } }
+                        Toggle("Black cat on like", "50/50 chance of a spooky cat when you like a song", Icons.Rounded.Pets, s.likeScare) { v -> set { it.copy(likeScare = v) } }
                         Toggle("Seasonal effects", "Falling leaves in autumn, snow in winter, fresh leaves in spring, sun rays in summer", Icons.Rounded.AcUnit, s.seasonalEffects) { v -> set { it.copy(seasonalEffects = v) } }
                         Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive", "minecraft"), {
                             when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; "minecraft" -> "Minecraft"; else -> "Default" }

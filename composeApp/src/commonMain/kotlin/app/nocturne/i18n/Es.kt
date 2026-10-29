@@ -739,5 +739,7 @@ internal object Es {
         "Chat" to "Chat",
         "Message" to "Mensaje",
         "Send" to "Enviar",
+        "Black cat on like" to "Gato negro al dar like",
+        "50/50 chance of a spooky cat when you like a song" to "50/50 de que salte un gato aterrador al dar like",
     )
 }

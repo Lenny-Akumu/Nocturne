@@ -739,5 +739,7 @@ internal object Pl {
         "Chat" to "Czat",
         "Message" to "Wiadomość",
         "Send" to "Wyślij",
+        "Black cat on like" to "Czarny kot przy polubieniu",
+        "50/50 chance of a spooky cat when you like a song" to "Szansa 50/50 na strasznego kota przy polubieniu",
     )
 }

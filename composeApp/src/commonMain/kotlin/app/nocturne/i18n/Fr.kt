@@ -739,5 +739,7 @@ internal object Fr {
         "Chat" to "Discussion",
         "Message" to "Message",
         "Send" to "Envoyer",
+        "Black cat on like" to "Chat noir au like",
+        "50/50 chance of a spooky cat when you like a song" to "Une chance sur deux qu'un chat effrayant surgisse au like",
     )
 }

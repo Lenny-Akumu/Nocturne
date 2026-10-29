@@ -739,5 +739,7 @@ internal object Ko {
         "Chat" to "채팅",
         "Message" to "메시지",
         "Send" to "보내기",
+        "Black cat on like" to "좋아요 시 검은 고양이",
+        "50/50 chance of a spooky cat when you like a song" to "좋아요를 누르면 50% 확률로 무서운 고양이가 나타나요",
     )
 }

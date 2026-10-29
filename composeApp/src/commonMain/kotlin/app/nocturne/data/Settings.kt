@@ -97,6 +97,7 @@ data class Settings(
     val fluentIcons: Boolean = true,
     val alarmOn: Boolean = false,
     val lyricsWidget: Boolean = false,
+    val likeScare: Boolean = true,
     val lyricsWidgetCorner: Int = 3,
     val lyricsWidgetOnTop: Boolean = false,
     val alarmMinute: Int = 7 * 60,

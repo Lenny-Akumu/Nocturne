@@ -739,5 +739,7 @@ internal object Cs {
         "Chat" to "Chat",
         "Message" to "Zpráva",
         "Send" to "Odeslat",
+        "Black cat on like" to "Černá kočka při lajku",
+        "50/50 chance of a spooky cat when you like a song" to "Při lajku se s šancí 50/50 objeví strašidelná kočka",
     )
 }

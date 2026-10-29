@@ -739,5 +739,7 @@ internal object Pt {
         "Chat" to "Chat",
         "Message" to "Mensagem",
         "Send" to "Enviar",
+        "Black cat on like" to "Gato preto ao curtir",
+        "50/50 chance of a spooky cat when you like a song" to "50/50 de aparecer um gato assustador ao curtir",
     )
 }

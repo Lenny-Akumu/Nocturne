@@ -739,5 +739,7 @@ internal object Ja {
         "Chat" to "チャット",
         "Message" to "メッセージ",
         "Send" to "送信",
+        "Black cat on like" to "いいねで黒猫",
+        "50/50 chance of a spooky cat when you like a song" to "いいねすると 50% の確率で怖い猫が現れます",
     )
 }

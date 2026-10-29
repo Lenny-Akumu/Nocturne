@@ -739,5 +739,7 @@ internal object Zh {
         "Chat" to "聊天",
         "Message" to "消息",
         "Send" to "发送",
+        "Black cat on like" to "点赞时黑猫",
+        "50/50 chance of a spooky cat when you like a song" to "点赞时有 50% 概率跳出一只吓人的猫",
     )
 }

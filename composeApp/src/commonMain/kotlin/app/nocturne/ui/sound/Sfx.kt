@@ -12,7 +12,9 @@ object Sfx {
 
     private val startup by lazy { decode(SfxData.startup) }
     private val voice by lazy { decode(SfxData.voice) }
+    private val meow by lazy { decode(SfxData.meow) }
 
     fun startup() = runCatching { playClip("startup", startup, 0.7f) }
     fun voice() = runCatching { playClip("voice", voice, 1f) }
+    fun meow() = runCatching { playClip("meow", meow, 0.55f) }
 }

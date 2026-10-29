@@ -739,5 +739,7 @@ internal object De {
         "Chat" to "Chat",
         "Message" to "Nachricht",
         "Send" to "Senden",
+        "Black cat on like" to "Schwarze Katze beim Liken",
+        "50/50 chance of a spooky cat when you like a song" to "Mit 50/50-Chance springt beim Liken eine gruselige Katze heraus",
     )
 }
