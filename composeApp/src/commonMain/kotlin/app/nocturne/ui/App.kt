@@ -1,5 +1,6 @@
 package app.nocturne.ui
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.focusRequester
@@ -143,8 +144,9 @@ fun App(backdrop: Boolean = false) {
                     // phones/tablets with a keyboard: the root holds focus so player keys always arrive
                     val keyFocus = remember { androidx.compose.ui.focus.FocusRequester() }
                     if (app.nocturne.platformKind != app.nocturne.PlatformKind.DESKTOP) androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { keyFocus.requestFocus() } }
+                    val tilt = rememberSixSevenTilt()
                     Box(
-                        Modifier.fillMaxSize().then(
+                        Modifier.fillMaxSize().graphicsLayer { rotationZ = tilt; val k = 1f - kotlin.math.abs(tilt) * 0.012f; scaleX = k; scaleY = k }.then(
                             if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) Modifier
                             else Modifier.focusRequester(keyFocus).focusable().onKeyEvent { handleAppKey(it) },
                         ),

@@ -181,6 +181,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
     val design = LocalDesignStyle.current
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
+        LaunchedEffect(s.query) { if (s.query.trim() == "67") app.nocturne.ui.SixSeven.go() }
         TextField(
             value = s.query,
             onValueChange = { s.query = it },
