@@ -220,6 +220,10 @@ private fun launchApp() {
             }
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
             LaunchedEffect(Unit) { DiscordRpc.start() }
+            LaunchedEffect(Unit) {
+                if (System.getProperty("os.name").orEmpty().startsWith("Linux", ignoreCase = true))
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { app.nocturne.mpris.Mpris.start(graph.scope) } }
+            }
             val dark = isDark(settings)
             app.nocturne.ui.WindowMorph.dark = dark
             var backdrop by remember { mutableStateOf(false) }
