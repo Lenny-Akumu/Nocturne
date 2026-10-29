@@ -746,5 +746,8 @@ internal object Tr {
         "Custom image · tap to change" to "Özel resim · değiştirmek için dokunun",
         "Background blur" to "Arka plan bulanıklığı",
         "Remove background" to "Arka planı kaldır",
+        "you" to "sen",
+        "Nickname" to "Takma ad",
+        "Shown to friends in Listen together" to "Birlikte dinle'de arkadaşlarına görünür",
     )
 }

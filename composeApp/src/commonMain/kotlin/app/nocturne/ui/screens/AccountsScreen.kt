@@ -383,5 +383,16 @@ private fun ProfilePhotoCard() {
             if (own != null) TextButton(onClick = { app.nocturne.data.ProfilePhoto.clear() }) { Text(t("Reset")) }
             TextButton(onClick = pick) { Text(t("Change")) }
         }
+        val graph = app.nocturne.AppGraph.instance
+        val nick by graph.settings.state.collectAsState()
+        var name by remember(nick.nickname) { mutableStateOf(nick.nickname) }
+        OutlinedTextField(
+            name, { v -> name = v.take(24); graph.settings.update { it.copy(nickname = name) } },
+            label = { Text(t("Nickname")) },
+            placeholder = { Text(nick.deviceName.ifBlank { app.nocturne.deviceName() }) },
+            supportingText = { Text(t("Shown to friends in Listen together")) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 14.dp),
+        )
     }
 }

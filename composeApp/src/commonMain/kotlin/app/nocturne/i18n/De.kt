@@ -746,5 +746,8 @@ internal object De {
         "Custom image · tap to change" to "Eigenes Bild · tippen zum Ändern",
         "Background blur" to "Hintergrund-Unschärfe",
         "Remove background" to "Hintergrund entfernen",
+        "you" to "du",
+        "Nickname" to "Spitzname",
+        "Shown to friends in Listen together" to "Sehen Freunde beim gemeinsamen Hören",
     )
 }

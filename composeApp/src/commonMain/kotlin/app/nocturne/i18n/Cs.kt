@@ -746,5 +746,8 @@ internal object Cs {
         "Custom image · tap to change" to "Vlastní obrázek · klepnutím změníte",
         "Background blur" to "Rozmazání pozadí",
         "Remove background" to "Odebrat pozadí",
+        "you" to "ty",
+        "Nickname" to "Přezdívka",
+        "Shown to friends in Listen together" to "Uvidí přátelé ve Společném poslechu",
     )
 }

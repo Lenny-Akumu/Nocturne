@@ -746,5 +746,8 @@ internal object Pl {
         "Custom image · tap to change" to "Własny obraz · dotknij, aby zmienić",
         "Background blur" to "Rozmycie tła",
         "Remove background" to "Usuń tło",
+        "you" to "ty",
+        "Nickname" to "Pseudonim",
+        "Shown to friends in Listen together" to "Widzą znajomi w Słuchaj razem",
     )
 }

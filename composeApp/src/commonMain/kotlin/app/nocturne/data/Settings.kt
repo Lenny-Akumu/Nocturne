@@ -99,6 +99,7 @@ data class Settings(
     val lyricsWidget: Boolean = false,
     val likeScare: Boolean = true,
     val backgroundBlur: Float = 10f,
+    val nickname: String = "",
     val lyricsWidgetCorner: Int = 3,
     val lyricsWidgetOnTop: Boolean = false,
     val alarmMinute: Int = 7 * 60,

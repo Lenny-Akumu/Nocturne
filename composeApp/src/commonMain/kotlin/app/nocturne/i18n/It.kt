@@ -746,5 +746,8 @@ internal object It {
         "Custom image · tap to change" to "Immagine personale · tocca per cambiare",
         "Background blur" to "Sfocatura sfondo",
         "Remove background" to "Rimuovi sfondo",
+        "you" to "tu",
+        "Nickname" to "Nickname",
+        "Shown to friends in Listen together" to "Lo vedono gli amici in Ascolta insieme",
     )
 }

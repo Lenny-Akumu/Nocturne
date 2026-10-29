@@ -746,5 +746,8 @@ internal object Ja {
         "Custom image · tap to change" to "カスタム画像 · タップで変更",
         "Background blur" to "背景のぼかし",
         "Remove background" to "背景を削除",
+        "you" to "あなた",
+        "Nickname" to "ニックネーム",
+        "Shown to friends in Listen together" to "「一緒に聴く」で友達に表示されます",
     )
 }

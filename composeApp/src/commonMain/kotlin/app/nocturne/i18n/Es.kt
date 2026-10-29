@@ -746,5 +746,8 @@ internal object Es {
         "Custom image · tap to change" to "Imagen propia · toca para cambiar",
         "Background blur" to "Desenfoque del fondo",
         "Remove background" to "Quitar fondo",
+        "you" to "tú",
+        "Nickname" to "Apodo",
+        "Shown to friends in Listen together" to "Lo ven tus amigos en Escuchar juntos",
     )
 }

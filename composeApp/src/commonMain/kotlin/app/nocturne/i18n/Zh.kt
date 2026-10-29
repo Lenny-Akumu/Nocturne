@@ -746,5 +746,8 @@ internal object Zh {
         "Custom image · tap to change" to "自定义图片 · 点按更换",
         "Background blur" to "背景模糊",
         "Remove background" to "移除背景",
+        "you" to "你",
+        "Nickname" to "昵称",
+        "Shown to friends in Listen together" to "在“一起听”中向好友显示",
     )
 }

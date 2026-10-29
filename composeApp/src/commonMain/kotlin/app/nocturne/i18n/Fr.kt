@@ -746,5 +746,8 @@ internal object Fr {
         "Custom image · tap to change" to "Image perso · touchez pour changer",
         "Background blur" to "Flou de l'arrière-plan",
         "Remove background" to "Retirer le fond",
+        "you" to "toi",
+        "Nickname" to "Pseudo",
+        "Shown to friends in Listen together" to "Visible par tes amis dans Écouter ensemble",
     )
 }

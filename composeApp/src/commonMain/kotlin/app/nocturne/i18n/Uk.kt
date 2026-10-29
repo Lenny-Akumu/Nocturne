@@ -752,5 +752,8 @@ internal object Uk {
         "Custom image · tap to change" to "Своє зображення · натисніть, щоб змінити",
         "Background blur" to "Розмиття фону",
         "Remove background" to "Прибрати фон",
+        "you" to "ти",
+        "Nickname" to "Нік",
+        "Shown to friends in Listen together" to "Бачать друзі у «Слухати разом»",
     )
 }

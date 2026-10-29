@@ -746,5 +746,8 @@ internal object Pt {
         "Custom image · tap to change" to "Imagem própria · toque para mudar",
         "Background blur" to "Desfoque do fundo",
         "Remove background" to "Remover fundo",
+        "you" to "você",
+        "Nickname" to "Apelido",
+        "Shown to friends in Listen together" to "Seus amigos veem em Ouvir juntos",
     )
 }

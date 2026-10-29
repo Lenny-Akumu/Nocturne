@@ -746,5 +746,8 @@ internal object Ko {
         "Custom image · tap to change" to "사용자 이미지 · 눌러서 변경",
         "Background blur" to "배경 흐림",
         "Remove background" to "배경 제거",
+        "you" to "나",
+        "Nickname" to "닉네임",
+        "Shown to friends in Listen together" to "함께 듣기에서 친구에게 표시돼요",
     )
 }

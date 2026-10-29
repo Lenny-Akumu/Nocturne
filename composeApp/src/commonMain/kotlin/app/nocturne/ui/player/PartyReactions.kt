@@ -78,6 +78,8 @@ fun BoxScope.PartyReactions() {
         Emojis.take(5).forEach { e ->
             Text(e, fontSize = 22.sp, modifier = Modifier.clip(CircleShape).clickable { party.say(e, reaction = true) }.padding(7.dp))
         }
+        val members by party.members.collectAsState()
+        if (members.size > 1) Text("👥 ${members.size}", style = MaterialTheme.typography.labelSmall, color = Color.White, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
         val unread = chat.count { !it.reaction }
         Box(Modifier.clip(CircleShape).clickable { chatOpen = true }.padding(8.dp)) {
             Icon(Icons.Rounded.ChatBubbleOutline, t("Chat"), Modifier.size(22.dp), tint = Color.White)
@@ -85,6 +87,30 @@ fun BoxScope.PartyReactions() {
         }
     }
     if (chatOpen) PartyChatSheet { chatOpen = false }
+}
+
+/** Everyone in the session: the host first (crown), you marked. */
+@Composable
+fun PartyMembers(modifier: Modifier = Modifier) {
+    val members by AppGraph.instance.party.members.collectAsState()
+    if (members.isEmpty()) return
+    androidx.compose.foundation.layout.FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        members.forEach { m ->
+            Row(
+                Modifier.clip(CircleShape).background(if (m.me) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(20.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                    Text(m.name.take(1).uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary)
+                }
+                Text(
+                    (if (m.host) "👑 " else "") + m.name + if (m.me) " · " + t("you") else "",
+                    style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 6.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -122,6 +148,7 @@ fun PartyChatSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.7f).padding(horizontal = 16.dp)) {
             Text(t("Chat"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
+            PartyMembers(Modifier.padding(bottom = 10.dp))
             LazyColumn(Modifier.weight(1f), state = list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(chat, key = { it.id }) { m ->
                     Column(Modifier.clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 8.dp)) {

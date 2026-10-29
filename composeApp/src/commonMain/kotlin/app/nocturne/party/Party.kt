@@ -37,7 +37,19 @@ import kotlin.random.Random
 
 /** Chat line or emoji reaction in a listen-together session. */
 @Serializable
-data class ChatMsg(val id: String, val from: String, val text: String, val at: Long, val reaction: Boolean = false)
+data class ChatMsg(
+    val id: String,
+    val from: String,
+    val text: String,
+    val at: Long,
+    val reaction: Boolean = false,
+    // presence heartbeat: [sid] is stable per app run, [host] marks who leads the session
+    val presence: Boolean = false,
+    val sid: String = "",
+    val host: Boolean = false,
+)
+
+data class PartyMember(val name: String, val host: Boolean, val me: Boolean)
 
 /** Host's version (speed), EQ and effects; guests play with these while in the session. */
 @Serializable
@@ -185,13 +197,34 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private var chatCode: String? = null
     private val chatOut = MutableStateFlow<ChatMsg?>(null)
     private fun chatTopic(code: String) = "nocturne/party/${code.lowercase()}/chat"
-    private val myName get() = graph.settings.value.deviceName.ifBlank { app.nocturne.deviceName() }
+    private val myName get() = graph.settings.value.nickname.trim().ifBlank { graph.settings.value.deviceName.ifBlank { app.nocturne.deviceName() } }
+    private val sid = Random.nextLong().toString(36)
+    private val seen = mutableMapOf<String, Pair<ChatMsg, Long>>()
+    private val _members = MutableStateFlow<List<PartyMember>>(emptyList())
+    val members: StateFlow<List<PartyMember>> = _members.asStateFlow()
+
+    private fun refreshMembers() {
+        val now = nowMillis()
+        seen.entries.removeAll { now - it.value.second > 50_000 }
+        _members.value = seen.values.map { (m, _) -> PartyMember(m.from, m.host, m.sid == sid) }
+            .sortedWith(compareByDescending<PartyMember> { it.host }.thenByDescending { it.me }.thenBy { it.name.lowercase() })
+    }
 
     private fun startChat(code: String) {
         if (chatCode == code && chatJob?.isActive == true) return
         stopChat()
         chatCode = code
         chatJob = scope.launch {
+            // announce ourselves every 20 s; members unseen for 50 s drop off
+            launch {
+                while (isActive) {
+                    val hello = ChatMsg(sid + nowMillis().toString(36), myName, "", nowMillis(), presence = true, sid = sid, host = _code.value != null)
+                    receiveChat(json.encodeToString(ChatMsg.serializer(), hello))
+                    chatOut.value = hello
+                    delay(20_000)
+                    refreshMembers()
+                }
+            }
             brokers.forEach { r ->
                 launch {
                     var fails = 0
@@ -223,10 +256,17 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         chatJob = null
         chatCode = null
         _chat.value = emptyList()
+        seen.clear()
+        _members.value = emptyList()
     }
 
     private fun receiveChat(text: String) {
         val m = runCatching { json.decodeFromString(ChatMsg.serializer(), text) }.getOrNull() ?: return
+        if (m.presence) {
+            seen[m.sid] = m to nowMillis()
+            refreshMembers()
+            return
+        }
         if (_chat.value.any { it.id == m.id }) return
         _chat.value = (_chat.value + m).takeLast(80)
     }

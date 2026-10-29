@@ -113,6 +113,7 @@ fun ConnectSheet(onDismiss: () -> Unit, onCarMode: () -> Unit) {
 
             OptionGroup(t("Listen together"), icon = Icons.Rounded.Groups) {
                 Note(t("Friends anywhere hear the same song at the same moment."))
+                if (hosting.isNotEmpty() || joined != null) app.nocturne.ui.player.PartyMembers(Modifier.optionRow().fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp))
                 when {
                     hosting.isNotEmpty() -> {
                         partyCode?.let { code ->
