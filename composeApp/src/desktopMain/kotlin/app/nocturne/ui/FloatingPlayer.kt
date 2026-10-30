@@ -330,13 +330,13 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?, canOpen: Boolea
     }) else null
     val dislike: (@Composable () -> Unit)? = if (track != null && "dislike" in b) ({ PillButton(Icons.Rounded.ThumbDown, Color.White) { graph.notInterested(track) } }) else null
     val volume: (@Composable () -> Unit)? = if ("volume" in b) ({ Volume(accent) }) else null
-    val open: (@Composable () -> Unit)? = if ("open" in b) ({ PillButton(Icons.AutoMirrored.Rounded.OpenInNew, Color.White) { MainWindow.show() } }) else null
-    val extras = listOfNotNull(like, dislike, volume, open)
+    val openBtn: (@Composable () -> Unit)? = if ("open" in b) ({ PillButton(Icons.AutoMirrored.Rounded.OpenInNew, Color.White) { MainWindow.show() } }) else null
+    val extras = listOfNotNull(like, dislike, volume, openBtn)
     // both ways: track actions on the left, playback and volume on the right
     val leftExtras = when (anchor) {
         0 -> emptyList()
         2 -> extras.reversed()
-        else -> listOfNotNull(open, dislike, like)
+        else -> listOfNotNull(openBtn, dislike, like)
     }
     val rightExtras = when (anchor) {
         0 -> extras
