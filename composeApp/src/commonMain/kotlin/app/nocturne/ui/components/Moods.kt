@@ -12,6 +12,18 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Celebration
+import androidx.compose.material.icons.rounded.DirectionsCar
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.Umbrella
+import androidx.compose.material.icons.rounded.Waves
+import androidx.compose.ui.graphics.vector.ImageVector
+import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,17 +52,17 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /** A vibe: title, emoji, gradient and what to ask YouTube Music for. */
-class Mood(val title: String, val emoji: String, val a: Long, val b: Long, val query: String)
+class Mood(val title: String, val icon: ImageVector, val a: Long, val b: Long, val query: String)
 
 val Moods = listOf(
-    Mood("Chill", "🌊", 0xFF2E8BC0, 0xFF6DD5ED, "chill"),
-    Mood("Focus", "🎧", 0xFF3A3F8F, 0xFF8E7CFF, "focus instrumental"),
-    Mood("Workout", "🔥", 0xFFE53935, 0xFFFF8A3D, "workout gym"),
-    Mood("Party", "🎉", 0xFFD81B9A, 0xFFFF6FD8, "party hits"),
-    Mood("Night drive", "🌃", 0xFF1A1A40, 0xFF5B2A86, "night drive phonk"),
-    Mood("Sad", "🌧", 0xFF37474F, 0xFF78909C, "sad songs"),
-    Mood("Romance", "💗", 0xFFB71C5A, 0xFFFF8FAB, "love songs"),
-    Mood("Sleep", "🌙", 0xFF0F2027, 0xFF2C5364, "sleep ambient"),
+    Mood("Chill", Icons.Rounded.Waves, 0xFF2E8BC0, 0xFF6DD5ED, "chill"),
+    Mood("Focus", Icons.Rounded.Headphones, 0xFF3A3F8F, 0xFF8E7CFF, "focus instrumental"),
+    Mood("Workout", Icons.Rounded.FitnessCenter, 0xFFE53935, 0xFFFF8A3D, "workout gym"),
+    Mood("Party", Icons.Rounded.Celebration, 0xFFD81B9A, 0xFFFF6FD8, "party hits"),
+    Mood("Night drive", Icons.Rounded.DirectionsCar, 0xFF1A1A40, 0xFF5B2A86, "night drive phonk"),
+    Mood("Sad", Icons.Rounded.Umbrella, 0xFF37474F, 0xFF78909C, "sad songs"),
+    Mood("Romance", Icons.Rounded.Favorite, 0xFFB71C5A, 0xFFFF8FAB, "love songs"),
+    Mood("Sleep", Icons.Rounded.Bedtime, 0xFF0F2027, 0xFF2C5364, "sleep ambient"),
 )
 
 /**
@@ -81,7 +93,7 @@ fun MoodRow(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf<String?>(null) }
     val player = AppGraph.instance.player
-    Column(modifier) {
+    Column(modifier.padding(bottom = 10.dp)) {
         Text(t("Moods"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 8.dp))
         val state = rememberLazyListState()
         Box {
@@ -100,7 +112,9 @@ fun MoodRow(modifier: Modifier = Modifier) {
                             }
                             .padding(12.dp),
                     ) {
-                        Text(m.emoji, style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.TopEnd))
+                        Box(Modifier.align(Alignment.TopEnd).size(30.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                            Icon(m.icon, null, Modifier.size(18.dp), tint = Color.White)
+                        }
                         Text(t(m.title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.align(Alignment.BottomStart))
                         if (busy == m.title) CircularProgressIndicator(Modifier.align(Alignment.TopStart).size(18.dp), color = Color.White, strokeWidth = 2.dp)
                     }

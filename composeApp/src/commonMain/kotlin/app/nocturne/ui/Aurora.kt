@@ -56,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -124,7 +125,7 @@ fun AuroraGlow(modifier: Modifier = Modifier) {
 @Composable
 internal fun AuroraDock(nav: Navigator, top: Dp, modifier: Modifier = Modifier) {
     Column(
-        modifier.padding(start = 12.dp, top = top, bottom = 12.dp).width(78.dp).fillMaxHeight()
+        modifier.padding(start = 12.dp, top = top, bottom = 12.dp).width(82.dp).fillMaxHeight()
             .clip(dockShape).background(paneFill()).border(1.dp, paneRim(), dockShape)
             .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -147,9 +148,11 @@ private fun DockItem(tab: Tab, nav: Navigator) {
     val hov by animateFloatAsState(if (hovered) 1f else 0f, tween(140), label = "hov")
     val shape = RoundedCornerShape(14.dp)
     val base = if (dark) Color.White else Color.Black
+    val glow = cs.primary
     Column(
-        Modifier.padding(vertical = 3.dp).size(60.dp, 56.dp)
-            .then(if (sel > 0f) Modifier.shadow((10 * sel).dp, shape, ambientColor = cs.primary, spotColor = cs.primary) else Modifier)
+        Modifier.padding(vertical = 3.dp).size(66.dp, 56.dp)
+            // centred glow; an elevation shadow drifts downwards
+            .drawBehind { if (sel > 0f) drawRoundRect(glow.copy(alpha = 0.22f * sel), cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())) }
             .clip(shape)
             .background(Brush.verticalGradient(listOf(base.copy(alpha = 0.13f * sel + 0.05f * hov), base.copy(alpha = 0.05f * sel + 0.03f * hov))))
             .hoverable(src)
@@ -159,7 +162,8 @@ private fun DockItem(tab: Tab, nav: Navigator) {
     ) {
         Icon(if (selected) tab.selectedIcon else tab.icon, tab.label, Modifier.size(21.dp), tint = if (selected) cs.primary else cs.onSurfaceVariant)
         Spacer(Modifier.height(3.dp))
-        Text(t(tab.label), fontSize = 10.sp, color = if (selected) cs.onSurface else cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val label = t(tab.label)
+        Text(label, fontSize = if (label.length > 9) 8.5.sp else 10.sp, color = if (selected) cs.onSurface else cs.onSurfaceVariant, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
     }
 }
 
