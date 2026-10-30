@@ -571,7 +571,12 @@ class PlayerController(
         val pending = inFlight[key]?.takeIf { !fresh && it.isActive }
             ?: scope.async(Dispatchers.Default) {
                 val provider = providers[track.source] ?: error(app.nocturne.i18n.t("%s is disabled", track.source.label))
-                provider.stream(track, settings.value.audioQuality)
+                try {
+                    provider.stream(track, settings.value.audioQuality)
+                } catch (e: Throwable) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    alternate(track) ?: throw e
+                }
             }.also { inFlight[key] = it }
         return try {
             pending.await().also { streamCache[key] = CachedStream(it, nowMillis()) }
@@ -579,6 +584,29 @@ class PlayerController(
             if (inFlight[key] === pending && !pending.isActive) inFlight.remove(key)
         }
     }
+
+    // blocked upload (age gate, region, removed) → same song from another upload or SoundCloud
+    private suspend fun alternate(track: Track): ResolvedStream? {
+        val artist = track.artists.firstOrNull()?.name.orEmpty()
+        val want = norm(track.title)
+        if (want.isEmpty()) return null
+        val q = settings.value.audioQuality
+        for (src in listOf(Source.YOUTUBE_MUSIC, Source.SOUNDCLOUD)) {
+            val p = providers[src] ?: continue
+            val found = runCatching { p.search("${track.title} $artist", app.nocturne.model.SearchFilter.SONGS) }.getOrNull().orEmpty()
+                .filterIsInstance<app.nocturne.model.MediaEntry.Song>().map { it.track }
+                .filter { it.key != track.key && norm(it.title).let { t -> t.contains(want) || want.contains(t) } }
+                .filter { track.durationMs <= 0 || it.durationMs <= 0 || kotlin.math.abs(it.durationMs - track.durationMs) < 20_000 }
+                .sortedByDescending { c -> c.artists.count { norm(it.name).let { a -> a.isNotEmpty() && norm(artist).contains(a) } } }
+            for (c in found.take(4)) runCatching { p.stream(c, q) }.getOrNull()?.let { return it }
+        }
+        return null
+    }
+
+    private fun norm(s: String) = s.lowercase()
+        .replace(Regex("\\(.*?\\)|\\[.*?]|feat\\..*|ft\\..*"), "")
+        .replace(Regex("[^\\p{L}\\p{N} ]"), "")
+        .trim()
 
     private fun prefetchNext() {
         prefetchJob?.cancel()
