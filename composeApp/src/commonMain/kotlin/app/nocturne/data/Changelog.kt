@@ -11,12 +11,14 @@ val Changelog = listOf(
             "PC: single-key hotkeys work system-wide too when \"Work while minimized\" is on",
             "PC: floating player opening both ways: like, dislike and open on the left, playback and volume on the right",
             "PC: vertical floating player: hover the speaker for a volume slider, drag the ring around the cover to seek",
+            "PC, iPhone: animated GIF backgrounds actually animate",
         ),
         uk = listOf(
             "ПК: гарячі клавіші на одній кнопці (нампад, F-клавіші) перехоплюють її: символ більше не вводиться",
             "ПК: гарячі клавіші на одній кнопці працюють і в усій системі, коли увімкнено «Працювати, коли Nocturne згорнутий»",
             "ПК: плаваючий плеєр, що розкривається в обидва боки: лайк, дизлайк і «відкрити» зліва, керування й гучність справа",
             "ПК: вертикальний плаваючий плеєр: наведи на динамік для повзунка гучності, тягни кільце навколо обкладинки для перемотки",
+            "ПК, iPhone: анімовані GIF-фони тепер справді рухаються",
         ),
     ),
     ChangelogEntry(

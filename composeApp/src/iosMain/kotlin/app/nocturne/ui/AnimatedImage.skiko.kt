@@ -4,17 +4,18 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asComposeImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.delay
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Codec
 import org.jetbrains.skia.Data
+import org.jetbrains.skia.Image
 
 @Composable
 actual fun AnimatedImage(bytes: ByteArray, modifier: Modifier) {
@@ -25,8 +26,8 @@ actual fun AnimatedImage(bytes: ByteArray, modifier: Modifier) {
             runCatching { codec.readPixels(this, 0) }
         }
     }
-    val image = remember(bitmap) { bitmap.asComposeImageBitmap() }
-    var tick by remember(codec) { mutableIntStateOf(0) }
+    // the Skia image behind an ImageBitmap is a snapshot, so every frame gets a fresh one
+    var image by remember(bitmap) { mutableStateOf(Image.makeFromBitmap(bitmap).toComposeImageBitmap()) }
     LaunchedEffect(codec) {
         val n = codec.frameCount
         if (n <= 1) return@LaunchedEffect
@@ -38,11 +39,10 @@ actual fun AnimatedImage(bytes: ByteArray, modifier: Modifier) {
             runCatching { codec.readPixels(bitmap, next, if (next == 0) -1 else frame) }
             bitmap.notifyPixelsChanged()
             frame = next
-            tick++
+            image = Image.makeFromBitmap(bitmap).toComposeImageBitmap()
         }
     }
     Canvas(modifier) {
-        tick
         val iw = image.width.toFloat()
         val ih = image.height.toFloat()
         if (iw <= 0 || ih <= 0) return@Canvas
