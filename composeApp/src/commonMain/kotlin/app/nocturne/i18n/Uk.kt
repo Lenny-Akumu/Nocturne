@@ -868,5 +868,9 @@ internal object Uk {
         "No connection" to "Немає з'єднання",
         "Recognition service didn't answer" to "Сервіс розпізнавання не відповідає",
         "Recognition failed" to "Не вдалося розпізнати",
+        "Profile" to "Профіль",
+        "%s min listened" to "%s хв прослухано",
+        "%s liked" to "%s вподобаних",
+        "Edit profile" to "Редагувати профіль",
     )
 }

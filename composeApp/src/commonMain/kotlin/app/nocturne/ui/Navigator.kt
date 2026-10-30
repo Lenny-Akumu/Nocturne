@@ -11,6 +11,7 @@ sealed interface Screen {
     data object Search : Screen
     data object Library : Screen
     data object Settings : Screen
+    data object Profile : Screen
     data class Collection(val ref: CollectionRef) : Screen
     data class SettingsPage(val page: app.nocturne.ui.screens.SettingsCategory) : Screen
 }

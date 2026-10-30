@@ -134,7 +134,7 @@ fun GlassHome(
             item(key = "title") {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(greeting, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    GlassAvatar({ graph.navigator.push(Screen.Settings) })
+                    GlassAvatar({ graph.navigator.push(Screen.Profile) })
                 }
             }
             if (mixes.isNotEmpty()) item(key = "mixes") { MixCarousel(mixes) { m -> play(m.tracks, 0, m.title) } }

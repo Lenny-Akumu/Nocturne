@@ -139,7 +139,7 @@ fun MaterialSearchBar(modifier: Modifier = Modifier) {
         Icon(Icons.Rounded.Search, null, tint = cs.onSurface)
         Spacer(Modifier.width(14.dp))
         Text(t("Search songs, artists"), style = MaterialTheme.typography.bodyLarge, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        ExpressiveIconButton(onClick = { nav.push(Screen.Settings) }, modifier = Modifier.demo("open_settings") { nav.push(Screen.Settings) }) {
+        ExpressiveIconButton(onClick = { nav.push(Screen.Profile) }, modifier = Modifier.demo("open_settings") { nav.push(Screen.Profile) }) {
             app.nocturne.ui.components.ProfileAvatar(34.dp)
         }
     }

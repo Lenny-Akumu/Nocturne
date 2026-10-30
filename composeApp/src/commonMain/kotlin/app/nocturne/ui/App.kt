@@ -348,7 +348,7 @@ private fun ScreenHost(padding: PaddingValues) {
             // Glass: home brings its own scrolling large title; other tabs get a large title header.
             val glassStyle = LocalDesignStyle.current == app.nocturne.data.DesignStyle.GLASS
             val inner = if (isTab && glassStyle) {
-                if (screen != Screen.Home) app.nocturne.ui.style.glass.GlassLargeTitle(if (screen == Screen.Search) "Search" else "Library", padding) { nav.push(Screen.Settings) }
+                if (screen != Screen.Home) app.nocturne.ui.style.glass.GlassLargeTitle(if (screen == Screen.Search) "Search" else "Library", padding) { nav.push(Screen.Profile) }
                 if (screen == Screen.Home) padding else PaddingValues(bottom = padding.calculateBottomPadding())
             } else if (isTab && !ownTop) {
                 TopBar(padding)
@@ -360,6 +360,7 @@ private fun ScreenHost(padding: PaddingValues) {
                     Screen.Search -> SearchScreen(inner)
                     Screen.Library -> LibraryScreen(inner)
                     Screen.Settings -> SettingsScreen(inner)
+                    Screen.Profile -> app.nocturne.ui.screens.ProfileScreen(inner)
                     is Screen.Collection -> CollectionScreen(screen.ref, inner)
                     is Screen.SettingsPage -> SettingsPage(screen.page, inner)
                 }
@@ -395,6 +396,7 @@ private fun TopBar(padding: PaddingValues) {
                 Text(t("Nocturne"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
         }
+        IconButton(onClick = { nav.push(Screen.Profile) }) { app.nocturne.ui.components.ProfileAvatar(30.dp) }
         IconButton(onClick = { nav.push(Screen.Settings) }) { Icon(Icons.Rounded.Settings, "Settings") }
     }
     }

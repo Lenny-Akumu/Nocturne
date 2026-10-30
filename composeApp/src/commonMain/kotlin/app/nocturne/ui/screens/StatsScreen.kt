@@ -49,7 +49,7 @@ import app.nocturne.ui.components.TrackRow
 private val periods = listOf("Week" to 7L, "Month" to 30L, "Year" to 365L, "All time" to 0L)
 
 @Composable
-fun StatsView(padding: PaddingValues) {
+fun StatsView(padding: PaddingValues, header: androidx.compose.foundation.lazy.LazyListScope.() -> Unit = {}) {
     val graph = AppGraph.instance
     val library by graph.library.state.collectAsState()
     var period by remember { mutableIntStateOf(1) }
@@ -57,7 +57,10 @@ fun StatsView(padding: PaddingValues) {
     val from = if (days == 0L) 0L else nowMillis() - days * 86_400_000L
     val plays = library.plays.filter { it.t >= from }
     if (library.plays.isEmpty()) {
-        MessageBox(Icons.Rounded.BarChart, "No stats yet", "Listen to some music and your stats will show up here.")
+        LazyColumn(contentPadding = padding) {
+            header()
+            item { MessageBox(Icons.Rounded.BarChart, "No stats yet", "Listen to some music and your stats will show up here.") }
+        }
         return
     }
     val minutes = plays.sumOf { it.d } / 60_000
@@ -68,6 +71,7 @@ fun StatsView(padding: PaddingValues) {
         .map { (name, list) -> Triple(name, list.size, graph.library.trackFor(list.first().second)?.artworkUrl) }
 
     LazyColumn(contentPadding = padding) {
+        header()
         item {
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(periods.size) { i -> FilterChip(selected = i == period, onClick = { period = i }, label = { Text(t(periods[i].first)) }) }
@@ -83,7 +87,6 @@ fun StatsView(padding: PaddingValues) {
         }
         item { ActivityChart(plays, days) }
         item { ListeningClock(plays) }
-        item { AchievementsRow() }
         if (topArtists.isNotEmpty()) {
             item { Text(t("Top artists"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 8.dp)) }
             item {
@@ -280,7 +283,7 @@ fun smartMixes(): List<Pair<String, List<app.nocturne.model.Track>>> {
 }
 
 @Composable
-private fun AchievementsRow() {
+internal fun AchievementsRow() {
     val settings by AppGraph.instance.settings.state.collectAsState()
     val got = settings.achievements
     val list = app.nocturne.data.Achievements.all.sortedByDescending { got[it.id] ?: -1L }
