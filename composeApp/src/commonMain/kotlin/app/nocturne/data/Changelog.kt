@@ -9,10 +9,12 @@ val Changelog = listOf(
         en = listOf(
             "PC: hotkeys on single keys (numpad, F-keys) take the key over: it no longer types its character",
             "PC: single-key hotkeys work system-wide too when \"Work while minimized\" is on",
+            "PC: floating player opening both ways: like, dislike and open on the left, playback and volume on the right",
         ),
         uk = listOf(
             "ПК: гарячі клавіші на одній кнопці (нампад, F-клавіші) перехоплюють її: символ більше не вводиться",
             "ПК: гарячі клавіші на одній кнопці працюють і в усій системі, коли увімкнено «Працювати, коли Nocturne згорнутий»",
+            "ПК: плаваючий плеєр, що розкривається в обидва боки: лайк, дизлайк і «відкрити» зліва, керування й гучність справа",
         ),
     ),
     ChangelogEntry(

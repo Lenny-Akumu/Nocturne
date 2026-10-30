@@ -324,24 +324,24 @@ private fun Pill(interactive: Boolean, window: java.awt.Window?, canOpen: Boolea
     val b = settings.floatingButtons
     val anchor = settings.floatingAnchor
 
-    val extras = buildList<@Composable () -> Unit> {
-        if (track != null && "like" in b) add {
-            val liked = library.liked.any { it.key == track.key }
-            PillButton(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) accent else Color.White) { graph.toggleLike(track) }
-        }
-        if (track != null && "dislike" in b) add { PillButton(Icons.Rounded.ThumbDown, Color.White) { graph.notInterested(track) } }
-        if ("volume" in b) add { Volume(accent) }
-        if ("open" in b) add { PillButton(Icons.AutoMirrored.Rounded.OpenInNew, Color.White) { MainWindow.show() } }
-    }
+    val like: (@Composable () -> Unit)? = if (track != null && "like" in b) ({
+        val liked = library.liked.any { it.key == track.key }
+        PillButton(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) accent else Color.White) { graph.toggleLike(track) }
+    }) else null
+    val dislike: (@Composable () -> Unit)? = if (track != null && "dislike" in b) ({ PillButton(Icons.Rounded.ThumbDown, Color.White) { graph.notInterested(track) } }) else null
+    val volume: (@Composable () -> Unit)? = if ("volume" in b) ({ Volume(accent) }) else null
+    val open: (@Composable () -> Unit)? = if ("open" in b) ({ PillButton(Icons.AutoMirrored.Rounded.OpenInNew, Color.White) { MainWindow.show() } }) else null
+    val extras = listOfNotNull(like, dislike, volume, open)
+    // both ways: track actions on the left, playback and volume on the right
     val leftExtras = when (anchor) {
         0 -> emptyList()
         2 -> extras.reversed()
-        else -> extras.take(extras.size / 2)
+        else -> listOfNotNull(open, dislike, like)
     }
     val rightExtras = when (anchor) {
         0 -> extras
         2 -> emptyList()
-        else -> extras.drop(extras.size / 2)
+        else -> listOfNotNull(volume)
     }
     val volW = if ("volume" in b) 120.dp else 0.dp
     fun widthOf(list: List<@Composable () -> Unit>, hasVolume: Boolean): Dp = BTN * (list.size - if (hasVolume) 1 else 0) + if (hasVolume) volW else 0.dp
