@@ -40,6 +40,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -164,6 +166,7 @@ fun AccountsSettings() {
                 else if (supportsWebLogin) web = WebLogin.SOUNDCLOUD else paste = Source.SOUNDCLOUD
             }
         }
+        LastFmCard()
         Spacer(Modifier.height(16.dp))
     }
 
@@ -394,5 +397,53 @@ private fun ProfilePhotoCard() {
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 14.dp),
         )
+    }
+}
+
+@Composable
+private fun LastFmCard() {
+    val graph = AppGraph.instance
+    val settings by graph.settings.state.collectAsState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    var key by remember { mutableStateOf(settings.lastfmKey) }
+    var secret by remember { mutableStateOf(settings.lastfmSecret) }
+    var user by remember { mutableStateOf(settings.lastfmUser) }
+    var pass by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val signedIn = settings.lastfmUser.isNotBlank() && app.nocturne.data.LastFm.connected
+    androidx.compose.material3.Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(32.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFFD51007)), contentAlignment = Alignment.Center) {
+                    Text("as", color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Black)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Last.fm", style = MaterialTheme.typography.titleMedium)
+                    Text(if (signedIn) t("Scrobbling as %s", settings.lastfmUser) else t("Send everything you play to your Last.fm profile"),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (signedIn) app.nocturne.ui.kit.Switch(settings.lastfmScrobble, { v -> graph.settings.update { it.copy(lastfmScrobble = v) } })
+            }
+            if (signedIn) {
+                TextButton(onClick = { app.nocturne.data.LastFm.logout() }) { Text(t("Sign out")) }
+            } else {
+                Text(t("Last.fm needs your own free API account: create one, then paste its key and secret here."), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { uri.openUri("https://www.last.fm/api/account/create") }) { Text(t("Create an API account")) }
+                OutlinedTextField(key, { key = it.trim() }, label = { Text("API key") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(secret, { secret = it.trim() }, label = { Text(t("Shared secret")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(user, { user = it.trim() }, label = { Text(t("Username")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(pass, { pass = it }, label = { Text(t("Password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                error?.let { Text(t(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                Button(enabled = !busy && key.isNotBlank() && secret.isNotBlank() && user.isNotBlank() && pass.isNotBlank(), onClick = {
+                    busy = true; error = null
+                    graph.settings.update { it.copy(lastfmKey = key, lastfmSecret = secret) }
+                    scope.launch { error = app.nocturne.data.LastFm.login(user, pass); busy = false; if (error == null) pass = "" }
+                }) { Text(if (busy) t("Signing in…") else t("Sign in")) }
+            }
+        }
     }
 }

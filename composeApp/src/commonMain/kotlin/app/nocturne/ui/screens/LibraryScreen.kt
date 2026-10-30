@@ -65,7 +65,7 @@ import app.nocturne.ui.components.MessageBox
 import app.nocturne.ui.components.TrackMenuContext
 import app.nocturne.ui.components.TrackRow
 
-enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History"), LOCAL("On device"), DOWNLOADS("Downloaded"), STATS("Stats") }
+enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), SMART("Smart playlists"), PODCASTS("Podcasts"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History"), LOCAL("On device"), DOWNLOADS("Downloaded"), STATS("Stats") }
 
 val LikedRef = CollectionRef("liked", Source.YOUTUBE_MUSIC, CollectionType.LOCAL, "Liked songs")
 
@@ -92,6 +92,8 @@ fun LibraryScreen(contentPadding: PaddingValues) {
             LibraryTab.HISTORY -> TrackList(library.history.map { it.track }, t("History"), bottom, Icons.Rounded.History, "Nothing played yet", null,
                 action = { if (library.history.isNotEmpty()) IconButton(onClick = { graph.library.clearHistory() }) { Icon(Icons.Rounded.Delete, "Clear history") } })
             LibraryTab.STATS -> StatsView(bottom)
+            LibraryTab.SMART -> SmartPlaylistsView(bottom)
+            LibraryTab.PODCASTS -> PodcastsView(bottom)
             LibraryTab.LOCAL -> LocalMusic(bottom)
             LibraryTab.DOWNLOADS -> {
                 val dl by graph.downloads.items.collectAsState()

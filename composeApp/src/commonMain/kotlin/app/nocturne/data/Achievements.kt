@@ -72,7 +72,7 @@ object Achievements {
         val artists = p.mapNotNull { it.a.split(",").firstOrNull()?.trim()?.takeIf { a -> a.isNotEmpty() } }
         if (artists.groupingBy { it }.eachCount().values.any { it >= 100 }) out += "ring"
         if (p.groupBy { c.day(it.t) / 7 }.values.any { w -> w.mapNotNull { it.a.split(",").firstOrNull()?.trim() }.toSet().size >= 50 }) out += "nomad"
-        val days = p.map { c.day(it.t) }.toSortedSet().toList()
+        val days = p.map { c.day(it.t) }.distinct().sorted()
         var run = 1
         for (i in 1 until days.size) { run = if (days[i] == days[i - 1] + 1) run + 1 else 1; if (run >= 30) { out += "streak"; break } }
         if (p.groupBy { c.day(it.t) }.values.any { d -> d.map { it.k.substringBefore(':') }.toSet().containsAll(listOf("YOUTUBE_MUSIC", "SPOTIFY", "SOUNDCLOUD")) }) out += "chameleon"

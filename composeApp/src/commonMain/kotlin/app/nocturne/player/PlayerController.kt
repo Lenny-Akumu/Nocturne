@@ -1,5 +1,6 @@
 package app.nocturne.player
 
+import app.nocturne.data.isPodcast
 import app.nocturne.FileStore
 import app.nocturne.data.Library
 import app.nocturne.data.SettingsStore
@@ -397,7 +398,8 @@ class PlayerController(
         val s = settings.value
         val a = partyAudio
         engine.setSkipSilence(s.skipSilence)
-        rampSpeed(a?.speed ?: s.playbackSpeed)
+        val podcast = _state.value.current?.isPodcast == true
+        rampSpeed(a?.speed ?: if (podcast) s.podcastSpeed else s.playbackSpeed)
         if (a != null) engine.setEqualizer(a.eq, a.gains.takeIf { it.size == s.eqGains.size } ?: s.eqGains)
         else engine.setEqualizer(s.eqEnabled, s.eqGains)
         applyEffects()

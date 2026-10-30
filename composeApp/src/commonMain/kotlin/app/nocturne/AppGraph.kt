@@ -118,6 +118,8 @@ class AppGraph(val engine: AudioEngine) {
         }
         scope.launch { kotlinx.coroutines.delay(3000); refreshYouTubeAvatar() }
         app.nocturne.data.Achievements.start(this)
+        app.nocturne.data.Podcasts.start(this)
+        app.nocturne.data.LastFm.start(this)
         // wake-up alarm while the app runs (minute resolution, once per day)
         scope.launch {
             var firedOn = -1L
