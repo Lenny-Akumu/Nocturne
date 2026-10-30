@@ -572,16 +572,8 @@ private fun VerticalPill(
         Layout(
             content = {
                 Column(Modifier.layoutId("core").padding(vertical = 8.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(44.dp).clickable(enabled = interactive) { MainWindow.show() }, contentAlignment = Alignment.Center) {
-                        Crossfade(track?.artworkUrl, Modifier.size(36.dp), tween(350), label = "art") { url ->
-                            Artwork(url, Modifier.size(36.dp), CircleShape, Icons.Rounded.MusicNote)
-                        }
-                        // playback progress as a ring around the cover
-                        androidx.compose.foundation.Canvas(Modifier.size(44.dp)) {
-                            val sw = 2.5.dp.toPx()
-                            drawArc(Color.White.copy(alpha = 0.18f), 0f, 360f, false, style = androidx.compose.ui.graphics.drawscope.Stroke(sw))
-                            drawArc(accent, -90f, 360f * state.progress, false, style = androidx.compose.ui.graphics.drawscope.Stroke(sw, cap = StrokeCap.Round))
-                        }
+                    SeekRing(track?.artworkUrl, state.progress, accent, interactive) { f ->
+                        if (state.durationMs > 0) graph.player.seekTo((f * state.durationMs).toLong())
                     }
                     Spacer(Modifier.height(4.dp))
                     if ("prev" in b) PillButton(Icons.Rounded.SkipPrevious, Color.White, interactive, Icons.Rounded.FastRewind) { graph.player.previous() }
@@ -595,11 +587,7 @@ private fun VerticalPill(
                         PillButton(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) accent else Color.White) { graph.toggleLike(track) }
                     }
                     if (track != null && "dislike" in b) PillButton(Icons.Rounded.ThumbDown, Color.White) { graph.notInterested(track) }
-                    if ("volume" in b) {
-                        PillButton(if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, Color.White) {
-                            graph.player.setVolume(if (settings.volume > 0.01f) 0f else 0.6f)
-                        }
-                    }
+                    if ("volume" in b) VerticalVolume(accent)
                     if ("open" in b) PillButton(Icons.AutoMirrored.Rounded.OpenInNew, Color.White) { MainWindow.show() }
                 }
             },
@@ -613,6 +601,101 @@ private fun VerticalPill(
                 core.place((w - core.width) / 2, 0)
                 if (p > 0f) more.placeWithLayer((w - more.width) / 2, core.height) { alpha = p * p * (3 - 2 * p) }
             }
+        }
+    }
+}
+
+// Cover with the progress ring; hovering thickens it into a knob you can drag around to seek.
+@Composable
+private fun SeekRing(art: String?, progress: Float, accent: Color, interactive: Boolean, onSeek: (Float) -> Unit) {
+    val hover = remember { MutableInteractionSource() }
+    val hovered by hover.collectIsHoveredAsState()
+    var drag by remember { mutableStateOf<Float?>(null) }
+    val on by animateFloatAsState(if (hovered || drag != null) 1f else 0f, tween(160), label = "ring")
+    val shown = drag ?: progress
+    fun angleOf(o: Offset, size: IntSize): Float {
+        val a = kotlin.math.atan2(o.x - size.width / 2f, -(o.y - size.height / 2f))
+        return ((if (a < 0) a + 2 * kotlin.math.PI.toFloat() else a) / (2 * kotlin.math.PI.toFloat())).coerceIn(0f, 1f)
+    }
+    Box(
+        Modifier.size(48.dp)
+            .hoverable(hover)
+            .clickable(enabled = interactive) { MainWindow.show() }
+            .pointerInput(Unit) {
+                androidx.compose.foundation.gestures.detectDragGestures(
+                    onDragStart = { o -> drag = angleOf(o, size) },
+                    onDragEnd = { drag?.let(onSeek); drag = null },
+                    onDragCancel = { drag = null },
+                ) { change, _ -> change.consume(); drag = angleOf(change.position, size) }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Crossfade(art, Modifier.size(36.dp), tween(350), label = "art") { url ->
+            Artwork(url, Modifier.size(36.dp), CircleShape, Icons.Rounded.MusicNote)
+        }
+        Canvas(Modifier.size(46.dp)) {
+            val sw = (2.5f + 1.5f * on).dp.toPx()
+            val r = (21f + on).dp.toPx() - sw / 2
+            val tl = Offset(size.width / 2 - r, size.height / 2 - r)
+            val sz = androidx.compose.ui.geometry.Size(r * 2, r * 2)
+            drawArc(Color.White.copy(alpha = 0.18f + 0.1f * on), 0f, 360f, false, tl, sz, style = androidx.compose.ui.graphics.drawscope.Stroke(sw))
+            drawArc(accent, -90f, 360f * shown, false, tl, sz, style = androidx.compose.ui.graphics.drawscope.Stroke(sw, cap = StrokeCap.Round))
+            if (on > 0f) {
+                val a = (shown * 360f - 90f) * kotlin.math.PI.toFloat() / 180f
+                drawCircle(Color.White.copy(alpha = on), 4.5.dp.toPx() * on, Offset(size.width / 2 + r * kotlin.math.cos(a), size.height / 2 + r * kotlin.math.sin(a)))
+            }
+        }
+    }
+}
+
+// Volume button that slides open a vertical slider while hovered.
+@Composable
+private fun VerticalVolume(accent: Color) {
+    val graph = AppGraph.instance
+    val settings by graph.settings.state.collectAsState()
+    val hover = remember { MutableInteractionSource() }
+    val hovered by hover.collectIsHoveredAsState()
+    var dragging by remember { mutableStateOf(false) }
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(hovered, dragging) {
+        if (hovered || dragging) open = true else { delay(350); open = false }
+    }
+    Column(Modifier.hoverable(hover), horizontalAlignment = Alignment.CenterHorizontally) {
+        androidx.compose.animation.AnimatedVisibility(
+            open,
+            enter = androidx.compose.animation.expandVertically(tween(180), expandFrom = Alignment.Bottom) + fadeIn(tween(180)),
+            exit = androidx.compose.animation.shrinkVertically(tween(160), shrinkTowards = Alignment.Bottom) + fadeOut(tween(120)),
+        ) {
+            var vol by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
+            Canvas(
+                Modifier.padding(vertical = 6.dp).size(24.dp, 96.dp)
+                    .pointerHoverIcon(PointerIcon.Hand)
+                    .pointerInput(Unit) {
+                        detectTapGestures { o -> vol = (1f - o.y / size.height).coerceIn(0f, 1f); graph.player.setVolume(vol) }
+                    }
+                    .pointerInput(Unit) {
+                        androidx.compose.foundation.gestures.detectVerticalDragGestures(
+                            onDragStart = { dragging = true },
+                            onDragEnd = { dragging = false },
+                            onDragCancel = { dragging = false },
+                        ) { change, _ ->
+                            change.consume()
+                            vol = (1f - change.position.y / size.height).coerceIn(0f, 1f)
+                            graph.player.setVolume(vol)
+                        }
+                    },
+            ) {
+                val x = size.width / 2
+                val w = 3.dp.toPx()
+                val pad = 6.dp.toPx()
+                val y = pad + (size.height - pad * 2) * (1f - vol)
+                drawLine(Color.White.copy(alpha = 0.2f), Offset(x, pad), Offset(x, size.height - pad), w, StrokeCap.Round)
+                drawLine(accent, Offset(x, size.height - pad), Offset(x, y), w, StrokeCap.Round)
+                drawCircle(Color.White, 5.dp.toPx(), Offset(x, y))
+            }
+        }
+        PillButton(if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, Color.White) {
+            graph.player.setVolume(if (settings.volume > 0.01f) 0f else 0.6f)
         }
     }
 }
