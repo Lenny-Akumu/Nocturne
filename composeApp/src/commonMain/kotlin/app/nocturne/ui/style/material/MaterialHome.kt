@@ -116,7 +116,7 @@ fun MaterialHome(
             item { app.nocturne.ui.components.TimeCapsuleCard() }
             val recs = recommended.filterNot { graph.library.isBlocked(it) }
             if (recs.isNotEmpty()) item {
-                Box(Modifier.seasonalStop()) { QuickGrid(t("Recommended for you"), recs) { i -> onPlay(recs, i, t("Recommended for you")) } }
+                androidx.compose.foundation.layout.Column(Modifier.seasonalStop()) { QuickGrid(t("Recommended for you"), recs) { i -> onPlay(recs, i, t("Recommended for you")) } }
             }
             val mostPlayed = graph.library.mostPlayed(16)
             if (mostPlayed.size >= 4) item {

@@ -141,7 +141,7 @@ fun GlassHome(
             item(key = "moods") { app.nocturne.ui.components.MoodRow() }
             item(key = "capsule") { app.nocturne.ui.components.TimeCapsuleCard() }
             if (recs.isNotEmpty()) item(key = "recs") {
-                Box(Modifier.seasonalStop()) { GroupedGrid(recs.take(24), t("Recommended for you")) { i -> play(recs, i, t("Recommended for you")) } }
+                androidx.compose.foundation.layout.Column(Modifier.seasonalStop()) { GroupedGrid(recs.take(24), t("Recommended for you")) { i -> play(recs, i, t("Recommended for you")) } }
             }
             if (mostPlayed.size >= 4) item(key = "top") {
                 ShelfHeader(t("Your top tracks"))
