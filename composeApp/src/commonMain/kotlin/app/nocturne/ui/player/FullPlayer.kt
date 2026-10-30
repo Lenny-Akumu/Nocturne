@@ -215,7 +215,9 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     val menu = LocalTrackMenu.current
 
     CompositionLocalProvider(LocalOverlays provides overlays) {
-    BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding()) {
+    // frameless desktop window: keep the top bar clear of the window buttons
+    val caption = if (app.nocturne.ui.WindowChrome.bar != null) app.nocturne.ui.WindowChrome.height else 0.dp
+    BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().padding(top = caption)) {
         val wide = maxWidth > 760.dp && maxWidth > maxHeight
         val short = maxHeight < 560.dp
         val tall = maxHeight > 680.dp

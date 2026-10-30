@@ -109,15 +109,15 @@ expect fun clearWebLogins()
 @Composable
 expect fun PairingCard()
 
-private data class Tab(val screen: Screen, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
+internal data class Tab(val screen: Screen, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
-private val tabs = listOf(
+internal val tabs = listOf(
     Tab(Screen.Home, "Home", Icons.Outlined.Home, Icons.Rounded.Home),
     Tab(Screen.Search, "Search", Icons.Outlined.Search, Icons.Rounded.Search),
     Tab(Screen.Library, "Library", Icons.Outlined.LibraryMusic, Icons.Rounded.LibraryMusic),
 )
 
-private val settingsTab = Tab(Screen.Settings, "Settings", Icons.Outlined.Settings, Icons.Rounded.Settings)
+internal val settingsTab = Tab(Screen.Settings, "Settings", Icons.Outlined.Settings, Icons.Rounded.Settings)
 
 /** Desktop without a system title bar: the app draws its own caption strip on top. */
 object WindowChrome {
@@ -197,12 +197,23 @@ private fun AppScaffold() {
 
     PlatformBackHandler(enabled = nav.canGoBack) { nav.back() }
 
+    val aurora = LocalDesignStyle.current == app.nocturne.data.DesignStyle.WINDOWS
     BoxWithConstraints(Modifier.fillMaxSize().background(bg)) {
+        if (aurora && !backdrop) AuroraGlow(Modifier.fillMaxSize())
         // desktop without a title bar: the top strip drags the window, keep content clear of it
         val caption = if (WindowChrome.bar != null) WindowChrome.height else 0.dp
         val wide = maxWidth >= 720.dp
         val hasPlayer = player.current != null
-        if (wide) {
+        if (wide && aurora) {
+            GlassSource(Modifier.fillMaxSize()) { Row(Modifier.fillMaxSize()) {
+                AuroraDock(nav, top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + if (caption > 0.dp) caption + 2.dp else 12.dp)
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    ScreenHost(PaddingValues(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + caption + 8.dp, bottom = if (hasPlayer) 112.dp else 16.dp))
+                }
+            } }
+            AuroraIsland(onExpand = { nav.playerExpanded = true }, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 102.dp, end = 12.dp, bottom = 12.dp))
+            RemoteStrip(Modifier.align(Alignment.BottomCenter).padding(start = 102.dp, bottom = 12.dp).navigationBarsPadding().widthIn(max = 560.dp))
+        } else if (wide) {
             GlassSource(Modifier.fillMaxSize()) { Row(Modifier.fillMaxSize()) {
                 NavigationRail(
                     containerColor = if (backdrop) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
@@ -227,6 +238,7 @@ private fun AppScaffold() {
         } else {
             val glass = LocalGlass.current != null
             val bottomPad = if (glass) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + (if (hasPlayer) 146.dp else 82.dp)
+                else if (aurora) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + (if (hasPlayer) 168.dp else 90.dp)
                 else if (hasPlayer) 160.dp else 90.dp
             // Glass: observe scrolling so the tab bar minimizes / expands (iOS 26).
             GlassSource(Modifier.fillMaxSize().then(if (glass) Modifier.nestedScroll(app.nocturne.ui.style.glass.GlassChrome.scroll) else Modifier)) {
@@ -239,6 +251,9 @@ private fun AppScaffold() {
             if (glass) {
                 app.nocturne.ui.style.glass.GlassInlineBar(Modifier.align(Alignment.TopCenter))
                 app.nocturne.ui.style.glass.GlassBottomBar(nav, onExpand = { nav.playerExpanded = true }, modifier = Modifier.align(Alignment.BottomCenter))
+            } else if (aurora) Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding()) {
+                RemoteStrip()
+                AuroraPhoneBar(nav, onExpand = { nav.playerExpanded = true })
             } else Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
                 RemoteStrip()
                 MiniPlayer(onExpand = { nav.playerExpanded = true }, wide = false, modifier = Modifier.demo("mini") { nav.playerExpanded = true })

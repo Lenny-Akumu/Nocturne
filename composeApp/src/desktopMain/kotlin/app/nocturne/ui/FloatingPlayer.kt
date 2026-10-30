@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -115,7 +116,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
 
 private val BASE = DpSize(820.dp, 132.dp)
-private val BASE_VERTICAL = DpSize(72.dp, 560.dp)
+// wide enough for the title bubble on either side of the column
+private val BASE_VERTICAL = DpSize(728.dp, 560.dp)
 private val BTN = 40.dp
 
 @Composable
@@ -272,7 +274,7 @@ fun FloatingPlayerWindow() {
                             }
                             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(when (anchor) { 0 -> 0f; 2 -> 1f; else -> 0.5f }, 0f)
                         }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            SideBubble(settings.floatingVertical, anchor) { Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 HideHandle {
                                     scope.launch {
                                         edge = nearestEdge(window.bounds, bounds)
@@ -286,7 +288,7 @@ fun FloatingPlayerWindow() {
                                     }
                                 }
                                 Pill(interactive = true, window = window, canOpen = full) { busy.value = it }
-                            }
+                            } }
                         }
                     }
                 }
@@ -607,6 +609,47 @@ private fun VerticalPill(
     }
 }
 
+internal object CoverHover {
+    var on by mutableStateOf(false)
+}
+
+// Vertical player: hovering the cover shows the title in a bubble beside the column, sized to the title.
+@Composable
+private fun SideBubble(enabled: Boolean, anchor: Int, content: @Composable () -> Unit) {
+    if (!enabled) return content()
+    val track = AppGraph.instance.player.state.collectAsState().value.current
+    val a by animateFloatAsState(if (CoverHover.on && track != null) 1f else 0f, tween(180), label = "bubble")
+    val left = anchor == 2
+    Layout({
+        content()
+        if (a > 0f && track != null) {
+            Column(
+                Modifier.graphicsLayer { alpha = a; translationX = (if (left) 10f else -10f) * density * (1f - a) }
+                    .widthIn(max = 320.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xEB141418))
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+            ) {
+                Text(track.title, color = Color.White, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.basicMarquee())
+                Text(track.artistNames, color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall, maxLines = 1, modifier = Modifier.basicMarquee())
+            }
+        }
+    }) { ms, _ ->
+        val loose = Constraints()
+        val main = ms[0].measure(loose)
+        val bub = ms.getOrNull(1)?.measure(loose)
+        val gap = 8.dp.roundToPx()
+        val bw = bub?.let { it.width + gap } ?: 0
+        // cover centre: handle + pill padding + ring
+        val y0 = bub?.let { (47.dp.roundToPx() - it.height / 2).coerceAtLeast(0) } ?: 0
+        val w = main.width + if (anchor == 1) bw * 2 else bw
+        val h = maxOf(main.height, bub?.let { y0 + it.height } ?: 0)
+        layout(w, h) {
+            val mx = if (anchor == 1 || left) bw else 0
+            main.place(mx, 0)
+            bub?.place(if (left) 0 else mx + main.width + gap, y0)
+        }
+    }
+}
+
 // Cover with the progress ring; hovering thickens it into a knob you can drag around to seek.
 @Composable
 private fun SeekRing(art: String?, progress: Float, accent: Color, interactive: Boolean, onSeek: (Float) -> Unit) {
@@ -615,6 +658,7 @@ private fun SeekRing(art: String?, progress: Float, accent: Color, interactive: 
     var drag by remember { mutableStateOf<Float?>(null) }
     val on by animateFloatAsState(if (hovered || drag != null) 1f else 0f, tween(160), label = "ring")
     val shown = drag ?: progress
+    LaunchedEffect(hovered) { CoverHover.on = hovered }
     fun angleOf(o: Offset, size: IntSize): Float {
         val a = kotlin.math.atan2(o.x - size.width / 2f, -(o.y - size.height / 2f))
         return ((if (a < 0) a + 2 * kotlin.math.PI.toFloat() else a) / (2 * kotlin.math.PI.toFloat())).coerceIn(0f, 1f)

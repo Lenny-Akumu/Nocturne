@@ -119,7 +119,8 @@ fun HomeScreen(contentPadding: PaddingValues) {
         ) {}
         return
     }
-    if (app.nocturne.ui.kit.LocalDesignStyle.current == app.nocturne.data.DesignStyle.GLASS) {
+    // Aurora (Windows) shares the glass home layout: mix heroes, moods, grouped picks
+    if (app.nocturne.ui.kit.LocalDesignStyle.current != app.nocturne.data.DesignStyle.MATERIAL) {
         app.nocturne.ui.style.glass.GlassHome(
             contentPadding, listState, sections, recommended, errors, refreshing, { reload++ },
             play = { list, i, title -> playTrack(list, i, title) },

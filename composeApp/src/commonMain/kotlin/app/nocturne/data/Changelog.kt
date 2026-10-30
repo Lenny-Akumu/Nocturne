@@ -12,6 +12,9 @@ val Changelog = listOf(
             "PC: floating player opening both ways: like, dislike and open on the left, playback and volume on the right",
             "PC: vertical floating player: hover the speaker for a volume slider, drag the ring around the cover to seek",
             "PC, iPhone: animated GIF backgrounds actually animate",
+            "New Windows design \"Aurora\": floating dock, cover-tinted glow, player island; on phones the mini player and tabs share one island",
+            "PC: vertical floating player shows the track title in a bubble next to the cover",
+            "PC: window buttons no longer cover the expanded player's icons",
         ),
         uk = listOf(
             "ПК: гарячі клавіші на одній кнопці (нампад, F-клавіші) перехоплюють її: символ більше не вводиться",
@@ -19,6 +22,9 @@ val Changelog = listOf(
             "ПК: плаваючий плеєр, що розкривається в обидва боки: лайк, дизлайк і «відкрити» зліва, керування й гучність справа",
             "ПК: вертикальний плаваючий плеєр: наведи на динамік для повзунка гучності, тягни кільце навколо обкладинки для перемотки",
             "ПК, iPhone: анімовані GIF-фони тепер справді рухаються",
+            "Новий дизайн Windows «Аврора»: плаваючий док, сяйво в кольорах обкладинки, плеєр-острів; на телефонах мініплеєр і вкладки в одному острові",
+            "ПК: вертикальний плаваючий плеєр показує назву треку в бульбашці біля обкладинки",
+            "ПК: кнопки вікна більше не перекривають іконки розгорнутого плеєра",
         ),
     ),
     ChangelogEntry(
