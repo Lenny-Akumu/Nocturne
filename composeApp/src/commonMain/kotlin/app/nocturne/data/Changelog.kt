@@ -5,7 +5,7 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
-        "1.10.6",
+        "1.10.6.1",
         en = listOf(
             "PC: hotkeys on single keys (numpad, F-keys) take the key over: it no longer types its character",
             "PC: single-key hotkeys work system-wide too when \"Work while minimized\" is on",
@@ -16,6 +16,7 @@ val Changelog = listOf(
             "PC: vertical floating player shows the track title in a bubble next to the cover",
             "PC: window buttons no longer cover the expanded player's icons",
             "PC: headphone, keyboard and Bluetooth media buttons work everywhere while something is playing",
+            "Aurora: dock highlight sits right under its icon, moods got proper icons, see-through panels on Home",
         ),
         uk = listOf(
             "ПК: гарячі клавіші на одній кнопці (нампад, F-клавіші) перехоплюють її: символ більше не вводиться",
@@ -27,6 +28,7 @@ val Changelog = listOf(
             "ПК: вертикальний плаваючий плеєр показує назву треку в бульбашці біля обкладинки",
             "ПК: кнопки вікна більше не перекривають іконки розгорнутого плеєра",
             "ПК: медіакнопки навушників, клавіатури й Bluetooth-пристроїв працюють будь-де, поки щось грає",
+            "Аврора: підсвітка в доку рівно під іконкою, настрої з нормальними іконками, напівпрозорі блоки на головній",
         ),
     ),
     ChangelogEntry(

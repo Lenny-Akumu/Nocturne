@@ -11,6 +11,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -327,6 +328,7 @@ private fun GroupedGrid(tracks: List<Track>, title: String? = null, onPlay: (Int
     val cs = MaterialTheme.colorScheme
     val pages = tracks.indices.chunked(4)
     val state = rememberLazyListState()
+    val panel = groupPanel()
     if (title != null) Box(Modifier.fillMaxWidth()) {
         ShelfHeader(title)
         if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP && pages.size > 1)
@@ -341,12 +343,24 @@ private fun GroupedGrid(tracks: List<Track>, title: String? = null, onPlay: (Int
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(pages.size) { p ->
-                Column(Modifier.width(pageW).clip(RoundedCornerShape(22.dp)).background(cs.surfaceContainerLow).padding(vertical = 4.dp)) {
+                Column(Modifier.width(pageW).then(panel).padding(vertical = 4.dp)) {
                     pages[p].forEach { i -> GridCell(tracks[i], Modifier.fillMaxWidth().demo("rec" + i.toString().padStart(2, '0')) { onPlay(i) }) { onPlay(i) } }
                 }
             }
         }
     }
+}
+
+// Aurora (Windows): a barely-there pane with a hairline rim so the glow shows through.
+@Composable
+private fun groupPanel(): Modifier {
+    val shape = RoundedCornerShape(22.dp)
+    if (app.nocturne.ui.kit.LocalDesignStyle.current != app.nocturne.data.DesignStyle.WINDOWS)
+        return Modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerLow)
+    val dark = app.nocturne.ui.theme.LocalDarkTheme.current
+    return Modifier.clip(shape)
+        .background(if (dark) Color.White.copy(alpha = 0.045f) else Color.White.copy(alpha = 0.35f))
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.09f) else Color.Black.copy(alpha = 0.06f), shape)
 }
 
 @Composable

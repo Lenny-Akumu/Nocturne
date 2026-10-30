@@ -19,7 +19,10 @@ val fxPlatform: String = System.getProperty("os.name").lowercase().let {
 
 val appVersion: String = Regex("VERSION = \"(.+?)\"")
     .find(file("src/commonMain/kotlin/app/nocturne/BuildInfo.kt").readText())!!.groupValues[1]
-val appVersionCode: Int = appVersion.split(".").map { it.toInt() }.let { (a, b, c) -> a * 10000 + b * 100 + c }
+// 1.10.6 -> 110060, hotfix 1.10.6.1 -> 110061
+val appVersionCode: Int = appVersion.split(".").map { it.toInt() }.let { v -> v[0] * 100000 + v[1] * 1000 + v[2] * 10 + v.getOrElse(3) { 0 } }
+// installers only take MAJOR.MINOR.BUILD
+val packageVer: String = appVersion.split(".").take(3).joinToString(".")
 
 kotlin {
     androidTarget {
@@ -177,7 +180,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
             packageName = "Nocturne"
-            packageVersion = appVersion
+            packageVersion = packageVer
             description = "Nocturne music player"
             vendor = "Nocturne"
             includeAllModules = true
