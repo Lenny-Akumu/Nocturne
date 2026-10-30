@@ -37,7 +37,6 @@ actual suspend fun recordMicWav(seconds: Int): ByteArray? {
     if (!hasMicAccess()) return null
     val session = AVAudioSession.sharedInstance()
     session.setCategory(AVAudioSessionCategoryPlayAndRecord, AVAudioSessionCategoryOptionMixWithOthers or AVAudioSessionCategoryOptionDefaultToSpeaker, null)
-    session.setActive(true, null)
     val path = NSTemporaryDirectory() + "nocturne-clip.wav"
     val url = NSURL.fileURLWithPath(path)
     val settings = mapOf<Any?, Any>(
