@@ -17,6 +17,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -622,7 +624,7 @@ private fun SeekRing(art: String?, progress: Float, accent: Color, interactive: 
             .hoverable(hover)
             .clickable(enabled = interactive) { MainWindow.show() }
             .pointerInput(Unit) {
-                androidx.compose.foundation.gestures.detectDragGestures(
+                detectDragGestures(
                     onDragStart = { o -> drag = angleOf(o, size) },
                     onDragEnd = { drag?.let(onSeek); drag = null },
                     onDragCancel = { drag = null },
@@ -674,7 +676,7 @@ private fun VerticalVolume(accent: Color) {
                         detectTapGestures { o -> vol = (1f - o.y / size.height).coerceIn(0f, 1f); graph.player.setVolume(vol) }
                     }
                     .pointerInput(Unit) {
-                        androidx.compose.foundation.gestures.detectVerticalDragGestures(
+                        detectVerticalDragGestures(
                             onDragStart = { dragging = true },
                             onDragEnd = { dragging = false },
                             onDragCancel = { dragging = false },
