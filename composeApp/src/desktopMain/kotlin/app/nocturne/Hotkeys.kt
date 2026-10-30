@@ -29,6 +29,8 @@ enum class HotkeyAction(val label: String, val default: String, val global: Bool
 
 object Hotkeys {
     @Volatile var capturing = false
+    /** The last key press ran a hotkey. */
+    var ate = false
 
     private val modifierCodes = setOf(16, 17, 18, 157, 524)
 
@@ -140,9 +142,10 @@ object GlobalHotkeys {
         if (settings.globalHotkeys) {
             HotkeyAction.entries.filter { it.global }.forEach { a ->
                 val b = Hotkeys.binding(a, settings)
-                val code = b.substringAfter(':').toIntOrNull() ?: return@forEach
+                val code = b.substringAfter(':').toIntOrNull()?.let(::winVk) ?: return@forEach
                 val mods = b.substringBefore(':').split('+').filter { it.isNotBlank() }
-                if (mods.isEmpty()) return@forEach
+                // a bare key is taken from the whole system, so only keys nobody types with
+                if (mods.isEmpty() && !standalone(code)) return@forEach
                 var flags = 0x4000
                 if ("alt" in mods) flags = flags or 0x1
                 if ("ctrl" in mods) flags = flags or 0x2
@@ -157,6 +160,17 @@ object GlobalHotkeys {
         wanted = map
         dirty = true
         if (thread == null) start()
+    }
+
+    // numpad, F-keys, navigation block, Pause, Scroll Lock
+    private fun standalone(vk: Int) = vk in 0x60..0x6F || vk in 0x70..0x87 || vk in 0x21..0x24 || vk == 0x2D || vk == 0x13 || vk == 0x91
+
+    // AWT key codes match Windows VKs except for these
+    private fun winVk(awt: Int) = when (awt) {
+        44 -> 0xBC; 45 -> 0xBD; 46 -> 0xBE; 47 -> 0xBF; 59 -> 0xBA; 61 -> 0xBB
+        91 -> 0xDB; 92 -> 0xDC; 93 -> 0xDD; 192 -> 0xC0; 222 -> 0xDE
+        127 -> 0x2E; 155 -> 0x2D; 10 -> 0x0D; 19 -> 0x13; 145 -> 0x91
+        else -> awt
     }
 
     private fun start() {

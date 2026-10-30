@@ -152,7 +152,13 @@ private fun launchApp() {
             icon = icon,
             state = windowState,
             onPreviewKeyEvent = { e ->
-                if (e.type != KeyEventType.KeyDown) return@Window false
+                if (e.type != KeyEventType.KeyDown) {
+                    // the hotkey ate the press: its typed character must not reach a text field either
+                    val typed = (e.nativeKeyEvent as? java.awt.event.KeyEvent)?.id == java.awt.event.KeyEvent.KEY_TYPED
+                    if (e.type == KeyEventType.KeyUp) Hotkeys.ate = false
+                    return@Window typed && Hotkeys.ate
+                }
+                Hotkeys.ate = false
                 val p = graph.player
                 when (e.key) {
                     Key.MediaPlayPause -> { p.toggle(); return@Window true }
@@ -179,7 +185,7 @@ private fun launchApp() {
                         return@Window true
                     }
                 }
-                Hotkeys.find(e, settings)?.let { performHotkey(it) } ?: false
+                Hotkeys.find(e, settings)?.let { performHotkey(it).also { ok -> Hotkeys.ate = ok } } ?: false
             },
             // plain player keys only if nothing focused (e.g. a text field) used them
             onKeyEvent = { e -> !Hotkeys.capturing && app.nocturne.ui.handleAppKey(e) },

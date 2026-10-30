@@ -5,6 +5,17 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.6",
+        en = listOf(
+            "PC: hotkeys on single keys (numpad, F-keys) take the key over: it no longer types its character",
+            "PC: single-key hotkeys work system-wide too when \"Work while minimized\" is on",
+        ),
+        uk = listOf(
+            "ПК: гарячі клавіші на одній кнопці (нампад, F-клавіші) перехоплюють її: символ більше не вводиться",
+            "ПК: гарячі клавіші на одній кнопці працюють і в усій системі, коли увімкнено «Працювати, коли Nocturne згорнутий»",
+        ),
+    ),
+    ChangelogEntry(
         "1.10.5",
         en = listOf(
             "PC: minimize / restore animates the actual window, seamlessly",
