@@ -5,6 +5,29 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.7",
+        en = listOf(
+            "What's playing? Tap the sound icon in Search and Nocturne recognises the song around you",
+            "Lyrics translation: the translate button above the lyrics shows each line in your language",
+            "Last.fm scrobbling (Accounts)",
+            "PC: previous / play / next buttons under the window thumbnail on the taskbar",
+            "Smart playlists with your own rules, plus ready-made ones (Library)",
+            "Achievements: 18 of them, some secret (Stats)",
+            "Podcasts: search, subscribe, resume where you stopped, separate speed (Library)",
+            "Time capsule on Home: what you played a year (or a month) ago this week",
+        ),
+        uk = listOf(
+            "Що це грає? Натисни іконку звуку в Пошуку, і Nocturne розпізнає пісню навколо",
+            "Переклад текстів: кнопка перекладу над текстом показує кожен рядок твоєю мовою",
+            "Скроблінг у Last.fm (Акаунти)",
+            "ПК: кнопки попередній / пауза / наступний під мініатюрою вікна в панелі задач",
+            "Розумні плейлисти з власними правилами та готові варіанти (Бібліотека)",
+            "Досягнення: 18 штук, деякі секретні (Статистика)",
+            "Подкасти: пошук, підписки, продовження з місця зупинки, окрема швидкість (Бібліотека)",
+            "Капсула часу на головній: що ти слухав рік (або місяць) тому цього тижня",
+        ),
+    ),
+    ChangelogEntry(
         "1.10.6.1",
         en = listOf(
             "PC: hotkeys on single keys (numpad, F-keys) take the key over: it no longer types its character",
