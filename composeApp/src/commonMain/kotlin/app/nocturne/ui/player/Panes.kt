@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AllInclusive
 import androidx.compose.material.icons.rounded.ClearAll
 import androidx.compose.material.icons.rounded.Lyrics
+import androidx.compose.material.icons.rounded.Translate
 import app.nocturne.ui.kit.CircularProgressIndicator
 import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.IconButton
@@ -67,6 +68,20 @@ fun LyricsView() {
         lyrics = runCatching { graph.lyrics.lyrics(track) }.getOrNull()
         loading = false
     }
+    val target = app.nocturne.i18n.I18n.lang
+    var translated by remember(track.key) { mutableStateOf<List<String>?>(null) }
+    LaunchedEffect(lyrics, settings.lyricsTranslate, target) {
+        translated = null
+        val l = lyrics ?: return@LaunchedEffect
+        if (!settings.lyricsTranslate) return@LaunchedEffect
+        val src = l.synced?.takeIf { it.isNotEmpty() }?.map { it.text } ?: l.plain?.lines() ?: return@LaunchedEffect
+        translated = graph.translator.lines(src, target)
+    }
+    val translateButton: @Composable () -> Unit = {
+        IconButton(onClick = { graph.settings.update { it.copy(lyricsTranslate = !it.lyricsTranslate) } }) {
+            Icon(Icons.Rounded.Translate, t("Translate lyrics"), tint = if (settings.lyricsTranslate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 
     val align = if (settings.lyricsAlign == LyricsAlign.CENTER) TextAlign.Center else TextAlign.Start
     val l = lyrics
@@ -88,39 +103,63 @@ fun LyricsView() {
             if (karaoke) KaraokeDialog(lines) { karaoke = false }
             BoxWithConstraints(Modifier.fillMaxSize()) {
             val edge = maxHeight / 2
-            IconButton(onClick = { karaoke = true }, modifier = Modifier.align(Alignment.TopEnd).zIndex(1f)) {
-                Icon(Icons.Rounded.Fullscreen, "Karaoke", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.align(Alignment.TopEnd).zIndex(1f)) {
+                translateButton()
+                IconButton(onClick = { karaoke = true }) {
+                    Icon(Icons.Rounded.Fullscreen, "Karaoke", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = edge / 2, bottom = edge)) {
                 itemsIndexed(lines) { i, line ->
                     val active = i == current
                     val alpha by animateFloatAsState(if (active) 1f else if (i < current) 0.35f else 0.5f, label = "a")
                     val color by animateColorAsState(if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, label = "c")
-                    Text(
-                        line.text.ifBlank { "♪" },
-                        fontSize = settings.lyricsTextSize.sp,
-                        lineHeight = (settings.lyricsTextSize * 1.25f).sp,
-                        fontWeight = FontWeight.Bold,
-                        color = color,
-                        textAlign = align,
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        Modifier.fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
                             .clickable { graph.player.seekTo(line.timeMs) }
                             .alpha(alpha)
                             .padding(horizontal = 8.dp, vertical = 10.dp),
-                    )
+                    ) {
+                        Text(
+                            line.text.ifBlank { "♪" },
+                            fontSize = settings.lyricsTextSize.sp,
+                            lineHeight = (settings.lyricsTextSize * 1.25f).sp,
+                            fontWeight = FontWeight.Bold,
+                            color = color,
+                            textAlign = align,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        translated?.getOrNull(i)?.takeIf { it.isNotBlank() }?.let {
+                            Text(it, fontSize = (settings.lyricsTextSize * 0.62f).sp, lineHeight = (settings.lyricsTextSize * 0.8f).sp,
+                                color = color.copy(alpha = 0.75f), textAlign = align, modifier = Modifier.fillMaxWidth().padding(top = 2.dp))
+                        }
+                    }
                 }
             }
             }
         }
-        else -> Text(
-            l.plain.orEmpty(),
-            fontSize = (settings.lyricsTextSize * 0.75f).sp,
-            lineHeight = (settings.lyricsTextSize * 1.1f).sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = align,
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
-        )
+        else -> Box(Modifier.fillMaxSize()) {
+            val tr = translated
+            if (tr == null) Text(
+                l.plain.orEmpty(),
+                fontSize = (settings.lyricsTextSize * 0.75f).sp,
+                lineHeight = (settings.lyricsTextSize * 1.1f).sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = align,
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp),
+            ) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
+                l.plain.orEmpty().lines().forEachIndexed { i, line ->
+                    Text(line, fontSize = (settings.lyricsTextSize * 0.75f).sp, lineHeight = (settings.lyricsTextSize * 1.1f).sp,
+                        fontWeight = FontWeight.SemiBold, textAlign = align, modifier = Modifier.fillMaxWidth())
+                    tr.getOrNull(i)?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, fontSize = (settings.lyricsTextSize * 0.55f).sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = align, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp))
+                    }
+                }
+            }
+            Box(Modifier.align(Alignment.TopEnd)) { translateButton() }
+        }
     }
 }
 

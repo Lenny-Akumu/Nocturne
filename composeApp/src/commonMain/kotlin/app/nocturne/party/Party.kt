@@ -208,6 +208,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         seen.entries.removeAll { now - it.value.second > 50_000 }
         _members.value = seen.values.map { (m, _) -> PartyMember(m.from, m.host, m.sid == sid) }
             .sortedWith(compareByDescending<PartyMember> { it.host }.thenByDescending { it.me }.thenBy { it.name.lowercase() })
+        if (_members.value.size > 1) app.nocturne.data.Achievements.unlock("together")
     }
 
     private fun startChat(code: String) {

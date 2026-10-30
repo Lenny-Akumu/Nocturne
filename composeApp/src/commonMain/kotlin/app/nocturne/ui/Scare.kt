@@ -34,6 +34,7 @@ object Scare {
 
     fun boo() {
         id++
+        app.nocturne.data.Achievements.unlock("blackcat")
         Sfx.meow()
     }
 }
@@ -43,7 +44,7 @@ object SixSeven {
     var id by mutableIntStateOf(0)
         private set
 
-    fun go() { id++ }
+    fun go() { id++; app.nocturne.data.Achievements.unlock("sixseven") }
 }
 
 @Composable

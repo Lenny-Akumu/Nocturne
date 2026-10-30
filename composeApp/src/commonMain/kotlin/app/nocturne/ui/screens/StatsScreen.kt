@@ -33,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,6 +83,7 @@ fun StatsView(padding: PaddingValues) {
         }
         item { ActivityChart(plays, days) }
         item { ListeningClock(plays) }
+        item { AchievementsRow() }
         if (topArtists.isNotEmpty()) {
             item { Text(t("Top artists"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 8.dp)) }
             item {
@@ -274,4 +277,34 @@ fun smartMixes(): List<Pair<String, List<app.nocturne.model.Track>>> {
         ("Liked mix" to likedMix).takeIf { likedMix.size >= 4 },
         ("Late night" to night).takeIf { night.size >= 6 },
     )
+}
+
+@Composable
+private fun AchievementsRow() {
+    val settings by AppGraph.instance.settings.state.collectAsState()
+    val got = settings.achievements
+    val list = app.nocturne.data.Achievements.all.sortedByDescending { got[it.id] ?: -1L }
+    val cs = MaterialTheme.colorScheme
+    Text(
+        t("Achievements") + "  ${got.keys.count { k -> list.any { it.id == k } }}/${list.size}",
+        style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 8.dp),
+    )
+    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(list, key = { it.id }) { a ->
+            val on = a.id in got
+            Column(
+                Modifier.width(132.dp).height(150.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+                    .background(if (on) cs.primaryContainer else cs.surfaceContainerHigh.copy(alpha = 0.6f))
+                    .padding(12.dp),
+            ) {
+                Text(if (on || !a.secret) a.emoji else "❔", fontSize = 30.sp, modifier = Modifier.alpha(if (on) 1f else 0.35f))
+                Spacer(Modifier.height(8.dp))
+                Text(if (on || !a.secret) t(a.title) else t("Secret"), style = MaterialTheme.typography.titleSmall,
+                    color = if (on) cs.onPrimaryContainer else cs.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(2.dp))
+                Text(if (a.secret && !on) t("Find it yourself") else t(a.hint), style = MaterialTheme.typography.bodySmall,
+                    color = (if (on) cs.onPrimaryContainer else cs.onSurfaceVariant).copy(alpha = 0.8f), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
 }

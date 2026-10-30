@@ -73,6 +73,7 @@ class AppGraph(val engine: AudioEngine) {
         accounts = accounts,
     )
     val lyrics = LyricsProvider(http, innerTube)
+    val translator = app.nocturne.source.Translator(http)
     val local = app.nocturne.source.LocalProvider(settings)
 
     private val allProviders: Map<Source, MusicProvider> = mapOf(
@@ -116,6 +117,7 @@ class AppGraph(val engine: AudioEngine) {
             settings.state.distinctUntilChangedBy { it.uiLanguage }.drop(1).collect { app.nocturne.i18n.I18n.apply(it.uiLanguage) }
         }
         scope.launch { kotlinx.coroutines.delay(3000); refreshYouTubeAvatar() }
+        app.nocturne.data.Achievements.start(this)
         // wake-up alarm while the app runs (minute resolution, once per day)
         scope.launch {
             var firedOn = -1L

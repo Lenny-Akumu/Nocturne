@@ -172,6 +172,21 @@ data class Settings(
     /** Keep controlling the device we played on (Spotify Connect style). */
     val stayConnected: Boolean = false,
     val connectedDevice: String? = null,
+    val lyricsTranslate: Boolean = false,
+    /** AudD token for song recognition; empty uses the free daily quota. */
+    val auddToken: String = "",
+    val lastfmKey: String = "",
+    val lastfmSecret: String = "",
+    val lastfmUser: String = "",
+    val lastfmScrobble: Boolean = true,
+    val smartPlaylists: List<SmartPlaylist> = emptyList(),
+    val podcasts: List<PodcastSub> = emptyList(),
+    /** Episode guid -> resume position. */
+    val episodePositions: Map<String, Long> = emptyMap(),
+    val podcastSpeed: Float = 1f,
+    /** Achievement id -> unlock time. */
+    val achievements: Map<String, Long> = emptyMap(),
+    val capsuleDismissed: String = "",
 )
 
 class SettingsStore {

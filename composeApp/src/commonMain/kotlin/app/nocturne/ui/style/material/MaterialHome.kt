@@ -113,6 +113,7 @@ fun MaterialHome(
                 MaterialSearchBar(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp))
                 Text(greeting, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp))
             }
+            item { app.nocturne.ui.components.TimeCapsuleCard() }
             val recs = recommended.filterNot { graph.library.isBlocked(it) }
             if (recs.isNotEmpty()) item {
                 Box(Modifier.seasonalStop()) { QuickGrid(t("Recommended for you"), recs) { i -> onPlay(recs, i, t("Recommended for you")) } }
