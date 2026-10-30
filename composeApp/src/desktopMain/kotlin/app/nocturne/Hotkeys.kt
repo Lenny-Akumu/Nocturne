@@ -136,7 +136,7 @@ object GlobalHotkeys {
     @Volatile private var dirty = false
     private var thread: Thread? = null
 
-    fun update(settings: Settings) {
+    fun update(settings: Settings, active: Boolean = true) {
         if (!isWindows) return
         val map = mutableMapOf<Int, Pair<Int, Int>>()
         if (settings.globalHotkeys) {
@@ -153,9 +153,13 @@ object GlobalHotkeys {
                 if ("meta" in mods) flags = flags or 0x8
                 map[a.ordinal + 1] = flags to code
             }
+        }
+        // media keys (keyboards, headphones, Bluetooth remotes) reach us anywhere while something is loaded
+        if (active) {
             map[MEDIA_BASE] = 0x4000 to 0xB3
             map[MEDIA_BASE + 1] = 0x4000 to 0xB0
             map[MEDIA_BASE + 2] = 0x4000 to 0xB1
+            map[MEDIA_BASE + 3] = 0x4000 to 0xB2
         }
         wanted = map
         dirty = true
@@ -194,6 +198,7 @@ object GlobalHotkeys {
                                 MEDIA_BASE -> p.toggle()
                                 MEDIA_BASE + 1 -> p.next()
                                 MEDIA_BASE + 2 -> p.previous()
+                                MEDIA_BASE + 3 -> p.pause()
                                 else -> HotkeyAction.entries.getOrNull(id - 1)?.let { performHotkey(it) }
                             }
                         }

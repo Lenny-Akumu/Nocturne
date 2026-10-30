@@ -224,7 +224,8 @@ private fun launchApp() {
                     app.nocturne.ui.WindowMorph.install(window)
                 }
             }
-            LaunchedEffect(settings.globalHotkeys, settings.hotkeys) { GlobalHotkeys.update(settings) }
+            val loaded = playing.current != null
+            LaunchedEffect(settings.globalHotkeys, settings.hotkeys, loaded) { GlobalHotkeys.update(settings, loaded) }
             LaunchedEffect(Unit) { DiscordRpc.start() }
             LaunchedEffect(Unit) {
                 if (System.getProperty("os.name").orEmpty().startsWith("Linux", ignoreCase = true))
