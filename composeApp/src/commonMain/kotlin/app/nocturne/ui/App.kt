@@ -180,6 +180,7 @@ fun App(backdrop: Boolean = false) {
                         val partySheet by graph.party.sheet.collectAsState()
                         if (partySheet) app.nocturne.ui.player.ConnectSheet(onDismiss = { graph.party.sheet.value = false }, onCarMode = { graph.navigator.playerExpanded = true })
                         PairLinkDialog()
+                        app.nocturne.ui.components.RecognizeHost()
                     }
                 }
             }

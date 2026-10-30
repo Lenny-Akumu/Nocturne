@@ -228,6 +228,13 @@ private fun launchApp() {
             LaunchedEffect(settings.globalHotkeys, settings.hotkeys, loaded) { GlobalHotkeys.update(settings, loaded) }
             LaunchedEffect(Unit) { DiscordRpc.start() }
             LaunchedEffect(Unit) {
+                if (isWindows) {
+                    kotlinx.coroutines.delay(1500)
+                    Taskbar.install(window, { graph.player.previous() }, { graph.player.toggle() }, { graph.player.next() })
+                }
+            }
+            LaunchedEffect(playing.isPlaying) { Taskbar.setPlaying(playing.isPlaying) }
+            LaunchedEffect(Unit) {
                 if (System.getProperty("os.name").orEmpty().startsWith("Linux", ignoreCase = true))
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { app.nocturne.mpris.Mpris.start(graph.scope) } }
             }

@@ -32,6 +32,7 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         NSLocalNetworkUsageDescription: Nocturne uses your local network to play with friends nearby.
+        NSMicrophoneUsageDescription: Nocturne listens for a few seconds to recognise the song playing around you.
         CFBundleURLTypes:
           - CFBundleURLName: app.nocturne
             CFBundleURLSchemes: [nocturne]

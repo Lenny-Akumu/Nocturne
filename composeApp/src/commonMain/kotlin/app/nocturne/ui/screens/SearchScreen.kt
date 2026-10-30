@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Link
@@ -191,6 +192,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             trailingIcon = {
                 if (s.query.isNotEmpty()) IconButton(onClick = { s.query = ""; s.submitted = null; s.results = null }) { Icon(Icons.Rounded.Clear, "Clear") }
+                else IconButton(onClick = { app.nocturne.ui.components.Recognize.open = true }) { Icon(Icons.Rounded.GraphicEq, t("What's playing?")) }
             },
             singleLine = true,
             shape = if (design == DesignStyle.WINDOWS) RoundedCornerShape(4.dp) else CircleShape,
