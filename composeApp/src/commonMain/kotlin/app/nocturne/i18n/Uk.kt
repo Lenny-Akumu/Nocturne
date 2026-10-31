@@ -872,5 +872,9 @@ internal object Uk {
         "%s min listened" to "%s хв прослухано",
         "%s liked" to "%s вподобаних",
         "Edit profile" to "Редагувати профіль",
+        "Show as" to "Показувати як",
+        "Floating window" to "Плаваюче вікно",
+        "Top panel widget (Waybar)" to "Віджет у верхній панелі (Waybar)",
+        "Waybar config not found (~/.config/waybar)" to "Не знайдено конфіг Waybar (~/.config/waybar)",
     )
 }

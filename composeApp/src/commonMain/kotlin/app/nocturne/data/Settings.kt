@@ -126,6 +126,8 @@ data class Settings(
     val hotkeys: Map<String, String> = emptyMap(),
     val globalHotkeys: Boolean = true,
     val floatingPlayer: Boolean = false,
+    /** Linux: 0 floating window, 1 Waybar panel widget. */
+    val floatingMode: Int = 0,
     val floatingScale: Float = 1f,
     val floatingStyle: Int = 0,
     /** Thin vertical bar instead of the horizontal pill. */

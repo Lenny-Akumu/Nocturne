@@ -88,6 +88,8 @@ fun main(args: Array<String>) {
         app.nocturne.party.PartyLinks.handle(url)
     }
     LinkForwarder.listen()
+    app.nocturne.ui.PanelSupport.available = PanelWidget.supported
+    Runtime.getRuntime().addShutdownHook(Thread { runCatching { PanelWidget.clear() } })
     Thread.setDefaultUncaughtExceptionHandler { _, e ->
         reportCrash(e)
         exitProcess(1)
@@ -138,7 +140,24 @@ private fun launchApp() {
                 }
         }
         val playing by graph.player.state.collectAsState()
-        if (settings.floatingPlayer && (playing.current != null || app.nocturne.ui.FloatingEdit.editing)) app.nocturne.ui.FloatingPlayerWindow()
+        val panel = PanelWidget.supported && settings.floatingMode == 1 && settings.floatingPlayer
+        if (settings.floatingPlayer && !panel && (playing.current != null || app.nocturne.ui.FloatingEdit.editing)) app.nocturne.ui.FloatingPlayerWindow()
+        if (PanelWidget.supported) {
+            LaunchedEffect(panel, settings.floatingButtons) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    if (panel) {
+                        if (!runCatching { PanelWidget.install(settings) }.getOrDefault(false)) graph.toast(app.nocturne.i18n.t("Waybar config not found (~/.config/waybar)"))
+                    } else runCatching { PanelWidget.uninstall() }
+                }
+            }
+            val lib by graph.library.state.collectAsState()
+            val liked = playing.current?.let { t -> lib.liked.any { it.key == t.key } } ?: false
+            LaunchedEffect(panel, playing.current?.key, playing.isPlaying, liked) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { if (panel) PanelWidget.update(playing, liked) else PanelWidget.clear() }
+                }
+            }
+        }
         if (settings.lyricsWidget && playing.current != null) app.nocturne.ui.LyricsWidgetWindow()
         if (isWindows && settings.customTitleBar) app.nocturne.ui.WindowMorphOverlay(settings.iconPalette)
 

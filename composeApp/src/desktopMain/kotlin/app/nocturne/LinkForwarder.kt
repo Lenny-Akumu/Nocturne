@@ -39,8 +39,12 @@ object LinkForwarder {
                         it.soTimeout = 2000
                         val line = it.getInputStream().bufferedReader().readLine().orEmpty()
                         it.getOutputStream().apply { write('k'.code); flush() }
-                        PartyLinks.handle(line)
-                        MainWindow.show()
+                        val op = line.substringAfter("nocturne://control/", "")
+                        if (op.isNotEmpty()) javax.swing.SwingUtilities.invokeLater { runCatching { PanelWidget.command(op.trim()) } }
+                        else {
+                            PartyLinks.handle(line)
+                            MainWindow.show()
+                        }
                     }
                 }
             }

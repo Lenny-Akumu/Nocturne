@@ -10,11 +10,13 @@ val Changelog = listOf(
             "Signing in on a PC with the QR code works even when the firewall blocks Wi-Fi (accounts go through encrypted sync)",
             "PC pairing uses fixed port 47321, so you can allow it once in the firewall",
             "Docker, VPN and virtual network adapters no longer come first in the QR code",
+            "Linux: the mini player can live in the Waybar top panel (Settings → Floating player → Show as) with the buttons you picked",
         ),
         uk = listOf(
             "Вхід на ПК через QR-код працює, навіть коли фаєрвол блокує Wi-Fi (акаунти йдуть через зашифровану синхронізацію)",
             "Підключення ПК тепер на сталому порту 47321, тож його можна один раз дозволити у фаєрволі",
             "Docker, VPN і віртуальні мережі більше не стоять першими в QR-коді",
+            "Linux: міні-плеєр може жити у верхній панелі Waybar (Налаштування → Плаваючий плеєр → Показувати як) з обраними кнопками",
         ),
     ),
     ChangelogEntry(
