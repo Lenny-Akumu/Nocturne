@@ -5,6 +5,7 @@ import app.nocturne.FileStore
 import app.nocturne.PlatformKind
 import app.nocturne.data.SecureStore
 import app.nocturne.data.Sync
+import app.nocturne.data.SyncBundle
 import app.nocturne.deviceName
 import app.nocturne.i18n.t
 import app.nocturne.model.Track
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -135,6 +137,8 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
     /** A device that just joined (closes pairing dialogs). */
     val paired = MutableSharedFlow<DeviceInfo>(extraBufferCapacity = 4)
+    /** Accounts sent through the brokers when the LAN is unreachable; only an open QR dialog applies them. */
+    val accountsIn = MutableSharedFlow<SyncBundle>(extraBufferCapacity = 2)
     /** Pairing link from outside the app, waiting for the user to confirm. */
     val pendingLink = MutableStateFlow<String?>(null)
 
@@ -270,6 +274,13 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
         if (joined) graph.toast(t("Paired. Your devices will appear in a moment."))
     }
 
+    suspend fun relayAccounts(b: SyncBundle): Boolean {
+        if (_group.value == null) return false
+        withTimeoutOrNull(20_000) { connected.first { it } } ?: return false
+        delay(1500)
+        return out.tryEmit(seal("a", env("acc", json.encodeToString(SyncBundle.serializer(), b)), retain = true))
+    }
+
     /** Leaves the group: clears our retained data, tells the others, forgets the secret. */
     fun leave() {
         if (_group.value == null || leaving) return
@@ -379,7 +390,7 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
         while (true) {
             try {
                 wsHttp.mqtt(url, onMessage = { t, b, retained -> onMessage(idx, t, b, retained) }) {
-                    listOf("s/+", "b", "c/$myId", "x/$myId", "l/$myId/0").forEach { subscribe("$base/$it") }
+                    listOf("s/+", "b", "a", "c/$myId", "x/$myId", "l/$myId/0").forEach { subscribe("$base/$it") }
                     // Other devices' library snapshots are big: fetch them over one broker only.
                     if (libLink == null) { libLink = idx; subscribe("$base/l/#") }
                     setUp(idx, true)
@@ -462,6 +473,10 @@ class DeviceSync(private val graph: AppGraph, private val scope: CoroutineScope)
                 "dl" -> applyLib(json.decodeFromString(LibSync.serializer(), e.b))
                 "hi" -> onHello(json.decodeFromString(DeviceInfo.serializer(), e.b), recent)
                 "bye" -> if (recent || topic == "$base/x/$myId") onBye(e.b, e.f)
+                "acc" -> if (recent && accountsIn.subscriptionCount.value > 0) {
+                    accountsIn.tryEmit(json.decodeFromString(SyncBundle.serializer(), e.b))
+                    out.tryEmit(Pub("$base/a", ByteArray(0), true))
+                }
                 "cmd" -> if (recent && topic == "$base/c/$myId") onCmd(e, json.decodeFromString(RemoteCmd.serializer(), e.b), now)
                 else -> {}
             }

@@ -96,6 +96,7 @@ object Sync {
                 last = e
             }
         }
+        if (graph.sync.relayAccounts(bundle(graph).copy(library = null))) return
         throw IllegalStateException("Couldn't reach the PC. Make sure both devices are on the same Wi-Fi and Nocturne is allowed through the firewall.", last)
     }
 

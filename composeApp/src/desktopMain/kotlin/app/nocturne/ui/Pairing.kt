@@ -76,7 +76,7 @@ private class PairServer {
 private fun lanAddresses(): List<String> =
     NetworkInterface.getNetworkInterfaces().toList()
         .filter { runCatching { it.isUp && !it.isLoopback }.getOrDefault(false) }
-        .sortedBy { n -> val d = n.displayName.lowercase(); if (listOf("virtual", "vethernet", "vmware", "hyper-v", "wsl", "vpn", "tap").any { it in d }) 1 else 0 }
+        .sortedBy { n -> val d = n.displayName.lowercase(); if (listOf("virtual", "vethernet", "vmware", "hyper-v", "wsl", "vpn", "tap", "docker", "virbr", "br-", "veth", "tun", "zt", "tailscale").any { it in d }) 1 else 0 }
         .flatMap { it.inetAddresses.toList() }
         .filterIsInstance<Inet4Address>()
         .filter { it.isSiteLocalAddress }
@@ -116,6 +116,11 @@ private fun PairDialog(onDone: (String) -> Unit, onDismiss: () -> Unit) {
         val s = server.getOrNull() ?: return@LaunchedEffect
         val bundle = s.await()
         Sync.apply(graph, bundle)
+        invalidateHomeCache()
+        onDone(t("Synced with your phone"))
+    }
+    LaunchedEffect(Unit) {
+        Sync.apply(graph, graph.sync.accountsIn.first())
         invalidateHomeCache()
         onDone(t("Synced with your phone"))
     }
