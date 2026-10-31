@@ -53,10 +53,12 @@ import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 
+const val PAIR_PORT = 47321
+
 private class PairServer {
     val key = secureRandomBytes(32)
     private val result = CompletableDeferred<SyncBundle>()
-    private val server = HttpServer.create(InetSocketAddress(0), 0).apply {
+    private val server = (runCatching { HttpServer.create(InetSocketAddress(PAIR_PORT), 0) }.getOrNull() ?: HttpServer.create(InetSocketAddress(0), 0)).apply {
         createContext("/pair") { ex ->
             val body = ex.requestBody.use { it.readBytes().decodeToString() }
             val bundle = runCatching { Sync.open(key, body) }.getOrNull()
