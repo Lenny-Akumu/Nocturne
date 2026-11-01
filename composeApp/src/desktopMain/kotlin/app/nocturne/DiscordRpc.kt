@@ -23,7 +23,7 @@ import kotlin.math.abs
 
 object DiscordRpc {
     private var started = false
-    private var pipe: RandomAccessFile? = null
+    private var pipe: Ipc? = null
     private var appId = ""
     private var lastKey: String? = null
     private var lastStart = 0L
@@ -47,9 +47,9 @@ object DiscordRpc {
     private fun tick() {
         val graph = AppGraph.instance
         val s = graph.settings.state.value
-        if (!s.discordRpc || !windows) {
+        if (!s.discordRpc) {
             close()
-            DiscordPresence.status = if (!windows && s.discordRpc) "Available on Windows only" else ""
+            DiscordPresence.status = ""
             return
         }
         val id = s.discordAppId.ifBlank { BuildInfo.DISCORD_APP_ID }
@@ -128,9 +128,9 @@ object DiscordRpc {
     }
 
     private fun connect(id: String) {
-        val file = (0..9).firstNotNullOfOrNull { i ->
-            runCatching { RandomAccessFile("\\\\.\\pipe\\discord-ipc-$i", "rw") }.getOrNull()
-        } ?: throw IllegalStateException("Discord isn't running")
+        val file = (if (windows) (0..9).firstNotNullOfOrNull { i ->
+            runCatching { RandomAccessFile("\\\\.\\pipe\\discord-ipc-$i", "rw") }.getOrNull()?.let(::PipeIpc)
+        } else unixSocket()) ?: throw IllegalStateException("Discord isn't running")
         pipe = file
         send(0, buildJsonObject { put("v", 1); put("client_id", id) }.toString())
         val reply = read()
@@ -161,6 +161,45 @@ object DiscordRpc {
         val text = body.decodeToString()
         if (op == 2) throw IllegalStateException(if (text.contains("4000")) "Invalid Application ID" else "Discord closed the connection")
         return text
+    }
+
+    // Linux/macOS: discord-ipc-N in the runtime dir, also inside Flatpak/Snap sandboxes (Discord, Vesktop, arRPC)
+    private fun unixSocket(): Ipc? {
+        val bases = listOfNotNull(System.getenv("XDG_RUNTIME_DIR"), System.getenv("TMPDIR"), System.getenv("TMP"), System.getenv("TEMP"), "/tmp")
+            .flatMap { b -> listOf(b, "$b/app/com.discordapp.Discord", "$b/app/com.discordapp.DiscordCanary", "$b/app/dev.vencord.Vesktop", "$b/.flatpak/dev.vencord.Vesktop/xdg-run", "$b/snap.discord", "$b/snap.discord-canary") }
+            .distinct()
+        for (b in bases) for (i in 0..9) {
+            val f = java.io.File(b, "discord-ipc-$i")
+            if (!f.exists()) continue
+            runCatching {
+                java.nio.channels.SocketChannel.open(java.net.UnixDomainSocketAddress.of(f.toPath()))
+            }.getOrNull()?.let { return SocketIpc(it) }
+        }
+        return null
+    }
+
+    private interface Ipc {
+        fun write(b: ByteArray)
+        fun readFully(b: ByteArray)
+        fun close()
+    }
+
+    private class PipeIpc(val f: RandomAccessFile) : Ipc {
+        override fun write(b: ByteArray) = f.write(b)
+        override fun readFully(b: ByteArray) = f.readFully(b)
+        override fun close() = f.close()
+    }
+
+    private class SocketIpc(val ch: java.nio.channels.SocketChannel) : Ipc {
+        override fun write(b: ByteArray) {
+            val buf = ByteBuffer.wrap(b)
+            while (buf.hasRemaining()) ch.write(buf)
+        }
+        override fun readFully(b: ByteArray) {
+            val buf = ByteBuffer.wrap(b)
+            while (buf.hasRemaining()) if (ch.read(buf) < 0) throw java.io.EOFException("Discord closed the connection")
+        }
+        override fun close() = ch.close()
     }
 
     private fun close() {

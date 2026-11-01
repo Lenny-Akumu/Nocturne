@@ -5,6 +5,11 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.9",
+        en = listOf("Linux: Discord activity works (Discord, Flatpak, Snap, Vesktop)"),
+        uk = listOf("Linux: активність у Discord тепер працює (Discord, Flatpak, Snap, Vesktop)"),
+    ),
+    ChangelogEntry(
         "1.10.8",
         en = listOf(
             "Signing in on a PC with the QR code works even when the firewall blocks Wi-Fi (accounts go through encrypted sync)",
