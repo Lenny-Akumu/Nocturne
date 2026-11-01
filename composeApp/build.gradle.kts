@@ -80,6 +80,8 @@ kotlin {
                 implementation(libs.okhttp)
                 implementation(libs.newpipe)
                 implementation(libs.activity.compose)
+                // installs Compose's bundled baseline profiles on sideloaded APKs (faster cold start and scrolling)
+                implementation("androidx.profileinstaller:profileinstaller:1.4.1")
                 implementation(libs.core.ktx)
                 implementation(libs.media3.exoplayer)
                 implementation(libs.media3.hls)

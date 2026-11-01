@@ -207,9 +207,12 @@ class SettingsStore {
         }.getOrNull() ?: Settings()
     }
 
+    private val saver = Persist(FILE) { json.encodeToString(Settings.serializer(), _state.value) }
+
     fun update(transform: (Settings) -> Settings) {
+        val before = _state.value
         _state.update(transform)
-        FileStore.write(FILE, json.encodeToString(Settings.serializer(), _state.value))
+        if (_state.value != before) saver.schedule()
     }
 
     fun reset() = update { Settings() }

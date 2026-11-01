@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         AppGraph.instance.sync.foreground.value = false
+        app.nocturne.data.Persist.flushAll()
         controller?.let { MediaController.releaseFuture(it) }
         controller = null
         super.onStop()

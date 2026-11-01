@@ -51,9 +51,12 @@ class Library(private val settings: SettingsStore) {
     private fun load(): LibraryData =
         FileStore.read(FILE)?.let { runCatching { json.decodeFromString<LibraryData>(it) }.getOrNull() } ?: LibraryData()
 
+    private val saver = Persist(FILE, 800) { json.encodeToString(LibraryData.serializer(), _state.value) }
+
     private fun mutate(block: (LibraryData) -> LibraryData) {
-        _state.value = block(_state.value)
-        FileStore.write(FILE, json.encodeToString(LibraryData.serializer(), _state.value))
+        val before = _state.value
+        _state.value = block(before)
+        if (_state.value !== before) saver.schedule()
     }
 
     fun isLiked(track: Track) = _state.value.liked.any { it.key == track.key }

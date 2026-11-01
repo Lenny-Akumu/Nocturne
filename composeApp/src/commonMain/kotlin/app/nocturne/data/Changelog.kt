@@ -6,8 +6,20 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 val Changelog = listOf(
     ChangelogEntry(
         "1.10.9",
-        en = listOf("Linux: Discord activity works (Discord, Flatpak, Snap, Vesktop)"),
-        uk = listOf("Linux: активність у Discord тепер працює (Discord, Flatpak, Snap, Vesktop)"),
+        en = listOf(
+            "Faster launch: the window opens right away while the audio engine starts in the background",
+            "Home shows your last recommendations instantly and refreshes them in the background",
+            "Settings and library save in the background, so sliders and likes no longer stutter",
+            "Android: faster cold start and smoother scrolling",
+            "Linux: Discord activity works (Discord, Flatpak, Snap, Vesktop)",
+        ),
+        uk = listOf(
+            "Швидший запуск: вікно відкривається одразу, а аудіодвижок стартує у фоні",
+            "Головна одразу показує минулі рекомендації й оновлює їх у фоні",
+            "Налаштування й бібліотека зберігаються у фоні, тож повзунки й лайки більше не підвисають",
+            "Android: швидший холодний старт і плавніший скрол",
+            "Linux: активність у Discord тепер працює (Discord, Flatpak, Snap, Vesktop)",
+        ),
     ),
     ChangelogEntry(
         "1.10.8",

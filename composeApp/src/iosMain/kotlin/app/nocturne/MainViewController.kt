@@ -28,6 +28,9 @@ fun handleUrl(url: String) {
 
 fun MainViewController(): UIViewController {
     val g = graph
+    platform.Foundation.NSNotificationCenter.defaultCenter.addObserverForName(platform.UIKit.UIApplicationDidEnterBackgroundNotification, null, null) { _ ->
+        app.nocturne.data.Persist.flushAll()
+    }
     val args = NSProcessInfo.processInfo.arguments.filterIsInstance<String>()
     app.nocturne.ui.runPromoShot(g, args.firstOrNull { it.startsWith("--shot=") }?.substringAfter('='), args.firstOrNull { it.startsWith("--style=") }?.substringAfter('='))
     return ComposeUIViewController {

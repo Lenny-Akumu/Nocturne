@@ -55,9 +55,42 @@ private object HomeCache {
     var version by androidx.compose.runtime.mutableIntStateOf(0)
 }
 
+// last home on disk: shown instantly on launch while the fresh one loads
+@kotlinx.serialization.Serializable
+private data class SavedEntry(val t: app.nocturne.model.Track? = null, val c: app.nocturne.model.CollectionRef? = null)
+
+@kotlinx.serialization.Serializable
+private data class SavedSection(val title: String, val items: List<SavedEntry>, val layout: SectionLayout = SectionLayout.CAROUSEL, val source: Source? = null)
+
+private object HomeDisk {
+    private const val FILE = "home_cache.json"
+    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+    private val ser = kotlinx.serialization.builtins.ListSerializer(SavedSection.serializer())
+
+    fun load(): List<Section>? = runCatching {
+        json.decodeFromString(ser, app.nocturne.FileStore.read(FILE) ?: return null).map { s ->
+            Section(s.title, s.items.mapNotNull { e -> e.t?.let { MediaEntry.Song(it) } ?: e.c?.let { MediaEntry.Collection(it) } }, s.layout, s.source)
+        }.takeIf { it.isNotEmpty() }
+    }.getOrNull()
+
+    fun save(sections: List<Section>) = runCatching {
+        app.nocturne.FileStore.write(FILE, json.encodeToString(ser, sections.map { s ->
+            SavedSection(s.title, s.items.map { e ->
+                when (e) {
+                    is MediaEntry.Song -> SavedEntry(t = e.track)
+                    is MediaEntry.Collection -> SavedEntry(c = e.ref)
+                }
+            }, s.layout, s.source)
+        }))
+    }
+
+    fun clear() = runCatching { app.nocturne.FileStore.delete(FILE) }
+}
+
 fun invalidateHomeCache() {
     HomeCache.sections = null
     HomeCache.version++
+    HomeDisk.clear()
 }
 
 @Composable
@@ -94,6 +127,7 @@ fun HomeScreen(contentPadding: PaddingValues) {
     LaunchedEffect(reload, HomeCache.version) {
         launch { recommended = runCatching { graph.recommendations(force = reload > 0) }.getOrDefault(emptyList()) }
         if (sections != null && reload == 0) return@LaunchedEffect
+        if (sections == null) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { HomeDisk.load() }?.let { sections = it }
         refreshing = true
         val errs = mutableListOf<String>()
         val loaded = coroutineScope {
@@ -106,8 +140,11 @@ fun HomeScreen(contentPadding: PaddingValues) {
                 }
             }.awaitAll().flatten()
         }
-        sections = loaded
-        HomeCache.sections = loaded
+        if (loaded.isNotEmpty() || errs.isEmpty() || sections == null) {
+            sections = loaded
+            HomeCache.sections = loaded
+            if (loaded.isNotEmpty()) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { HomeDisk.save(loaded) }
+        }
         errors = errs
         refreshing = false
     }

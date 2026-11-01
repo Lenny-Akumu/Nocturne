@@ -16,7 +16,11 @@ import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter
 
 class VlcAudioEngine : AudioEngine {
-    private val nativeOk: Boolean = runCatching {
+    // libVLC loads in the background (plugin scan takes seconds on Linux); calls made meanwhile queue up behind it
+    private val boot = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "vlc-boot").apply { isDaemon = true } }
+    private val ready = java.util.concurrent.CountDownLatch(1)
+
+    private fun loadNative(): Boolean = runCatching {
         val bundled = bundledDir()
         if (bundled != null) {
             NativeLibrary.addSearchPath("libvlc", bundled.absolutePath)
@@ -42,7 +46,7 @@ class VlcAudioEngine : AudioEngine {
     @Volatile private var playing = false
     @Volatile private var ended = false
 
-    val available: Boolean get() = player != null
+    val available: Boolean get() { ready.await(); return player != null }
     val mediaFactory: MediaPlayerFactory? get() = factory
 
     override val fx: Set<AudioFx> get() = if (dspActive) AudioFx.entries.toSet() else emptySet()
@@ -101,7 +105,13 @@ class VlcAudioEngine : AudioEngine {
     }
 
     init {
-        if (nativeOk) {
+        boot.execute {
+            try { start() } finally { ready.countDown() }
+        }
+    }
+
+    private fun start() {
+        if (loadNative()) {
             val f = runCatching {
                 MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500", "--no-audio-time-stretch")
             }.getOrNull()
@@ -186,11 +196,19 @@ class VlcAudioEngine : AudioEngine {
     }
 
     private fun async(block: MediaPlayer.() -> Unit) {
+        if (ready.count > 0) {
+            runCatching { boot.execute { async(block) } }
+            return
+        }
         val p = player ?: return
         p.submit { runCatching { p.block() } }
     }
 
     override fun load(stream: ResolvedStream, track: Track, startPositionMs: Long, playWhenReady: Boolean) {
+        if (ready.count > 0) {
+            runCatching { boot.execute { load(stream, track, startPositionMs, playWhenReady) } }
+            return
+        }
         if (player == null) {
             listener?.onError(IllegalStateException("The audio engine failed to load — reinstall Nocturne"))
             return
@@ -293,6 +311,7 @@ class VlcAudioEngine : AudioEngine {
     }
 
     override fun release() {
+        boot.shutdownNow()
         timer.shutdownNow()
         player?.release()
         factory?.release()

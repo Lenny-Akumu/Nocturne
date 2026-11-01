@@ -37,6 +37,7 @@ actual fun appInstallDir(): String? {
 }
 
 actual suspend fun relocateApp(target: String, onStatus: (String) -> Unit) {
+    Persist.flushAll()
     val current = File(appInstallDir() ?: error(t("Can't find where Nocturne is installed")))
     val base = File(target)
     val dest = if (base.name.equals("Nocturne", ignoreCase = true)) base else File(base, "Nocturne")

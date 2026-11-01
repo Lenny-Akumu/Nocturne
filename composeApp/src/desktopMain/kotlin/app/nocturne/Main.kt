@@ -89,7 +89,7 @@ fun main(args: Array<String>) {
     }
     LinkForwarder.listen()
     app.nocturne.ui.PanelSupport.available = PanelWidget.supported
-    Runtime.getRuntime().addShutdownHook(Thread { runCatching { PanelWidget.clear() } })
+    Runtime.getRuntime().addShutdownHook(Thread { runCatching { PanelWidget.clear() }; app.nocturne.data.Persist.flushAll() })
     Thread.setDefaultUncaughtExceptionHandler { _, e ->
         reportCrash(e)
         exitProcess(1)
@@ -164,6 +164,7 @@ private fun launchApp() {
         Window(
             onCloseRequest = {
                 graph.player.pause()
+                app.nocturne.data.Persist.flushAll()
                 graph.engine.release()
                 exitApplication()
             },
