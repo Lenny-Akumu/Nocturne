@@ -7,6 +7,12 @@ val Changelog = listOf(
     ChangelogEntry(
         "1.10.9",
         en = listOf(
+            "Search by lyrics: type a line you remember and find the song",
+            "Auto-download liked songs and smart playlists, Wi-Fi only (Settings → Storage, off by default)",
+            "Android Auto: your mixes, playlists, smart playlists and podcasts, shuffle, grid view and voice search",
+            "10 new achievements to hunt for, some of them secret",
+            "Halloween app icon stays available all year (Settings → Appearance)",
+            "The black cat on like is gone until next Halloween",
             "Faster launch: the window opens right away while the audio engine starts in the background",
             "Home shows your last recommendations instantly and refreshes them in the background",
             "Settings and library save in the background, so sliders and likes no longer stutter",
@@ -14,6 +20,12 @@ val Changelog = listOf(
             "Linux: Discord activity works (Discord, Flatpak, Snap, Vesktop)",
         ),
         uk = listOf(
+            "Пошук за текстом: напиши рядок, який пам'ятаєш, і знайди пісню",
+            "Автозавантаження вподобаних і розумних плейлистів лише через Wi-Fi (Налаштування → Сховище, за замовчуванням вимкнено)",
+            "Android Auto: твої мікси, плейлисти, розумні плейлисти й подкасти, перемішування, сітка та голосовий пошук",
+            "10 нових досягнень, деякі з них секретні",
+            "Іконка «Гелловін» тепер доступна цілий рік (Налаштування → Вигляд)",
+            "Чорний кіт на лайк пішов до наступного Гелловіну",
             "Швидший запуск: вікно відкривається одразу, а аудіодвижок стартує у фоні",
             "Головна одразу показує минулі рекомендації й оновлює їх у фоні",
             "Налаштування й бібліотека зберігаються у фоні, тож повзунки й лайки більше не підвисають",

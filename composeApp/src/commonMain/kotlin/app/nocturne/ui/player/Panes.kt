@@ -76,6 +76,7 @@ fun LyricsView() {
         if (!settings.lyricsTranslate) return@LaunchedEffect
         val src = l.synced?.takeIf { it.isNotEmpty() }?.map { it.text } ?: l.plain?.lines() ?: return@LaunchedEffect
         translated = graph.translator.lines(src, target)
+        if (translated != null) app.nocturne.data.Achievements.unlock("translated")
     }
     val translateButton: @Composable () -> Unit = {
         IconButton(onClick = { graph.settings.update { it.copy(lyricsTranslate = !it.lyricsTranslate) } }) {

@@ -74,6 +74,7 @@ class AppGraph(val engine: AudioEngine) {
     )
     val lyrics = LyricsProvider(http, innerTube)
     val translator = app.nocturne.source.Translator(http)
+    val lyricSearch = app.nocturne.source.LyricSearch(http)
     val local = app.nocturne.source.LocalProvider(settings)
 
     private val allProviders: Map<Source, MusicProvider> = mapOf(
@@ -120,6 +121,7 @@ class AppGraph(val engine: AudioEngine) {
         app.nocturne.data.Achievements.start(this)
         app.nocturne.data.Podcasts.start(this)
         app.nocturne.data.LastFm.start(this)
+        app.nocturne.data.AutoDownloads.start(this)
         // wake-up alarm while the app runs (minute resolution, once per day)
         scope.launch {
             var firedOn = -1L
@@ -247,7 +249,6 @@ class AppGraph(val engine: AudioEngine) {
     fun toggleLike(track: Track) {
         val nowLiked = !library.isLiked(track)
         library.toggleLike(track)
-        if (nowLiked && settings.value.likeScare && kotlin.random.Random.nextBoolean()) app.nocturne.ui.Scare.boo()
         scope.launch { runCatching { provider(track.source).rate(track, if (nowLiked) Rating.LIKE else Rating.NONE) } }
     }
 

@@ -56,8 +56,17 @@ object Achievements {
         Achievement("newyear", "🎆", "First notes", "Play something in the first 5 minutes of the year"),
         Achievement("noon", "☀️", "High noon", "Start a song at exactly 12:00"),
         Achievement("sixseven", "🤸", "Six seven", "???", secret = true),
-        Achievement("blackcat", "🐈‍⬛", "Black cat crossed your path", "???", secret = true),
         Achievement("together", "🫂", "Never alone", "Listen together with someone"),
+        Achievement("anniversary", "🎂", "Happy anniversary", "Listen exactly a year after your first song"),
+        Achievement("devoted", "💯", "Ride or die", "One song, 100 plays"),
+        Achievement("allnighter", "🌃", "All-nighter", "Music in every hour from midnight to 6 am in one night"),
+        Achievement("weekend", "🛋️", "Couch mode", "6 hours of music over one weekend"),
+        Achievement("polyglot", "🌍", "Polyglot", "Artists in Latin, Cyrillic and one more script"),
+        Achievement("goodears", "👂", "Good ears", "Recognise a song playing around you"),
+        Achievement("translated", "🈯", "Lost in translation", "Read lyrics translated into your language"),
+        Achievement("pumpkin", "🎃", "Spooky all year", "???", secret = true),
+        Achievement("pi", "🥧", "Mathematician", "???", secret = true),
+        Achievement("mirror", "🪞", "Mirror time", "???", secret = true),
     )
 
     private fun earned(c: Ctx): Set<String> {
@@ -82,7 +91,36 @@ object Achievements {
         if (p.any { val (_, _, d) = civil(c.day(it.t)); d == 13 && fmod(c.day(it.t) + 4, 7L) == 5L }) out += "friday13"
         if (p.any { val (_, m, d) = civil(c.day(it.t)); m == 1 && d == 1 && c.minute(it.t) < 5 }) out += "newyear"
         if (p.any { c.minute(it.t) == 720 }) out += "noon"
+        p.minByOrNull { it.t }?.let { first ->
+            val (y0, m0, d0) = civil(c.day(first.t))
+            if (p.any { val (y, m, d) = civil(c.day(it.t)); y > y0 && m == m0 && d == d0 }) out += "anniversary"
+        }
+        if (byKey.values.any { it.size >= 100 }) out += "devoted"
+        if (p.groupBy { c.day(it.t) }.values.any { d -> d.map { c.hour(it.t) }.toSet().containsAll((0..5).toList()) }) out += "allnighter"
+        // Sat+Sun share a key: days since epoch, 1970-01-03 was a Saturday
+        if (p.filter { fmod(c.day(it.t) - 2, 7L) <= 1L }.groupBy { fdiv(c.day(it.t) - 2, 7L) }.values.any { w -> w.sumOf { it.d } >= 6 * 3_600_000L }) out += "weekend"
+        val scripts = artists.distinct().mapNotNull { script(it) }.toSet()
+        if ("latin" in scripts && "cyrillic" in scripts && scripts.size >= 3) out += "polyglot"
+        if (p.any { c.minute(it.t) == 194 || c.minute(it.t) == 914 }) out += "pi"
+        if (p.any { val m = c.minute(it.t); val hh = m / 60; val mm = m % 60; hh != mm && hh / 10 == mm % 10 && hh % 10 == mm / 10 }) out += "mirror"
         return out
+    }
+
+    private fun script(name: String): String? {
+        val ch = name.firstOrNull { it.isLetter() } ?: return null
+        return when (ch.code) {
+            in 0x41..0x24F -> "latin"
+            in 0x400..0x52F -> "cyrillic"
+            in 0x370..0x3FF -> "greek"
+            in 0x590..0x5FF -> "hebrew"
+            in 0x600..0x6FF -> "arabic"
+            in 0x900..0x97F -> "devanagari"
+            in 0xE00..0xE7F -> "thai"
+            in 0x3040..0x30FF -> "kana"
+            in 0x4E00..0x9FFF -> "han"
+            in 0xAC00..0xD7AF, in 0x1100..0x11FF -> "hangul"
+            else -> "other"
+        }
     }
 
     /** Event-only achievements (easter eggs, listening together). */

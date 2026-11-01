@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import app.nocturne.ui.kit.FilterChip
@@ -83,6 +84,8 @@ private class SearchState {
     var results by mutableStateOf<List<MediaEntry>?>(null)
     var error by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)
+    var byLyrics by mutableStateOf(false)
+    var lyricHits by mutableStateOf<List<app.nocturne.source.LyricHit>?>(null)
     var initialized = false
 }
 
@@ -132,8 +135,26 @@ fun SearchScreen(contentPadding: PaddingValues) {
         suggestions = runCatching { graph.youtube.suggestions(s.query) }.getOrDefault(emptyList()).take(6)
     }
 
-    LaunchedEffect(s.submitted, s.source, s.filter) {
-        val q = s.submitted ?: return@LaunchedEffect
+    LaunchedEffect(s.submitted, s.byLyrics) {
+        val q = s.submitted?.takeIf { s.byLyrics } ?: return@LaunchedEffect
+        s.loading = true
+        s.error = null
+        s.lyricHits = null
+        s.lyricHits = runCatching { graph.lyricSearch.find(q) }.getOrElse {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+            emptyList()
+        }
+        s.loading = false
+    }
+
+    fun playHit(hit: app.nocturne.source.LyricHit) = scope.launch {
+        val track = runCatching { graph.youtube.bestMatch(hit.title, hit.artist, 0) }.getOrNull()
+        if (track == null) graph.toast(t("Couldn't find “%s” to play", hit.title))
+        else playFromSearch(track, listOf(track), 0)
+    }
+
+    LaunchedEffect(s.submitted, s.source, s.filter, s.byLyrics) {
+        val q = s.submitted?.takeIf { !s.byLyrics } ?: return@LaunchedEffect
         s.loading = true
         s.error = null
         s.results = null
@@ -239,7 +260,15 @@ fun SearchScreen(contentPadding: PaddingValues) {
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(SearchFilter.entries) { f ->
-                FilterChip(selected = s.filter == f, onClick = { s.filter = f }, label = { Text(t(f.label)) })
+                FilterChip(selected = !s.byLyrics && s.filter == f, onClick = { s.filter = f; s.byLyrics = false }, label = { Text(t(f.label)) })
+            }
+            item {
+                FilterChip(
+                    selected = s.byLyrics,
+                    onClick = { s.byLyrics = true },
+                    label = { Text(t("By lyrics")) },
+                    leadingIcon = { Icon(Icons.Rounded.Lyrics, null, Modifier.size(16.dp)) },
+                )
             }
         }
 
@@ -277,6 +306,31 @@ fun SearchScreen(contentPadding: PaddingValues) {
                 }
             }
             s.loading -> LoadingBox()
+            s.byLyrics -> {
+                val hits = s.lyricHits.orEmpty()
+                if (hits.isEmpty()) MessageBox(Icons.Rounded.SearchOff, "No results", "Type a line you remember, as exact as you can.")
+                else LazyColumn(contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = contentPadding.calculateBottomPadding())) {
+                    items(hits.size, key = { "lyr$it" }) { i ->
+                        val h = hits[i]
+                        ListItem(
+                            headlineContent = { Text(h.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            supportingContent = {
+                                Column {
+                                    Text(h.artist, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (h.snippet.isNotBlank()) Text(
+                                        "“" + h.snippet + "”", maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            },
+                            leadingContent = { app.nocturne.ui.components.Artwork(h.artworkUrl, Modifier.size(52.dp), RoundedCornerShape(8.dp)) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            modifier = Modifier.clickable { playHit(h) },
+                        )
+                    }
+                }
+            }
             s.error != null -> MessageBox(Icons.Rounded.SearchOff, "Something went wrong", s.error)
             s.results.isNullOrEmpty() -> MessageBox(Icons.Rounded.SearchOff, "No results", "Try another source or filter.")
             else -> {

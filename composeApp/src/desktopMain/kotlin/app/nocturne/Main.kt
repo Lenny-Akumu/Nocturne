@@ -227,7 +227,7 @@ private fun launchApp() {
                 onDispose { java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(listener) }
             }
             LaunchedEffect(settings.iconBackground, settings.iconPalette, settings.halloweenIcon) {
-                val spooky = settings.halloweenIcon && app.nocturne.ui.isHalloween()
+                val spooky = settings.halloweenIcon
                 val images = AppIcon.update(settings.iconBackground, settings.iconPalette, spooky)
                 images.takeIf { it.isNotEmpty() }?.let { window.iconImages = it }
                 // Start menu / desktop shortcuts follow too (Windows)

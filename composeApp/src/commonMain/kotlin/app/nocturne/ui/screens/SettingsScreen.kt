@@ -353,7 +353,6 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Header("Atmosphere")
                         Toggle("Startup animation", null, Icons.Rounded.AutoAwesome, s.startupIntro) { v -> set { it.copy(startupIntro = v) } }
                         Toggle("Startup sound", "A short chime when the app opens", Icons.Rounded.MusicNote, s.startupSound) { v -> set { it.copy(startupSound = v) } }
-                        Toggle("Black cat on like", "50/50 chance of a spooky cat when you like a song", Icons.Rounded.Pets, s.likeScare) { v -> set { it.copy(likeScare = v) } }
                         Toggle("Seasonal effects", "Falling leaves in autumn, snow in winter, fresh leaves in spring, sun rays in summer", Icons.Rounded.AcUnit, s.seasonalEffects) { v -> set { it.copy(seasonalEffects = v) } }
                         Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive", "minecraft"), {
                             when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; "minecraft" -> "Minecraft"; else -> "Default" }
@@ -461,6 +460,11 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             }
                         }
                         Choice("Download quality", Icons.Rounded.HighQuality, s.downloadQuality, AudioQuality.entries, { it.label }) { v -> set { it.copy(downloadQuality = v) } }
+                        Toggle("Auto-download liked songs", "Keeps everything you like playable offline", Icons.Rounded.Storage, s.autoDownload) { v -> set { it.copy(autoDownload = v) } }
+                        if (s.autoDownload) {
+                            Toggle("Smart playlists too", null, Icons.Rounded.Storage, s.autoDownloadSmart) { v -> set { it.copy(autoDownloadSmart = v) } }
+                            Toggle("Only on Wi-Fi", "Never use mobile data for this", Icons.Rounded.Storage, s.autoDownloadWifiOnly) { v -> set { it.copy(autoDownloadWifiOnly = v) } }
+                        }
                         val dlItems by graph.downloads.items.collectAsState()
                         Action("Downloads", t("%s songs · %s MB", dlItems.size, (dlItems.values.sumOf { it.bytes } / (1024 * 1024)).toString()), Icons.Rounded.Storage) {}
                         if (desktop) Locations(dlItems.size)

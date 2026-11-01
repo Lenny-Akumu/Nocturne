@@ -178,7 +178,7 @@ fun FloatingPlayerWindow() {
     ) {
         LaunchedEffect(Unit) { window.isAlwaysOnTop = true }
         androidx.compose.runtime.DisposableEffect(Unit) { onDispose { WindowMorph.pill = null; WindowMorph.pillGuess = null } }
-        LaunchedEffect(settings.iconBackground, settings.iconPalette, settings.halloweenIcon) { app.nocturne.AppIcon.update(settings.iconBackground, settings.iconPalette, settings.halloweenIcon && isHalloween()).takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
+        LaunchedEffect(settings.iconBackground, settings.iconPalette, settings.halloweenIcon) { app.nocturne.AppIcon.update(settings.iconBackground, settings.iconPalette, settings.halloweenIcon).takeIf { it.isNotEmpty() }?.let { window.iconImages = it } }
         val base0 = if (settings.floatingVertical) BASE_VERTICAL else BASE
         LaunchedEffect(ax, ay, anchor, editing, scale, base0) {
             val k = window.graphicsConfiguration?.defaultTransform?.scaleX ?: 1.0

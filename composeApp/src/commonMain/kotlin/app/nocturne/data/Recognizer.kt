@@ -54,6 +54,7 @@ object Recognizer {
         val title = r["title"]?.jsonPrimitive?.contentOrNull ?: return Outcome.NotFound
         val artist = r["artist"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val album = r["album"]?.jsonPrimitive?.contentOrNull
+        Achievements.unlock("goodears")
         return Outcome.Found(Recognized(title, artist, album, find(title, artist)))
     }
 
