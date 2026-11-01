@@ -256,7 +256,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                     SettingsCategory.FLOATING -> {
                         Toggle("Floating mini player", "Small always-on-top player on your screen", Icons.Rounded.PictureInPicture, s.floatingPlayer) { v -> set { it.copy(floatingPlayer = v) } }
                         if (app.nocturne.ui.PanelSupport.available) Choice("Show as", Icons.Rounded.PictureInPicture, s.floatingMode, listOf(0, 1), {
-                            if (it == 0) "Floating window" else "Top panel widget (Waybar)"
+                            if (it == 0) "Floating window" else "Top panel"
                         }) { v -> set { it.copy(floatingMode = v, floatingPlayer = true) } }
                         Toggle("Desktop lyrics widget", "Cover and the current lyric line in a screen corner", Icons.Rounded.Lyrics, s.lyricsWidget) { v -> set { it.copy(lyricsWidget = v) } }
                         if (s.lyricsWidget) {

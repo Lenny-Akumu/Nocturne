@@ -18,6 +18,7 @@ val Changelog = listOf(
             "Settings and library save in the background, so sliders and likes no longer stutter",
             "Android: faster cold start and smoother scrolling",
             "Linux: Discord activity works (Discord, Flatpak, Snap, Vesktop)",
+            "Linux: the top-panel player also works with the Omarchy bar plugin (nocturne-bar-player) and hides when Nocturne closes",
         ),
         uk = listOf(
             "Пошук за текстом: напиши рядок, який пам'ятаєш, і знайди пісню",
@@ -31,6 +32,7 @@ val Changelog = listOf(
             "Налаштування й бібліотека зберігаються у фоні, тож повзунки й лайки більше не підвисають",
             "Android: швидший холодний старт і плавніший скрол",
             "Linux: активність у Discord тепер працює (Discord, Flatpak, Snap, Vesktop)",
+            "Linux: плеєр у верхній панелі працює й з плагіном панелі Omarchy (nocturne-bar-player) та ховається, коли Nocturne закрито",
         ),
     ),
     ChangelogEntry(

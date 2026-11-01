@@ -901,5 +901,7 @@ internal object Uk {
         "Smart playlists too" to "І розумні плейлисти",
         "Only on Wi-Fi" to "Лише через Wi-Fi",
         "Never use mobile data for this" to "Ніколи не використовувати мобільний інтернет",
+        "Top panel" to "Верхня панель",
+        "No supported top panel found (Omarchy bar plugin or Waybar)" to "Не знайдено підтримуваної верхньої панелі (плагін Omarchy або Waybar)",
     )
 }

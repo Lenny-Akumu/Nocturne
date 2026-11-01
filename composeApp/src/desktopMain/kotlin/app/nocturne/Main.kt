@@ -89,7 +89,7 @@ fun main(args: Array<String>) {
     }
     LinkForwarder.listen()
     app.nocturne.ui.PanelSupport.available = PanelWidget.supported
-    Runtime.getRuntime().addShutdownHook(Thread { runCatching { PanelWidget.clear() }; app.nocturne.data.Persist.flushAll() })
+    Runtime.getRuntime().addShutdownHook(Thread { runCatching { PanelWidget.exit() }; app.nocturne.data.Persist.flushAll() })
     Thread.setDefaultUncaughtExceptionHandler { _, e ->
         reportCrash(e)
         exitProcess(1)
@@ -146,7 +146,7 @@ private fun launchApp() {
             LaunchedEffect(panel, settings.floatingButtons) {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     if (panel) {
-                        if (!runCatching { PanelWidget.install(settings) }.getOrDefault(false)) graph.toast(app.nocturne.i18n.t("Waybar config not found (~/.config/waybar)"))
+                        if (!runCatching { PanelWidget.install(settings) }.getOrDefault(false)) graph.toast(app.nocturne.i18n.t("No supported top panel found (Omarchy bar plugin or Waybar)"))
                     } else runCatching { PanelWidget.uninstall() }
                 }
             }

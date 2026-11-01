@@ -4,7 +4,10 @@ import app.nocturne.data.Settings
 import app.nocturne.player.PlayerState
 import java.io.File
 
-/** Linux: player modules in the Waybar top panel (Omarchy, Hyprland, Sway). */
+/**
+ * Linux: player in the top panel. Prefers the Omarchy bar plugin (nocturne-bar-player, reads MPRIS),
+ * falls back to our own Waybar modules.
+ */
 object PanelWidget {
     val supported: Boolean = System.getProperty("os.name").orEmpty().startsWith("Linux", ignoreCase = true)
 
@@ -23,12 +26,41 @@ object PanelWidget {
 
     private val buttons = listOf("prev", "play", "next", "like", "dislike", "volume", "open")
 
-    fun available(): Boolean = supported && config() != null
+    fun available(): Boolean = supported && (barPlayer() || config() != null)
+
+    // Omarchy bar plugin: toggled through its script, or its state file when the script is missing
+    private val barScript get() = File(home, ".local/bin/nocturne-bar-player")
+    private val barState get() = File(System.getenv("XDG_STATE_HOME")?.let(::File) ?: File(home, ".local/state"), "nocturne-bar-player")
+    private val barPlugin get() = File(System.getenv("XDG_CONFIG_HOME")?.let(::File) ?: File(home, ".config"), "omarchy/plugins/lenny.media")
+    @Volatile private var barOn = false
+
+    private fun barPlayer() = barScript.canExecute() || barPlugin.isDirectory
+
+    private fun setBar(on: Boolean) {
+        barOn = on
+        if (barScript.canExecute()) runCatching {
+            ProcessBuilder(barScript.path, if (on) "on" else "off").redirectErrorStream(true).start().waitFor(2, java.util.concurrent.TimeUnit.SECONDS)
+        } else runCatching {
+            barState.parentFile.mkdirs()
+            barState.writeText(if (on) "on\n" else "off\n")
+        }
+    }
+
+    /** App exit: the bar player has nothing to show without us. */
+    fun exit() {
+        if (barOn) setBar(false)
+        clear()
+    }
 
     private fun config(): File? = listOf("config.jsonc", "config").map { File(waybarDir, it) }.firstOrNull { it.isFile }
 
     /** Adds or refreshes our modules; false when there's no Waybar config. */
     fun install(s: Settings): Boolean {
+        if (barPlayer()) {
+            if (config()?.readText()?.contains(BEGIN) == true) uninstallWaybar()
+            setBar(true)
+            return true
+        }
         val cfg = config() ?: return false
         val mods = listOf("title") + buttons.filter { it == "play" || it in s.floatingButtons }
         if (installed == mods && cfg.readText().contains(BEGIN)) return true
@@ -51,6 +83,11 @@ object PanelWidget {
     }
 
     fun uninstall() {
+        if (barPlayer()) setBar(false)
+        uninstallWaybar()
+    }
+
+    private fun uninstallWaybar() {
         installed = null
         val cfg = config() ?: return
         val text = cfg.readText()
