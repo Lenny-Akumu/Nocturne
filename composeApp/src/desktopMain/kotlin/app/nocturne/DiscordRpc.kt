@@ -14,6 +14,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -130,7 +131,7 @@ object DiscordRpc {
     private fun connect(id: String) {
         val file = (if (windows) (0..9).firstNotNullOfOrNull { i ->
             runCatching { RandomAccessFile("\\\\.\\pipe\\discord-ipc-$i", "rw") }.getOrNull()?.let(::PipeIpc)
-        } else unixSocket()) ?: throw IllegalStateException("Discord isn't running")
+        } else unixSocket()) ?: throw IllegalStateException(if (windows) "Discord isn't running" else "Discord isn't running (no discord-ipc socket in $lastSearched). The browser version of Discord can't show activity — use the desktop app or Vesktop")
         pipe = file
         send(0, buildJsonObject { put("v", 1); put("client_id", id) }.toString())
         val reply = read()
@@ -165,18 +166,32 @@ object DiscordRpc {
 
     // Linux/macOS: discord-ipc-N in the runtime dir, also inside Flatpak/Snap sandboxes (Discord, Vesktop, arRPC)
     private fun unixSocket(): Ipc? {
-        val bases = listOfNotNull(System.getenv("XDG_RUNTIME_DIR"), System.getenv("TMPDIR"), System.getenv("TMP"), System.getenv("TEMP"), "/tmp")
-            .flatMap { b -> listOf(b, "$b/app/com.discordapp.Discord", "$b/app/com.discordapp.DiscordCanary", "$b/app/dev.vencord.Vesktop", "$b/.flatpak/dev.vencord.Vesktop/xdg-run", "$b/snap.discord", "$b/snap.discord-canary") }
-            .distinct()
-        for (b in bases) for (i in 0..9) {
-            val f = java.io.File(b, "discord-ipc-$i")
-            if (!f.exists()) continue
+        val bases = listOfNotNull(System.getenv("XDG_RUNTIME_DIR"), "/run/user/" + uid(), System.getenv("TMPDIR"), "/tmp").distinct().map(::File).filter { it.isDirectory }
+        // any client (Discord, Canary, PTB, Vesktop, Equibop, Legcord, arRPC) in Flatpak/Snap sandboxes too
+        val sockets = mutableListOf<File>()
+        fun scan(dir: File, depth: Int) {
+            // unreadable dirs (systemd/inaccessible) just return null here
+            val list = runCatching { dir.listFiles() }.getOrNull() ?: return
+            for (f in list) {
+                if (f.name.matches(Regex("discord-ipc-\\d"))) sockets += f
+                else if (depth > 0 && runCatching { f.isDirectory && !java.nio.file.Files.isSymbolicLink(f.toPath()) }.getOrDefault(false)) scan(f, depth - 1)
+            }
+        }
+        bases.forEach { scan(it, if (it.path.startsWith("/run/user") || it.path == System.getenv("XDG_RUNTIME_DIR")) 4 else 1) }
+        for (f in sockets.distinctBy { it.absolutePath }.sortedBy { it.name }) {
             runCatching {
                 java.nio.channels.SocketChannel.open(java.net.UnixDomainSocketAddress.of(f.toPath()))
             }.getOrNull()?.let { return SocketIpc(it) }
         }
+        lastSearched = bases.joinToString { it.path }
         return null
     }
+
+    private var lastSearched = ""
+
+    private fun uid(): String = runCatching {
+        java.nio.file.Files.getAttribute(File(System.getProperty("user.home")).toPath(), "unix:uid").toString()
+    }.getOrDefault("1000")
 
     private interface Ipc {
         fun write(b: ByteArray)
