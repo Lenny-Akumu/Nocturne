@@ -188,6 +188,10 @@ data class Settings(
     /** Episode guid -> resume position. */
     val episodePositions: Map<String, Long> = emptyMap(),
     val podcastSpeed: Float = 1f,
+    /** Radio: country code ("" = content country), favourites and recently played stations. */
+    val radioCountry: String = "",
+    val radioFavorites: List<RadioStation> = emptyList(),
+    val radioRecent: List<RadioStation> = emptyList(),
     /** Achievement id -> unlock time. */
     val achievements: Map<String, Long> = emptyMap(),
     val capsuleDismissed: String = "",

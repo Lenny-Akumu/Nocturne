@@ -26,7 +26,7 @@ data class PodcastSub(val feedUrl: String, val title: String, val author: String
 data class Episode(val guid: String, val title: String, val url: String, val published: String, val durationMs: Long, val art: String?, val summary: String)
 
 /** Episodes play as plain audio URLs through the local source. */
-val Track.isPodcast: Boolean get() = source == Source.LOCAL && (id.startsWith("http://") || id.startsWith("https://"))
+val Track.isPodcast: Boolean get() = source == Source.LOCAL && (id.startsWith("http://") || id.startsWith("https://")) && !isRadio
 
 object Podcasts {
     private val json = Json { ignoreUnknownKeys = true }

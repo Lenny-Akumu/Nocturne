@@ -903,5 +903,13 @@ internal object Uk {
         "Never use mobile data for this" to "Ніколи не використовувати мобільний інтернет",
         "Top panel" to "Верхня панель",
         "No supported top panel found (Omarchy bar plugin or Waybar)" to "Не знайдено підтримуваної верхньої панелі (плагін Omarchy або Waybar)",
+        "Radio" to "Радіо",
+        "Find a station" to "Знайти станцію",
+        "Favourite stations" to "Улюблені станції",
+        "Stations · %s" to "Станції · %s",
+        "No stations" to "Немає станцій",
+        "Try another country." to "Спробуй іншу країну.",
+        "Country" to "Країна",
+        "Favourite" to "Улюблене",
     )
 }

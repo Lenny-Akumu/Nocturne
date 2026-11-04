@@ -21,7 +21,7 @@ object AutoBrowse {
     private const val PREFIX = "auto|"
     private val folders = listOf(
         "mixes" to "Your mixes", "liked" to "Liked songs", "repeat" to "On repeat", "recent" to "Recently played",
-        "playlists" to "Playlists", "smart" to "Smart playlists", "podcasts" to "Podcasts", "downloads" to "Downloaded", "local" to "On device",
+        "playlists" to "Playlists", "smart" to "Smart playlists", "podcasts" to "Podcasts", "radio" to "Radio", "downloads" to "Downloaded", "local" to "On device",
     )
 
     // Android Auto layout hints: folders as a grid, songs as a list
@@ -63,6 +63,7 @@ object AutoBrowse {
                 .entries.sortedByDescending { it.value }.mapNotNull { graph.library.trackFor(it.key) }
             parent == "downloads" -> graph.downloads.items.value.values.map { it.track }
             parent == "local" -> graph.local.tracks.value.orEmpty()
+            parent == "radio" -> graph.settings.value.let { s -> (s.radioFavorites + s.radioRecent).distinctBy { it.id } }.map(app.nocturne.data.Radio::toTrack)
             parent.startsWith("mix:") -> graph.dailyMixes.state.value.getOrNull(parent.removePrefix("mix:").toIntOrNull() ?: -1)?.tracks.orEmpty()
             parent.startsWith("pl:") -> lib.playlists.firstOrNull { it.id == parent.removePrefix("pl:") }?.tracks.orEmpty()
             parent.startsWith("sp:") -> graph.settings.value.smartPlaylists.firstOrNull { it.id == parent.removePrefix("sp:") }

@@ -84,11 +84,11 @@ object LastFm {
                 val on = graph.settings.value.lastfmScrobble && connected
                 if (cur?.key != key) {
                     key = cur?.key; started = now; listened = 0; done = false
-                    if (cur != null && on && !cur.isPodcast) launch { nowPlaying(cur) }
+                    if (cur != null && on && !cur.isPodcast && !cur.isRadio) launch { nowPlaying(cur) }
                 }
                 if (st.isPlaying) listened += now - last
                 last = now
-                if (cur == null || done || !on || cur.isPodcast) continue
+                if (cur == null || done || !on || cur.isPodcast || cur.isRadio) continue
                 val dur = if (st.durationMs > 0) st.durationMs else cur.durationMs
                 if (dur in 1..30_000) continue
                 if (listened >= 240_000 || (dur > 0 && listened >= dur / 2)) {

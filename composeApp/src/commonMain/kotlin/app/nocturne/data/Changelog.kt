@@ -5,6 +5,17 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.10.10",
+        en = listOf(
+            "Radio: thousands of live stations from any country, with genres, search and favourites (Library → Radio)",
+            "Android Auto: your favourite and recent radio stations",
+        ),
+        uk = listOf(
+            "Радіо: тисячі живих станцій з будь-якої країни, з жанрами, пошуком і улюбленими (Бібліотека → Радіо)",
+            "Android Auto: улюблені й нещодавні радіостанції",
+        ),
+    ),
+    ChangelogEntry(
         "1.10.9",
         en = listOf(
             "Search by lyrics: type a line you remember and find the song",
