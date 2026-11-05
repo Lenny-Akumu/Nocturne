@@ -9,10 +9,18 @@ val Changelog = listOf(
         en = listOf(
             "Radio: thousands of live stations from any country, with genres, search and favourites (Library → Radio)",
             "Android Auto: your favourite and recent radio stations",
+            "Songs start faster: a stalled load is retried in parallel, and on PC the song under the pointer starts loading before you click",
+            "Comments load 10 at a time and the next 10 appear as you scroll, no more endless spinner",
+            "SoundCloud comments, each with the moment of the track it was left at",
+            "Timecodes in comments (like 1:23) are clickable and jump to that moment",
         ),
         uk = listOf(
             "Радіо: тисячі живих станцій з будь-якої країни, з жанрами, пошуком і улюбленими (Бібліотека → Радіо)",
             "Android Auto: улюблені й нещодавні радіостанції",
+            "Пісні запускаються швидше: завислий запит повторюється паралельно, а на ПК трек під курсором починає вантажитись ще до кліку",
+            "Коментарі вантажаться по 10, а наступні 10 з'являються при прокручуванні, без вічного кружечка",
+            "Коментарі з SoundCloud із моментом треку, на якому їх залишили",
+            "Таймкоди в коментарях (наприклад 1:23) клікабельні й перемотують на цей момент",
         ),
     ),
     ChangelogEntry(

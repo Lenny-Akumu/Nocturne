@@ -46,7 +46,7 @@ class SoundCloudProvider(
         val clientId = newPipe.soundcloudClientId()
         val sep = if (path.contains('?')) '&' else '?'
         val response = http.get("https://api-v2.soundcloud.com/$path${sep}client_id=$clientId") {
-            header("Authorization", "OAuth ${accounts.value.soundcloudToken}")
+            accounts.value.soundcloudToken.takeIf { it.isNotBlank() }?.let { header("Authorization", "OAuth $it") }
         }
         if (response.status.value == 401) throw SourceUnavailableException("SoundCloud session expired, sign in again")
         if (!response.status.isSuccess()) throw SourceUnavailableException("SoundCloud: ${response.status}")
@@ -172,6 +172,31 @@ class SoundCloudProvider(
             next = page.path("next_href").str?.substringAfter("api-v2.soundcloud.com/")?.replace(Regex("[&?]client_id=[^&]*"), "")
         }
         return tracks
+    }
+
+    private val trackIds = mutableMapOf<String, Long>()
+
+    /** Timed comments, newest first; [next] continues a previous page. */
+    suspend fun comments(track: Track, next: String? = null): CommentsPage {
+        val page = if (next != null) api(next) else {
+            val id = trackIds[track.key] ?: resolveId(track.url ?: track.id).also { trackIds[track.key] = it }
+            api("tracks/$id/comments?threaded=0&filter_replies=0&limit=20&offset=0&linked_partitioning=1")
+        }
+        val items = page.path("collection").arr.orEmpty().mapNotNull { c ->
+            val body = c.path("body").str?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            YtComment(
+                id = (c.path("id").num ?: return@mapNotNull null).toString(),
+                author = c.path("user").path("username").str ?: "SoundCloud",
+                avatar = c.path("user").path("avatar_url").str,
+                text = body,
+                time = c.path("created_at").str?.take(10),
+                likes = null,
+                replies = null,
+                atMs = c.path("timestamp").num,
+            )
+        }
+        val nextPath = page.path("next_href").str?.substringAfter("api-v2.soundcloud.com/")?.replace(Regex("[&?]client_id=[^&]*"), "")
+        return CommentsPage(items, nextPath?.takeIf { items.isNotEmpty() })
     }
 
     override suspend fun search(query: String, filter: SearchFilter) = newPipe.search(source, query, filter)

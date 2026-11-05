@@ -113,7 +113,7 @@ class VlcAudioEngine : AudioEngine {
     private fun start() {
         if (loadNative()) {
             val f = runCatching {
-                MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1500", "--no-audio-time-stretch")
+                MediaPlayerFactory("--no-video", "--quiet", "--intf=dummy", "--http-reconnect", "--network-caching=1000", "--no-audio-time-stretch")
             }.getOrNull()
             val p = runCatching { f?.mediaPlayers()?.newMediaPlayer() }.getOrNull()
             if (p == null) runCatching { f?.release() }

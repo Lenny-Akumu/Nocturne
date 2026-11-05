@@ -67,8 +67,8 @@ private class OkHttpDownloader(private val client: OkHttpClient) : Downloader() 
 
 class NewPipeBackendImpl : NewPipeBackend {
     private val client = OkHttpClient.Builder()
-        .readTimeout(30, TimeUnit.SECONDS)
-        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
         .build()
     private val downloader = OkHttpDownloader(client)
 

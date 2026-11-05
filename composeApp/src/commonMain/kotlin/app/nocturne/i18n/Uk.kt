@@ -911,5 +911,7 @@ internal object Uk {
         "Try another country." to "Спробуй іншу країну.",
         "Country" to "Країна",
         "Favourite" to "Улюблене",
+        "at %s" to "на %s",
+        "Show more" to "Показати ще",
     )
 }

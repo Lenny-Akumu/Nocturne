@@ -13,6 +13,8 @@ data class YtComment(
     val time: String?,
     val likes: String?,
     val replies: String?,
+    /** SoundCloud: where in the track it was left. */
+    val atMs: Long? = null,
 )
 
 data class CommentSort(val title: String, val token: String)

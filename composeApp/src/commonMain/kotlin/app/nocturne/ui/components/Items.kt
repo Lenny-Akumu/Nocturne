@@ -1,5 +1,7 @@
 package app.nocturne.ui.components
 
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.material.icons.rounded.DownloadDone
 import app.nocturne.i18n.t
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -89,10 +91,17 @@ fun TrackRow(
     val menu = LocalTrackMenu.current
     val isCurrent = player.current?.key == track.key
     val dense = settings.compactLists
+    // desktop: resolve the stream while the pointer rests on the row
+    val hover = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val hovered by hover.collectIsHoveredAsState()
+    androidx.compose.runtime.LaunchedEffect(hovered) {
+        if (hovered && !isCurrent) { kotlinx.coroutines.delay(350); graph.player.prefetch(track) }
+    }
     Row(
         modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
+            .hoverable(hover)
             .onRightClick { menu(track, menuContext) }
             .combinedClickable(onClick = onClick, onLongClick = { menu(track, menuContext) })
             .padding(horizontal = 12.dp, vertical = if (dense) 4.dp else 7.dp),

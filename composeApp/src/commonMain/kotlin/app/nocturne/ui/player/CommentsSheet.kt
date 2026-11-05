@@ -1,6 +1,9 @@
 package app.nocturne.ui.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.withLink
+import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,13 +70,17 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
-// YouTube comments for [track] (pinned to the track it was opened for), paged on scroll, Top / Newest sort.
+// Comments for [track] (pinned to the track it was opened for): YouTube with Top / Newest sort, or SoundCloud's timed ones.
+// Shown 10 at a time; the next 10 appear as you reach the bottom, more pages load behind them.
 @Composable
 fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
-    val api = AppGraph.instance.youtube.innerTube
+    val graph = AppGraph.instance
+    val api = graph.youtube.innerTube
     val videoId = remember { track.id }
+    val soundcloud = track.source == app.nocturne.model.Source.SOUNDCLOUD
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val comments = remember { mutableStateListOf<YtComment>() }
+    val buffer = remember { mutableStateListOf<YtComment>() }
     var sorts by remember { mutableStateOf<List<CommentSort>>(emptyList()) }
     var sort by remember { mutableIntStateOf(0) }
     var count by remember { mutableStateOf<String?>(null) }
@@ -85,44 +92,57 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    suspend fun commentsPageOf(token: String) = AppGraph.instance.comments(videoId, token)
+    fun reveal() {
+        val n = minOf(PAGE, buffer.size)
+        if (n == 0) return
+        comments += buffer.take(n)
+        repeat(n) { buffer.removeAt(0) }
+    }
 
     fun load(reset: Boolean, block: suspend () -> CommentsPage) {
         job?.cancel()
         loading = true
         error = null
         job = scope.launch {
-            val r = runCatching {
-                withContext(Dispatchers.Default) {
-                    withTimeout(25_000) {
-                        val first = block()
-                        // first screen gets ~30, then pages of ~20 as you hit the bottom
-                        if (reset && first.comments.size < 30 && first.next != null) {
-                            runCatching { commentsPageOf(first.next) }.getOrNull()
-                                ?.let { first.copy(comments = first.comments + it.comments, next = it.next) } ?: first
-                        } else first
-                    }
-                }
-            }
+            val r = runCatching { withContext(Dispatchers.Default) { withTimeout(25_000) { block() } } }
             ensureActive()
             r.onSuccess { p ->
-                if (reset) { comments.clear(); list.scrollToItem(0) }
-                val seen = comments.mapTo(HashSet<String>()) { it.id }
-                comments += p.comments.filter { it.id !in seen }
-                next = p.next
+                if (reset) { comments.clear(); buffer.clear(); list.scrollToItem(0) }
+                val seen = (comments + buffer).mapTo(HashSet<String>()) { it.id }
+                val fresh = p.comments.filter { it.id !in seen }
+                buffer += fresh
+                // a page with nothing new means the feed is done (stops endless spinners)
+                next = p.next?.takeIf { fresh.isNotEmpty() }
                 if (p.sorts.isNotEmpty()) sorts = p.sorts
                 p.count?.let { count = it }
+                if (comments.isEmpty() || reset) reveal()
             }.onFailure { error = it }
             loading = false
         }
     }
 
-    LaunchedEffect(attempt) { load(true) { AppGraph.instance.comments(videoId) } }
+    suspend fun page(token: String?): CommentsPage =
+        if (soundcloud) graph.soundcloud.comments(track, token) else graph.comments(videoId, token)
+
+    LaunchedEffect(attempt) { load(true) { page(null) } }
     LaunchedEffect(list) {
-        snapshotFlow { Triple(list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0, comments.size, next) }
-            .collect { (last, size, token) ->
-                if (token != null && size > 0 && !loading && error == null && last >= size - 2) load(false) { AppGraph.instance.comments(videoId, token) }
+        snapshotFlow { Triple(list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0, comments.size, buffer.size) }
+            .collect { (last, size, buffered) ->
+                if (size == 0 || last < size - 2) return@collect
+                if (buffered > 0) reveal()
+                // keep a page in reserve so the next 10 show without a wait
+                if (buffer.size < PAGE) next?.let { tk -> if (!loading && error == null) load(false) { page(tk) } }
             }
+    }
+
+    fun seek(ms: Long) {
+        val p = graph.player
+        if (p.state.value.current?.key == track.key) { p.seekTo(ms); return }
+        p.play(listOf(track), 0, null)
+        scope.launch {
+            kotlinx.coroutines.withTimeoutOrNull(20_000) { p.state.first { it.current?.key == track.key && it.durationMs > 0 && !it.isBuffering } }
+            p.seekTo(ms)
+        }
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
@@ -148,20 +168,24 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 val err = error
                 when {
-                    comments.isEmpty() && loading -> SlowLoading(videoId, Modifier.align(Alignment.Center))
+                    comments.isEmpty() && loading -> SlowLoading(videoId, soundcloud, Modifier.align(Alignment.Center))
                     comments.isEmpty() && err is CommentsDisabledException -> MessageBox(Icons.Rounded.ChatBubbleOutline, "Comments are turned off")
                     // the real reason, so a screenshot tells what broke
                     comments.isEmpty() && err != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         MessageBox(Icons.Rounded.ErrorOutline, "Couldn't load comments", message = (err.message ?: err::class.simpleName)?.take(160), actionLabel = "Retry", onAction = { attempt++ })
-                        OpenOnYouTube(videoId)
+                        if (!soundcloud) OpenOnYouTube(videoId)
                     }
                     comments.isEmpty() -> MessageBox(Icons.Rounded.ChatBubbleOutline, "No comments yet")
                     else -> LazyColumn(Modifier.fillMaxSize(), state = list) {
-                        items(comments, key = { it.id }) { CommentRow(it) }
-                        if (loading || err != null) item(key = "footer") {
+                        items(comments, key = { it.id }) { CommentRow(it, ::seek) }
+                        val more = buffer.isNotEmpty() || next != null
+                        if (more || err != null) item(key = "footer") {
                             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                if (loading) CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
-                                else TextButton(onClick = { next?.let { tk -> load(false) { AppGraph.instance.comments(videoId, tk) } } }) { Text(t("Retry")) }
+                                when {
+                                    err != null -> TextButton(onClick = { next?.let { tk -> load(false) { page(tk) } } }) { Text(t("Retry")) }
+                                    loading && buffer.isEmpty() -> CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                                    else -> TextButton(onClick = { reveal(); if (buffer.size < PAGE) next?.let { tk -> if (!loading) load(false) { page(tk) } } }) { Text(t("Show more")) }
+                                }
                             }
                         }
                     }
@@ -172,12 +196,12 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun SlowLoading(videoId: String, modifier: Modifier) {
+private fun SlowLoading(videoId: String, soundcloud: Boolean, modifier: Modifier) {
     var slow by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(7000); slow = true }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         CircularProgressIndicator()
-        androidx.compose.animation.AnimatedVisibility(slow) {
+        androidx.compose.animation.AnimatedVisibility(slow && !soundcloud) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 16.dp)) {
                 Text(t("YouTube is slow to answer…"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OpenOnYouTube(videoId)
@@ -192,8 +216,47 @@ private fun OpenOnYouTube(videoId: String) {
     TextButton(onClick = { runCatching { uri.openUri("https://www.youtube.com/watch?v=$videoId") } }) { Text(t("Open on YouTube")) }
 }
 
+private const val PAGE = 10
+
+// 1:23 / 01:02:03 in a comment
+private val timecode = Regex("""(?<![\d:])(\d{1,2}:)?\d{1,2}:\d{2}(?![\d:])""")
+
+private fun parseTime(s: String): Long? {
+    val parts = s.split(':').map { it.toLongOrNull() ?: return null }
+    if (parts.drop(1).any { it >= 60 }) return null
+    return parts.fold(0L) { acc, v -> acc * 60 + v } * 1000
+}
+
+private fun formatAt(ms: Long): String {
+    val s = ms / 1000
+    return if (s >= 3600) "${s / 3600}:${(s / 60 % 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}"
+    else "${s / 60}:${(s % 60).toString().padStart(2, '0')}"
+}
+
 @Composable
-private fun CommentRow(c: YtComment) {
+private fun linkedText(text: String, seek: (Long) -> Unit): androidx.compose.ui.text.AnnotatedString {
+    val color = MaterialTheme.colorScheme.primary
+    return remember(text, color) {
+        androidx.compose.ui.text.buildAnnotatedString {
+            var at = 0
+            for (m in timecode.findAll(text)) {
+                val ms = parseTime(m.value) ?: continue
+                append(text.substring(at, m.range.first))
+                withLink(
+                    androidx.compose.ui.text.LinkAnnotation.Clickable(
+                        "t$ms",
+                        androidx.compose.ui.text.TextLinkStyles(androidx.compose.ui.text.SpanStyle(color = color, fontWeight = FontWeight.SemiBold)),
+                    ) { seek(ms) },
+                ) { append(m.value) }
+                at = m.range.last + 1
+            }
+            append(text.substring(at))
+        }
+    }
+}
+
+@Composable
+private fun CommentRow(c: YtComment, seek: (Long) -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
         AsyncImage(c.avatar, null, Modifier.size(36.dp).clip(CircleShape).background(cs.surfaceVariant), contentScale = ContentScale.Crop)
@@ -203,8 +266,14 @@ private fun CommentRow(c: YtComment) {
                 Text(c.author, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 c.time?.let { Text(" · $it", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1) }
             }
+            c.atMs?.let { ms ->
+                Text(
+                    t("at %s", formatAt(ms)), style = MaterialTheme.typography.labelMedium, color = cs.primary, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 2.dp).clip(CircleShape).clickable { seek(ms) }.background(cs.primary.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
             Spacer(Modifier.height(2.dp))
-            Text(c.text, style = MaterialTheme.typography.bodyMedium)
+            Text(linkedText(c.text, seek), style = MaterialTheme.typography.bodyMedium)
             if (c.likes != null || c.replies != null) {
                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     c.likes?.let {

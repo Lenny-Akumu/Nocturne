@@ -572,7 +572,7 @@ class PlayerController(
             ?: scope.async(Dispatchers.Default) {
                 val provider = providers[track.source] ?: error(app.nocturne.i18n.t("%s is disabled", track.source.label))
                 try {
-                    provider.stream(track, settings.value.audioQuality)
+                    hedged(HEDGE_MS) { provider.stream(track, settings.value.audioQuality) }
                 } catch (e: Throwable) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     alternate(track) ?: throw e
@@ -608,10 +608,46 @@ class PlayerController(
         .replace(Regex("[^\\p{L}\\p{N} ]"), "")
         .trim()
 
+    // a stalled extraction (slow CDN, dropped connection) gets a second attempt in parallel; first answer wins
+    private suspend fun <T> hedged(after: Long, block: suspend () -> T): T {
+        val out = kotlinx.coroutines.channels.Channel<Result<T>>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        val jobs = mutableListOf(scope.launch(Dispatchers.Default) { out.send(runCatching { block() }) })
+        var pending = 1
+        try {
+            while (true) {
+                val r = if (jobs.size == 1) withTimeoutOrNull(after) { out.receive() } else out.receive()
+                if (r == null) {
+                    jobs += scope.launch(Dispatchers.Default) { out.send(runCatching { block() }) }
+                    pending++
+                    continue
+                }
+                pending--
+                r.onSuccess { return it }
+                val e = r.exceptionOrNull()!!
+                if (e is kotlinx.coroutines.CancellationException || pending == 0) throw e
+            }
+        } finally {
+            jobs.forEach { it.cancel() }
+        }
+    }
+
+    private val hoverGate = kotlinx.coroutines.sync.Semaphore(2)
+
+    /** Warms the stream for [track] (hovered row, opened page) so a click starts at once. */
+    fun prefetch(track: Track) {
+        if (engine.fake || track.source == Source.LOCAL) return
+        val key = track.key + ":" + settings.value.audioQuality
+        if (streamCache[key]?.takeIf { nowMillis() - it.at < STREAM_TTL } != null || inFlight[key]?.isActive == true) return
+        if (!hoverGate.tryAcquire()) return
+        scope.launch {
+            try { runCatching { resolve(track) } } finally { hoverGate.release() }
+        }
+    }
+
     private fun prefetchNext() {
         prefetchJob?.cancel()
         prefetchJob = scope.launch {
-            delay(1500)
+            delay(400)
             val s = _state.value
             listOfNotNull(s.queue.getOrNull(s.index + 1), s.queue.getOrNull(s.index + 2)).forEach { t ->
                 runCatching { resolve(t) }
@@ -740,6 +776,7 @@ class PlayerController(
     companion object {
         private const val QUEUE_FILE = "queue.json"
         private const val STREAM_TTL = 3 * 60 * 60 * 1000L
+        private const val HEDGE_MS = 4500L
         private const val SLEEP_FADE_MS = 30_000L
         private const val WAKE_FADE_MS = 60_000L
     }
