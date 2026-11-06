@@ -84,6 +84,7 @@ internal fun LinuxShell(top: Dp, onExpand: () -> Unit) {
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
         // tablets: the now-playing column narrows, then folds into a player bar
         val compact = maxWidth < 980.dp
+        val nowWidth = if (maxWidth < 1200.dp) 300.dp else 360.dp
         Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 14.dp, top = top + 14.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -94,7 +95,7 @@ internal fun LinuxShell(top: Dp, onExpand: () -> Unit) {
                 }
                 if (compact) LinuxBar(onExpand, showTabs = false) else UpNext()
             }
-            if (!compact) Pane(Modifier.width(if (maxWidth < 1200.dp) 300.dp else 360.dp).fillMaxHeight()) { NowColumn(onExpand) }
+            if (!compact) Pane(Modifier.width(nowWidth).fillMaxHeight()) { NowColumn(onExpand) }
         }
     }
 }

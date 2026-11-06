@@ -60,6 +60,7 @@ internal fun ArchShell(top: Dp, onExpand: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
     val compact = maxWidth < 1000.dp
+    val sideWidth = if (maxWidth < 1250.dp) 270.dp else 320.dp
     Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = top + 10.dp, bottom = 12.dp)) {
         ArchHeader()
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -87,7 +88,7 @@ internal fun ArchShell(top: Dp, onExpand: () -> Unit) {
             TuiBox("[3] ${t(title).lowercase()}", Modifier.weight(1f).fillMaxHeight(), focused = true, pad = false) {
                 ScreenHost(PaddingValues(top = 4.dp, bottom = 12.dp))
             }
-            if (!compact) Column(Modifier.width(if (maxWidth < 1250.dp) 270.dp else 320.dp).fillMaxHeight()) {
+            if (!compact) Column(Modifier.width(sideWidth).fillMaxHeight()) {
                 ArchNow(onExpand)
                 ArchLyrics(Modifier.weight(1f).fillMaxWidth())
             }
