@@ -291,10 +291,14 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     }
 
     if (overlays.carMode) CarModeDialog { overlays.carMode = false }
-    if (overlays.connect) ConnectSheet(onDismiss = { overlays.connect = false }, onCarMode = { overlays.carMode = true })
+    val style = LocalDesignStyle.current
+    if (overlays.connect) {
+        if (style.hasOwnPlayer()) StyledConnectPopup(style, { overlays.connect = false }, { overlays.carMode = true })
+        else ConnectSheet(onDismiss = { overlays.connect = false }, onCarMode = { overlays.carMode = true })
+    }
     if (overlays.sleep) SleepTimerDialog { overlays.sleep = false }
     if (overlays.visualizer) VisualizerScreen { overlays.visualizer = false }
-    if (overlays.audio) AudioSheet { overlays.audio = false }
+    if (overlays.audio) { if (style.hasOwnPlayer()) StyledAudioPopup(style) { overlays.audio = false } else AudioSheet { overlays.audio = false } }
     if (overlays.comments) CommentsSheet(track) { overlays.comments = false }
     // comments load in the background while the song plays, so the sheet opens with them ready
     LaunchedEffect(track.key) {
