@@ -6,8 +6,8 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 val Changelog = listOf(
     ChangelogEntry(
         "1.10.11",
-        en = listOf("The first song after launch starts much faster: Nocturne warms up YouTube playback in the background as soon as it opens"),
-        uk = listOf("Перша пісня після запуску стартує значно швидше: Nocturne розігріває відтворення YouTube у фоні одразу після відкриття"),
+        en = listOf("Performance updates and optimisations"),
+        uk = listOf("Оновлення та оптимізація швидкодії"),
     ),
     ChangelogEntry(
         "1.10.10",
