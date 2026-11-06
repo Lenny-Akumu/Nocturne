@@ -304,7 +304,7 @@ internal fun ArchSongResults(tracks: List<Track>, bottom: Dp, onPlay: (Int) -> U
                         val tr = tracks[i]
                         val hover = remember { MutableInteractionSource() }
                         val hovered by hover.collectIsHoveredAsState()
-                        if (hovered && preview != i) preview = i
+                        androidx.compose.runtime.LaunchedEffect(hovered) { if (hovered) preview = i }
                         val on = i == preview
                         Row(Modifier.fillMaxWidth().background(if (on) cs.surfaceContainerHigh else Color.Transparent).hoverable(hover).clickable { onPlay(i) }.padding(vertical = 2.dp)) {
                             Text(if (on) "> " else "  ", color = cs.primary, style = MaterialTheme.typography.bodyMedium)
