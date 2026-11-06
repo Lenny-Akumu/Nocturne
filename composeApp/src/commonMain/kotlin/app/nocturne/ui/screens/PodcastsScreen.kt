@@ -61,7 +61,7 @@ fun PodcastsView(padding: PaddingValues) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val scope = rememberCoroutineScope()
-    var open by remember { mutableStateOf<PodcastSub?>(null) }
+    var open by remember { mutableStateOf<PodcastSub?>(app.nocturne.ui.components.PodcastJump.take()) }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<PodcastSub>?>(null) }
     var searching by remember { mutableStateOf(false) }

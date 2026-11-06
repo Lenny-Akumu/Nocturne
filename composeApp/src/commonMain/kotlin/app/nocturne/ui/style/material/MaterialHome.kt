@@ -128,6 +128,7 @@ fun MaterialHome(
             if (library.saved.isNotEmpty()) item {
                 Shelf(t("From your library"), library.saved.take(20).map { MediaEntry.Collection(it) }) { _, _ -> }
             }
+            item { app.nocturne.ui.components.RadioPodcastRows() }
             if (Source.SPOTIFY in settings.enabledSources && !graph.spotify.isConfigured) item { spotifyCard() }
             val s = sections
             when {
