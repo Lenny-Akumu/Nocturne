@@ -590,7 +590,7 @@ private fun AppBackgroundRow(s: Settings, set: ((Settings) -> Settings) -> Unit)
 
 private val credits = listOf(
     "Developer" to listOf("Lenny" to "581182871969071115"),
-    "Ideas & tests" to listOf("birtoy" to "1221049274222252085", "redmonkeyyyyy" to "449816910733901834"),
+    "Ideas & tests" to listOf("birtoy" to "1221049274222252085", "redmonkeyyyyy" to "449816910733901834", "markoone" to "714838194918785054"),
 )
 
 @Composable
