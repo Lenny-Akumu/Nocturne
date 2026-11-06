@@ -131,7 +131,7 @@ internal fun AuroraDock(nav: Navigator, top: Dp, modifier: Modifier = Modifier) 
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         NocturneLogo(Modifier.padding(bottom = 14.dp).size(42.dp).clip(RoundedCornerShape(12.dp)).clickable { LogoTaps.tap() })
-        tabs.forEach { DockItem(it, nav) }
+        sideTabs.forEach { DockItem(it, nav) }
         Spacer(Modifier.weight(1f))
         DockItem(settingsTab, nav)
     }

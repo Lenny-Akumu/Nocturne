@@ -179,6 +179,7 @@ fun QueueView() {
         }
         val settings by graph.settings.state.collectAsState()
         val keys = remember(state.queue) { app.nocturne.ui.components.occurrenceKeys(state.queue) }
+        app.nocturne.ui.components.JumpBox(listState, state.index) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(state.queue, key = { i, _ -> keys[i] }) { i, qt ->
                 val dim by androidx.compose.animation.core.animateFloatAsState(if (i < state.index) 0.5f else 1f, label = "played")
@@ -209,6 +210,7 @@ fun QueueView() {
                     })
                 }
             }
+        }
         }
     }
 }

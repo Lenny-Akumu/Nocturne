@@ -81,7 +81,9 @@ fun RadioView(padding: PaddingValues) {
             .groupingBy { it.lowercase() }.eachCount().entries.sortedByDescending { it.value }.take(12).map { it.key }
     }
 
-    LazyColumn(contentPadding = padding) {
+    val jumpState = androidx.compose.foundation.lazy.rememberLazyListState()
+    app.nocturne.ui.components.JumpBox(jumpState) {
+    LazyColumn(state = jumpState, contentPadding = padding) {
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilterChip(
@@ -137,6 +139,7 @@ fun RadioView(padding: PaddingValues) {
                 }
             }
         }
+    }
     }
 
     if (picking) CountryPicker(countries, country, onDismiss = { picking = false }) { code ->

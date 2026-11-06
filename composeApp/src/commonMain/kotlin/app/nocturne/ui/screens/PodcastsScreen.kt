@@ -68,7 +68,9 @@ fun PodcastsView(padding: PaddingValues) {
 
     open?.let { sub -> PodcastPage(sub, padding) { open = null }; return }
 
-    LazyColumn(contentPadding = padding) {
+    val jumpState = androidx.compose.foundation.lazy.rememberLazyListState()
+    app.nocturne.ui.components.JumpBox(jumpState) {
+    LazyColumn(state = jumpState, contentPadding = padding) {
         item {
             OutlinedTextField(
                 query, { query = it }, singleLine = true, placeholder = { Text(t("Find a podcast")) },
@@ -103,6 +105,7 @@ fun PodcastsView(padding: PaddingValues) {
         if (settings.podcasts.isEmpty()) item { MessageBox(Icons.Rounded.Podcasts, "No podcasts yet", "Search for a show and subscribe to it.") }
         items(settings.podcasts, key = { "s" + it.feedUrl }) { p -> ShowRow(p, true) { open = p } }
     }
+    }
 }
 
 @Composable
@@ -127,7 +130,9 @@ private fun PodcastPage(sub: PodcastSub, padding: PaddingValues, onBack: () -> U
     var episodes by remember(sub.feedUrl) { mutableStateOf<List<Episode>?>(null) }
     LaunchedEffect(sub.feedUrl) { episodes = Podcasts.episodes(sub) }
     val subscribed = settings.podcasts.any { it.feedUrl == sub.feedUrl }
-    LazyColumn(contentPadding = padding) {
+    val jumpState = androidx.compose.foundation.lazy.rememberLazyListState()
+    app.nocturne.ui.components.JumpBox(jumpState) {
+    LazyColumn(state = jumpState, contentPadding = padding) {
         item {
             Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, t("Back")) }
@@ -170,5 +175,6 @@ private fun PodcastPage(sub: PodcastSub, padding: PaddingValues, onBack: () -> U
                 }
             }
         }
+    }
     }
 }

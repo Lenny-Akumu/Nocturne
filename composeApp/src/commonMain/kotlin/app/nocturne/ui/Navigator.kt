@@ -12,12 +12,14 @@ sealed interface Screen {
     data object Library : Screen
     data object Settings : Screen
     data object Profile : Screen
+    data object Podcasts : Screen
+    data object Radio : Screen
     data class Collection(val ref: CollectionRef) : Screen
     data class SettingsPage(val page: app.nocturne.ui.screens.SettingsCategory) : Screen
 }
 
 class Navigator {
-    private val tabs = listOf(Screen.Home, Screen.Search, Screen.Library)
+    private val tabs = listOf(Screen.Home, Screen.Search, Screen.Library, Screen.Podcasts, Screen.Radio)
     val stack = mutableStateListOf<Screen>(Screen.Home)
     // screens left with back(), for mouse "forward" on desktop
     private val ahead = mutableListOf<Screen>()

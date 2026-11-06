@@ -88,14 +88,14 @@ internal fun LinuxShell(top: Dp, onExpand: () -> Unit) {
         Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 14.dp, top = top + 14.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Pane(Modifier.width(if (compact) 190.dp else 220.dp).fillMaxHeight()) { NavPane() }
-                    Pane(Modifier.weight(1f).fillMaxHeight(), focused = true, pad = false) {
+                    GlassPane(Modifier.width(if (compact) 190.dp else 220.dp).fillMaxHeight()) { NavPane() }
+                    GlassPane(Modifier.weight(1f).fillMaxHeight(), focused = true, pad = false) {
                         ScreenHost(PaddingValues(top = 8.dp, bottom = 12.dp))
                     }
                 }
                 if (compact) LinuxBar(onExpand, showTabs = false) else UpNext()
             }
-            if (!compact) Pane(Modifier.width(nowWidth).fillMaxHeight()) { NowColumn(onExpand) }
+            if (!compact) GlassPane(Modifier.width(nowWidth).fillMaxHeight()) { NowColumn(onExpand) }
         }
     }
 }
@@ -112,7 +112,7 @@ internal fun LinuxWallpaper(modifier: Modifier) {
 }
 
 @Composable
-private fun Pane(modifier: Modifier, focused: Boolean = false, pad: Boolean = true, content: @Composable BoxScope.() -> Unit) {
+internal fun GlassPane(modifier: Modifier, focused: Boolean = false, pad: Boolean = true, content: @Composable BoxScope.() -> Unit) {
     Box(
         modifier.clip(PaneShape).background(Color(0x9412101E))
             .then(if (focused) Modifier.border(2.dp, Glow, PaneShape) else Modifier.border(1.dp, Color.White.copy(alpha = 0.12f), PaneShape))
@@ -130,7 +130,7 @@ private fun NavPane() {
     Column {
         Text("夜 nocturne", style = Mono.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold, brush = Brush.linearGradient(listOf(Cyan, Pink))))
         Spacer(Modifier.height(18.dp))
-        (tabs + settingsTab).forEach { tab ->
+        (sideTabs + settingsTab).forEach { tab ->
             val on = nav.currentTab == tab.screen
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(if (on) Color.White.copy(alpha = 0.09f) else Color.Transparent)
@@ -203,7 +203,7 @@ private fun NowColumn(onExpand: () -> Unit) {
 
 /** Seek bar drawn as a waveform (stable per track): played part in the gradient. */
 @Composable
-private fun Wave(key: String, pos: Long, dur: Long, onSeek: (Long) -> Unit) {
+internal fun Wave(key: String, pos: Long, dur: Long, onSeek: (Long) -> Unit) {
     val bars = remember(key) { val r = kotlin.random.Random(key.hashCode()); List(64) { 0.18f + r.nextFloat() * 0.82f } }
     var drag by remember { mutableStateOf<Float?>(null) }
     val frac = (drag ?: if (dur > 0) pos.toFloat() / dur else 0f).coerceIn(0f, 1f)
@@ -258,7 +258,7 @@ private fun UpNext() {
     val next = (player.index + 1..minOf(player.queue.lastIndex, player.index + 4)).map { it to player.queue[it] }
     if (next.isEmpty()) return
     val accents = listOf(Pink, Cyan, Color(0xFF9ECE6A), Peach)
-    Pane(Modifier.fillMaxWidth()) {
+    GlassPane(Modifier.fillMaxWidth()) {
         Column {
             Text(t("UP NEXT"), style = Mono.copy(fontSize = 11.sp, letterSpacing = 1.5.sp), color = Color(0xFF7D7997))
             Spacer(Modifier.height(10.dp))

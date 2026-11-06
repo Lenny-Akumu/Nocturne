@@ -102,7 +102,12 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
 
     val p = localPage ?: page
     val header = p?.ref ?: ref
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val playing by graph.player.state.collectAsState()
+    val active = p?.let { pg -> playing.current?.key?.let { k -> pg.tracks.indexOfFirst { it.key == k } } }?.takeIf { it >= 0 }
+        ?.plus(if (header.type == CollectionType.ARTIST) 3 else 2)
+    app.nocturne.ui.components.JumpBox(listState, active) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)) {
         item {
             Row(Modifier.padding(top = contentPadding.calculateTopPadding()).padding(horizontal = 4.dp)) {
                 IconButton(onClick = { graph.navigator.back() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
@@ -190,6 +195,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                 }
             }
         }
+    }
     }
 
     if (renaming) {

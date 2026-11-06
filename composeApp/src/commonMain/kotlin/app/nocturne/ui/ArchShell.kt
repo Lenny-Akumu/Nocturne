@@ -67,7 +67,7 @@ internal fun ArchShell(top: Dp, onExpand: () -> Unit) {
             Column(Modifier.width(if (compact) 190.dp else 230.dp).fillMaxHeight()) {
                 TuiBox("[1] ${t("browse")}") {
                     Column {
-                        (tabs + settingsTab).forEach { tab ->
+                        (sideTabs + settingsTab).forEach { tab ->
                             val on = nav.currentTab == tab.screen
                             val key = when (tab.screen) { Screen.Search -> "/"; else -> "" }
                             TuiRow(t(tab.label), on, key) { nav.selectTab(tab.screen) }
@@ -84,7 +84,7 @@ internal fun ArchShell(top: Dp, onExpand: () -> Unit) {
                     }
                 }
             }
-            val title = (tabs + settingsTab).firstOrNull { it.screen == nav.currentTab }?.label ?: "Nocturne"
+            val title = (sideTabs + settingsTab).firstOrNull { it.screen == nav.currentTab }?.label ?: "Nocturne"
             TuiBox("[3] ${t(title).lowercase()}", Modifier.weight(1f).fillMaxHeight(), focused = true, pad = false) {
                 ScreenHost(PaddingValues(top = 4.dp, bottom = 12.dp))
             }
@@ -119,7 +119,7 @@ private fun ArchHeader() {
 
 /** Box with its title cut into the top border, like a TUI pane. */
 @Composable
-private fun TuiBox(
+internal fun TuiBox(
     title: String,
     modifier: Modifier = Modifier.fillMaxWidth(),
     focused: Boolean = false,
@@ -216,13 +216,9 @@ private fun ArchPlayback() {
                 Text(" " + mmss(player.positionMs) + " ", style = MaterialTheme.typography.bodyMedium)
                 SeekLine(player.positionMs, player.durationMs, Modifier.weight(1f)) { p.seekTo(it) }
                 Text(" " + mmss(player.durationMs) + "   ", style = MaterialTheme.typography.bodyMedium)
-                val filled = (settings.volume * 10).toInt().coerceIn(0, 10)
-                Text(
-                    "vol " + "▮".repeat(filled) + "▯".repeat(10 - filled), color = cs.tertiary, style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.pointerInput(Unit) {
-                        detectTapGestures { o -> p.setVolume(((o.x / size.width) * 1.25f - 0.15f).coerceIn(0f, 1f)) }
-                    },
-                )
+                Text("vol ", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                app.nocturne.ui.player.BlockMeter(settings.volume, { p.setVolume(it) }, cs.tertiary, cs.outline.copy(alpha = 0.5f), Modifier.width(110.dp), cells = 10)
+                Text(" ${(settings.volume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
                 Text("  ⤮", color = if (player.shuffle) cs.secondary else cs.onSurfaceVariant, modifier = Modifier.clickable { p.toggleShuffle() })
                 Text(" " + if (player.repeat == RepeatMode.ONE) "⟳¹" else "⟳", color = if (player.repeat != RepeatMode.OFF) cs.secondary else cs.onSurfaceVariant, modifier = Modifier.clickable { p.cycleRepeat() })
             }

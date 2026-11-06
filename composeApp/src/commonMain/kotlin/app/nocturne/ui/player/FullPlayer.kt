@@ -140,7 +140,9 @@ fun FullPlayer(onCollapse: () -> Unit) {
                 },
         ) {
             val glassStyle = LocalDesignStyle.current == DesignStyle.GLASS
-            if (glassStyle) app.nocturne.ui.style.glass.GlassPlayerBackground(track.artworkUrl)
+            val ownPlayer = LocalDesignStyle.current.hasOwnPlayer()
+            if (ownPlayer) StyledPlayerBackground(LocalDesignStyle.current, track.artworkUrl)
+            else if (glassStyle) app.nocturne.ui.style.glass.GlassPlayerBackground(track.artworkUrl)
             else when (settings.playerBackground) {
                 PlayerBackground.BLUR -> {
                     AsyncImage(track.artworkUrl, null, Modifier.fillMaxSize().blur(80.dp), contentScale = ContentScale.Crop)
@@ -168,7 +170,7 @@ fun FullPlayer(onCollapse: () -> Unit) {
                 )
                 PlayerBackground.SOLID -> Unit
             }
-            if (!glassStyle && settings.animatedBackground && settings.playerBackground != PlayerBackground.SOLID) {
+            if (!glassStyle && !ownPlayer && settings.animatedBackground && settings.playerBackground != PlayerBackground.SOLID) {
                 FlowingColors(listOf(cs.primary, cs.tertiary, cs.secondary, cs.primaryContainer), Modifier.fillMaxSize(), 0.32f)
             }
             PlayerContent(onCollapse)
@@ -223,6 +225,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
         val tall = maxHeight > 680.dp
         // Liquid Glass phone layout lives in style/glass/GlassPlayer.kt.
         if (!wide && LocalDesignStyle.current == DesignStyle.GLASS) app.nocturne.ui.style.glass.GlassPlayerLayout(onCollapse, pane, { pane = it }, noLyrics, tall)
+        else if (LocalDesignStyle.current.hasOwnPlayer()) StyledPlayer(LocalDesignStyle.current, onCollapse)
         else Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 TransportButton(Icons.Rounded.KeyboardArrowDown, "Collapse", onCollapse, iconSize = 30.dp)

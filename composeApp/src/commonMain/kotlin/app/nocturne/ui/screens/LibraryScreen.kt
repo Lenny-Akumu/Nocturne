@@ -145,7 +145,11 @@ private fun TrackList(
         MessageBox(emptyIcon, emptyTitle, emptyText)
         return
     }
-    LazyColumn(contentPadding = padding) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val playing by player.state.collectAsState()
+    val active = playing.current?.key?.let { k -> tracks.indexOfFirst { it.key == k } }?.takeIf { it >= 0 }?.plus(1)
+    app.nocturne.ui.components.JumpBox(listState, active) {
+    LazyColumn(state = listState, contentPadding = padding) {
         item {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalButton(onClick = { player.play(tracks, 0, title) }) {
@@ -163,6 +167,7 @@ private fun TrackList(
         items(tracks.size, key = { tracks[it].key }) { i ->
             TrackRow(tracks[i], onClick = { player.play(tracks, i, title) }, modifier = rowMotion().padding(horizontal = 4.dp), menuContext = TrackMenuContext())
         }
+    }
     }
 }
 

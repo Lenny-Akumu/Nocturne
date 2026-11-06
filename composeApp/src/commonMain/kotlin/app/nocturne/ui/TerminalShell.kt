@@ -73,7 +73,7 @@ internal fun TerminalShell(top: Dp, onExpand: () -> Unit) {
         Hero(onExpand, if (compact) 130.dp else 190.dp)
         Spacer(Modifier.height(8.dp))
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            val title = (tabs + settingsTab).firstOrNull { it.screen == nav.currentTab }?.label ?: "Nocturne"
+            val title = (sideTabs + settingsTab).firstOrNull { it.screen == nav.currentTab }?.label ?: "Nocturne"
             TermBox("¹ " + t(title).lowercase(), PeachC, Modifier.weight(1.7f).fillMaxHeight(), pad = false, header = { TabKeys() }) {
                 ScreenHost(PaddingValues(top = 4.dp, bottom = 10.dp))
             }
@@ -101,7 +101,7 @@ private fun TabKeys() {
     val nav = AppGraph.instance.navigator
     val cs = MaterialTheme.colorScheme
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        (tabs + settingsTab).forEach { tab ->
+        (sideTabs + settingsTab).forEach { tab ->
             val on = nav.currentTab == tab.screen
             Text(
                 t(tab.label).lowercase(), style = MaterialTheme.typography.labelLarge,
@@ -113,7 +113,7 @@ private fun TabKeys() {
 }
 
 @Composable
-private fun TermBox(
+internal fun TermBox(
     title: String,
     color: Color,
     modifier: Modifier,
@@ -301,7 +301,6 @@ private fun Session() {
         Spacer(Modifier.height(8.dp))
         val minutes = today.sumOf { it.d } / 60_000
         val top = today.mapNotNull { it.a.split(",").firstOrNull()?.trim()?.takeIf { a -> a.isNotEmpty() } }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
-        val vol = (settings.volume * 10).toInt().coerceIn(0, 10)
         listOf(
             t("listened") to "${minutes / 60}h ${minutes % 60}m",
             t("tracks") to today.size.toString(),
@@ -309,9 +308,10 @@ private fun Session() {
         ).forEach { (k, v) ->
             Row { Text(k.padEnd(9), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium); Text(v, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(t("vol").padEnd(9), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-            Text("▮".repeat(vol) + "▯".repeat(10 - vol), color = Green, style = MaterialTheme.typography.bodyMedium)
+            app.nocturne.ui.player.BlockMeter(settings.volume, { graph.player.setVolume(it) }, Green, cs.outline.copy(alpha = 0.5f), Modifier.weight(1f), cells = 12)
+            Text(" ${(settings.volume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

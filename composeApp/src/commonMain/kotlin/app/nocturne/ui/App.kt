@@ -51,6 +51,8 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.Radio
 import app.nocturne.ui.kit.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -122,6 +124,12 @@ internal val tabs = listOf(
     Tab(Screen.Search, "Search", Icons.Outlined.Search, Icons.Rounded.Search),
     Tab(Screen.Library, "Library", Icons.Outlined.LibraryMusic, Icons.Rounded.LibraryMusic),
 )
+
+/** Desktop side menus also carry podcasts and radio. */
+internal val sideTabs: List<Tab> get() = if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) tabs + listOf(
+    Tab(Screen.Podcasts, "Podcasts", Icons.Rounded.Podcasts, Icons.Rounded.Podcasts),
+    Tab(Screen.Radio, "Radio", Icons.Rounded.Radio, Icons.Rounded.Radio),
+) else tabs
 
 internal val settingsTab = Tab(Screen.Settings, "Settings", Icons.Outlined.Settings, Icons.Rounded.Settings)
 
@@ -229,7 +237,7 @@ private fun AppScaffold() {
                         NocturneLogo(Modifier.padding(top = 12.dp + caption, bottom = 16.dp).size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).clickable { LogoTaps.tap() })
                     },
                 ) {
-                    tabs.forEach { RailItem(it, nav) }
+                    sideTabs.forEach { RailItem(it, nav) }
                     Spacer(Modifier.weight(1f))
                     RailItem(settingsTab, nav)
                     Spacer(Modifier.height(16.dp))
@@ -351,13 +359,13 @@ internal fun ScreenHost(padding: PaddingValues) {
     ) { screen ->
         Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            val isTab = screen == Screen.Home || screen == Screen.Search || screen == Screen.Library
+            val isTab = screen == Screen.Home || screen == Screen.Search || screen == Screen.Library || screen == Screen.Podcasts || screen == Screen.Radio
             // Material home has its own search bar on top.
             val ownTop = screen == Screen.Home && LocalDesignStyle.current == app.nocturne.data.DesignStyle.MATERIAL
             // Glass: home brings its own scrolling large title; other tabs get a large title header.
             val glassStyle = LocalDesignStyle.current == app.nocturne.data.DesignStyle.GLASS
             val inner = if (isTab && glassStyle) {
-                if (screen != Screen.Home) app.nocturne.ui.style.glass.GlassLargeTitle(if (screen == Screen.Search) "Search" else "Library", padding) { nav.push(Screen.Profile) }
+                if (screen != Screen.Home) app.nocturne.ui.style.glass.GlassLargeTitle(when (screen) { Screen.Search -> "Search"; Screen.Podcasts -> "Podcasts"; Screen.Radio -> "Radio"; else -> "Library" }, padding) { nav.push(Screen.Profile) }
                 if (screen == Screen.Home) padding else PaddingValues(bottom = padding.calculateBottomPadding())
             } else if (isTab && !ownTop) {
                 TopBar(padding)
@@ -370,6 +378,8 @@ internal fun ScreenHost(padding: PaddingValues) {
                     Screen.Library -> LibraryScreen(inner)
                     Screen.Settings -> SettingsScreen(inner)
                     Screen.Profile -> app.nocturne.ui.screens.ProfileScreen(inner)
+                    Screen.Podcasts -> app.nocturne.ui.screens.PodcastsView(inner)
+                    Screen.Radio -> app.nocturne.ui.screens.RadioView(inner)
                     is Screen.Collection -> CollectionScreen(screen.ref, inner)
                     is Screen.SettingsPage -> SettingsPage(screen.page, inner)
                 }
