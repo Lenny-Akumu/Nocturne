@@ -272,6 +272,26 @@ class AppGraph(val engine: AudioEngine) {
         Source.entries.filter { it in settings.value.enabledSources }.map { allProviders.getValue(it) }
 
     private val commentsCache = mutableMapOf<String, app.nocturne.source.CommentsPage>()
+    private val altComments = app.nocturne.source.AltComments(http)
+    private val musicVideos = mutableMapOf<String, String?>()
+
+    private suspend fun musicVideoOf(videoId: String): String? =
+        if (videoId in musicVideos) musicVideos[videoId]
+        else runCatching { innerTube.musicVideoId(videoId) }.getOrNull()?.takeIf { it != videoId }.also { musicVideos[videoId] = it }
+
+    // a mirror's first page for the song, else for its music video (audio-only uploads have comments off)
+    private suspend fun mirror(videoId: String, fetch: suspend (String) -> app.nocturne.source.CommentsPage?): app.nocturne.source.CommentsPage {
+        val first = runCatching { fetch(videoId) }.getOrNull()
+        if (first != null && first.comments.isNotEmpty()) return first
+        val mv = musicVideoOf(videoId) ?: return first ?: throw app.nocturne.source.CommentsDisabledException()
+        return fetch(mv) ?: first ?: throw app.nocturne.source.CommentsDisabledException()
+    }
+
+    /** Fills the cache while the song plays, so opening comments is instant. */
+    fun prefetchComments(videoId: String) {
+        if (videoId in commentsCache) return
+        scope.launch(Dispatchers.Default) { runCatching { comments(videoId) } }
+    }
 
     // Runs off the caller so a stuck blocking call can't hold the UI past the timeout.
     private suspend fun <T> detached(ms: Long, block: suspend () -> T): T {
@@ -282,7 +302,8 @@ class AppGraph(val engine: AudioEngine) {
     // Our WEB `next` parser and NewPipe race each other; the first page with comments wins and is cached.
     suspend fun comments(videoId: String, token: String? = null): app.nocturne.source.CommentsPage {
         if (token != null) return detached(15_000) {
-            if (token.startsWith("np:")) newPipe.comments(videoId, token) ?: app.nocturne.source.CommentsPage(emptyList(), null)
+            if (token.startsWith("pp:") || token.startsWith("iv:")) altComments.page(token, videoId) ?: app.nocturne.source.CommentsPage(emptyList(), null)
+            else if (token.startsWith("np:")) newPipe.comments(videoId, token) ?: app.nocturne.source.CommentsPage(emptyList(), null)
             else innerTube.commentsPage(token)
         }
         commentsCache[videoId]?.let { return it }
@@ -290,16 +311,17 @@ class AppGraph(val engine: AudioEngine) {
             { innerTube.comments(videoId) },
             { newPipe.comments(videoId, null) ?: app.nocturne.source.CommentsPage(emptyList(), null) },
             {
-                val mv = innerTube.musicVideoId(videoId)?.takeIf { it != videoId } ?: throw app.nocturne.source.CommentsDisabledException()
+                val mv = musicVideoOf(videoId) ?: throw app.nocturne.source.CommentsDisabledException()
                 newPipe.comments(mv, null) ?: app.nocturne.source.CommentsPage(emptyList(), null)
             },
-        )
+        ) + altComments.piped.map { h -> suspend { mirror(videoId) { altComments.piped(h, it) } } } +
+            altComments.invidious.map { h -> suspend { mirror(videoId) { altComments.invidious(h, it) } } }
         val out = kotlinx.coroutines.channels.Channel<Result<app.nocturne.source.CommentsPage>>(kotlinx.coroutines.channels.Channel.UNLIMITED)
         val jobs = attempts.map { a -> scope.launch(Dispatchers.Default) { out.send(runCatching { a() }) } }
         try {
             var failure: Throwable? = null
             var empty: app.nocturne.source.CommentsPage? = null
-            val page = withTimeoutOrNull(20_000) {
+            val page = withTimeoutOrNull(18_000) {
                 repeat(attempts.size) {
                     val r = out.receive()
                     val p = r.getOrNull()

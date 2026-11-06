@@ -6,8 +6,8 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 val Changelog = listOf(
     ChangelogEntry(
         "1.10.11",
-        en = listOf("Performance updates and optimisations"),
-        uk = listOf("Оновлення та оптимізація швидкодії"),
+        en = listOf("Performance updates and optimisations", "Comments fixes"),
+        uk = listOf("Оновлення та оптимізація швидкодії", "Виправлення коментарів"),
     ),
     ChangelogEntry(
         "1.10.10",

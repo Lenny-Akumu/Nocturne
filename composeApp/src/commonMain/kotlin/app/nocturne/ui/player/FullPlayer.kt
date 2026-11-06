@@ -293,6 +293,12 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     if (overlays.visualizer) VisualizerScreen { overlays.visualizer = false }
     if (overlays.audio) AudioSheet { overlays.audio = false }
     if (overlays.comments) CommentsSheet(track) { overlays.comments = false }
+    // comments load in the background while the song plays, so the sheet opens with them ready
+    LaunchedEffect(track.key) {
+        if (track.source != app.nocturne.model.Source.YOUTUBE_MUSIC) return@LaunchedEffect
+        kotlinx.coroutines.delay(2500)
+        AppGraph.instance.prefetchComments(track.id)
+    }
 }
 
 @Composable
