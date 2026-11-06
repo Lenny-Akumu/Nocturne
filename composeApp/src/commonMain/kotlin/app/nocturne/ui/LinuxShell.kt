@@ -128,7 +128,11 @@ private fun NavPane() {
     val cs = MaterialTheme.colorScheme
     val library by graph.library.state.collectAsState()
     Column {
-        Text("夜 nocturne", style = Mono.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold, brush = Brush.linearGradient(listOf(Cyan, Pink))))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            NocturneLogo(Modifier.size(24.dp).clip(RoundedCornerShape(7.dp)).clickable { LogoTaps.tap() })
+            Spacer(Modifier.width(8.dp))
+            Text("nocturne", style = Mono.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold, brush = Brush.linearGradient(listOf(Cyan, Pink))))
+        }
         Spacer(Modifier.height(18.dp))
         (sideTabs + settingsTab).forEach { tab ->
             val on = nav.currentTab == tab.screen
