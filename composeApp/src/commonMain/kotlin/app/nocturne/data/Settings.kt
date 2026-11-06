@@ -23,7 +23,7 @@ enum class PlayerBackground(val label: String) { GRADIENT("Gradient"), BLUR("Blu
 enum class WindowBackdrop(val label: String) { MICA("Mica"), MICA_ALT("Mica Alt"), ACRYLIC("Acrylic"), NONE("None") }
 
 @Serializable
-enum class DesignStyle(val label: String) { MATERIAL("Material You 3"), GLASS("Liquid Glass"), WINDOWS("Windows") }
+enum class DesignStyle(val label: String) { MATERIAL("Material You 3"), GLASS("Liquid Glass"), WINDOWS("Windows"), ARCH("Arch") }
 
 fun defaultDesignStyle(): DesignStyle = when (app.nocturne.platformKind) {
     app.nocturne.PlatformKind.IOS -> DesignStyle.GLASS

@@ -230,7 +230,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
                     disabledIndicatorColor = Color.Transparent,
                 )
                 // Fluent TextBox: layer fill, accent underline when focused.
-                DesignStyle.WINDOWS -> TextFieldDefaults.colors(
+                DesignStyle.WINDOWS, DesignStyle.ARCH -> TextFieldDefaults.colors(
                     focusedContainerColor = cs.surfaceContainerLow,
                     unfocusedContainerColor = cs.surfaceContainerHigh,
                     disabledContainerColor = cs.surfaceContainerHigh,

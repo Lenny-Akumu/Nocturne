@@ -246,7 +246,7 @@ fun TransportButton(
         DesignStyle.GLASS -> GlassButton(onClick, enabled, modifier.size(s).padding(if (circle) 4.dp else 0.dp), active = if (circle) 1f else 0f) {
             Glyph(glassIcon, contentDescription, if (circle) iconSize * 0.8f else iconSize, tint)
         }
-        DesignStyle.WINDOWS -> FluentGhost(onClick, contentDescription, modifier.size(s), minOf(s - 8.dp, 44.dp), enabled) {
+        DesignStyle.WINDOWS, DesignStyle.ARCH -> FluentGhost(onClick, contentDescription, modifier.size(s), minOf(s - 8.dp, 44.dp), enabled) {
             Glyph(icon, contentDescription, minOf(iconSize * 0.8f, 28.dp), tint)
         }
     }
@@ -276,7 +276,7 @@ fun ToggleGlyph(checked: Boolean, onClick: () -> Unit, contentDescription: Strin
                 }
             }
         }
-        DesignStyle.WINDOWS -> {
+        DesignStyle.WINDOWS, DesignStyle.ARCH -> {
             val bar by animateDpAsState(if (checked) 14.dp else 0.dp, spring(dampingRatio = 0.6f, stiffness = 500f), label = "bar")
             FluentGhost(onClick, contentDescription, modifier.size(48.dp), 40.dp, enabled) {
                 glyph(if (checked) cs.primary else cs.onSurfaceVariant, 20.dp)
@@ -322,7 +322,7 @@ fun PlayPauseButton(
                 }
             }
         }
-        DesignStyle.WINDOWS -> {
+        DesignStyle.WINDOWS, DesignStyle.ARCH -> {
             val d = if (hero) (if (compact) 48.dp else 56.dp) else size - 4.dp
             val base = accent.takeOrElse { cs.primary }
             val fg = if (accent.isSpecified) (if (base.luminance() > 0.5f) Color.Black else Color.White) else cs.onPrimary
@@ -444,7 +444,7 @@ fun PlayerCard(modifier: Modifier = Modifier, content: @Composable BoxScope.() -
     val dark = LocalDarkTheme.current
     val m = when (LocalDesignStyle.current) {
         DesignStyle.GLASS -> modifier.liquidGlass(RoundedCornerShape(28.dp), elevation = 6.dp)
-        DesignStyle.WINDOWS -> RoundedCornerShape(8.dp).let {
+        DesignStyle.WINDOWS, DesignStyle.ARCH -> RoundedCornerShape(8.dp).let {
             modifier.clip(it).background(if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.7f))
                 .border(1.dp, cs.onSurface.copy(alpha = if (dark) 0.08f else 0.06f), it)
         }

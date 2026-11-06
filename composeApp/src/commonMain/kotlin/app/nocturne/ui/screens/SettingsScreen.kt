@@ -357,7 +357,7 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                         Choice("Font", Icons.Rounded.FormatSize, s.fontStyle, listOf("default", "serif", "mono", "cursive", "minecraft"), {
                             when (it) { "serif" -> "Serif"; "mono" -> "Monospace"; "cursive" -> "Handwritten"; "minecraft" -> "Minecraft"; else -> "Default" }
                         }) { v -> set { it.copy(fontStyle = v) } }
-                        Choice("Design style", Icons.Rounded.BlurOn, s.designStyle, DesignStyle.entries, { it.label }) { v -> set { it.copy(designStyle = v) } }
+                        Choice("Design style", Icons.Rounded.BlurOn, s.designStyle, DesignStyle.entries.filter { it != DesignStyle.ARCH || app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP }, { it.label }) { v -> set { it.copy(designStyle = v) } }
                         Toggle("Pure black", "AMOLED-friendly dark theme", Icons.Rounded.Contrast, s.pureBlack) { v -> set { it.copy(pureBlack = v) } }
                         // desktop follows the monitor through vsync
                         if (!desktop) {

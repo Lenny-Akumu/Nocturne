@@ -196,7 +196,9 @@ private fun AppScaffold() {
         val caption = if (WindowChrome.bar != null) WindowChrome.height else 0.dp
         val wide = maxWidth >= 720.dp
         val hasPlayer = player.current != null
-        if (wide && aurora) {
+        if (wide && LocalDesignStyle.current == app.nocturne.data.DesignStyle.ARCH) {
+            ArchShell(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + caption, onExpand = { nav.playerExpanded = true })
+        } else if (wide && aurora) {
             GlassSource(Modifier.fillMaxSize()) { Row(Modifier.fillMaxSize()) {
                 AuroraDock(nav, top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + if (caption > 0.dp) caption + 2.dp else 12.dp)
                 Box(Modifier.weight(1f).fillMaxHeight()) {
@@ -324,7 +326,7 @@ private fun RailItem(tab: Tab, nav: Navigator) {
 }
 
 @Composable
-private fun ScreenHost(padding: PaddingValues) {
+internal fun ScreenHost(padding: PaddingValues) {
     val nav = AppGraph.instance.navigator
     AnimatedContent(
         targetState = nav.current,

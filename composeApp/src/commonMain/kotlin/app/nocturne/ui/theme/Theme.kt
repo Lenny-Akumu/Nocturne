@@ -56,6 +56,67 @@ private val FluentShapes = Shapes(
     extraLarge = RoundedCornerShape(8.dp),
 )
 
+private val ArchShapes = Shapes(
+    extraSmall = RoundedCornerShape(0.dp),
+    small = RoundedCornerShape(0.dp),
+    medium = RoundedCornerShape(0.dp),
+    large = RoundedCornerShape(0.dp),
+    extraLarge = RoundedCornerShape(0.dp),
+)
+
+// Arch: terminal look, monospace everywhere, flat weights, compact ramp.
+private fun archTypography(): Typography {
+    val mono = androidx.compose.ui.text.font.FontFamily.Monospace
+    val p = Typography()
+    fun TextStyle.tui(size: Int, line: Int, weight: FontWeight = FontWeight.Normal) =
+        copy(fontFamily = mono, fontSize = size.sp, lineHeight = line.sp, fontWeight = weight, letterSpacing = 0.sp)
+    return Typography(
+        displayLarge = p.displayLarge.tui(40, 48, FontWeight.Bold),
+        displayMedium = p.displayMedium.tui(32, 40, FontWeight.Bold),
+        displaySmall = p.displaySmall.tui(28, 36, FontWeight.Bold),
+        headlineLarge = p.headlineLarge.tui(24, 32, FontWeight.Bold),
+        headlineMedium = p.headlineMedium.tui(22, 30, FontWeight.Bold),
+        headlineSmall = p.headlineSmall.tui(18, 26, FontWeight.Bold),
+        titleLarge = p.titleLarge.tui(17, 24, FontWeight.Bold),
+        titleMedium = p.titleMedium.tui(14, 20, FontWeight.Bold),
+        titleSmall = p.titleSmall.tui(13, 19, FontWeight.Bold),
+        bodyLarge = p.bodyLarge.tui(14, 21),
+        bodyMedium = p.bodyMedium.tui(13, 20),
+        bodySmall = p.bodySmall.tui(12, 17),
+        labelLarge = p.labelLarge.tui(13, 19),
+        labelMedium = p.labelMedium.tui(12, 17),
+        labelSmall = p.labelSmall.tui(11, 15),
+    )
+}
+
+// Gruvbox: warm terminal palette; a user-picked accent replaces the yellow.
+private fun archColorScheme(base: ColorScheme, dark: Boolean, accent: Color?): ColorScheme {
+    val bg = if (dark) Color(0xFF282828) else Color(0xFFFBF1C7)
+    val bg1 = if (dark) Color(0xFF32302F) else Color(0xFFF2E5BC)
+    val bg2 = if (dark) Color(0xFF3C3836) else Color(0xFFEBDBB2)
+    val bg3 = if (dark) Color(0xFF504945) else Color(0xFFD5C4A1)
+    val fg = if (dark) Color(0xFFEBDBB2) else Color(0xFF3C3836)
+    val fg2 = if (dark) Color(0xFFA89984) else Color(0xFF7C6F64)
+    val yellow = accent ?: if (dark) Color(0xFFFABD2F) else Color(0xFFB57614)
+    val orange = if (dark) Color(0xFFFE8019) else Color(0xFFAF3A03)
+    val aqua = if (dark) Color(0xFF8EC07C) else Color(0xFF427B58)
+    val red = if (dark) Color(0xFFFB4934) else Color(0xFF9D0006)
+    val ink = if (dark) Color(0xFF282828) else Color(0xFFFBF1C7)
+    return base.copy(
+        primary = yellow, onPrimary = ink, primaryContainer = bg2, onPrimaryContainer = yellow, inversePrimary = yellow,
+        secondary = orange, onSecondary = ink, secondaryContainer = bg2, onSecondaryContainer = orange,
+        tertiary = aqua, onTertiary = ink, tertiaryContainer = bg2, onTertiaryContainer = aqua,
+        background = bg, onBackground = fg, surface = bg, onSurface = fg,
+        surfaceVariant = bg2, onSurfaceVariant = fg2, surfaceTint = Color.Transparent,
+        inverseSurface = fg, inverseOnSurface = bg,
+        error = red, onError = ink, errorContainer = bg2, onErrorContainer = red,
+        outline = Color(0xFF928374), outlineVariant = bg3, scrim = Color.Black,
+        surfaceBright = bg2, surfaceDim = bg,
+        surfaceContainerLowest = bg, surfaceContainerLow = bg1, surfaceContainer = bg1,
+        surfaceContainerHigh = bg2, surfaceContainerHighest = bg3,
+    )
+}
+
 private fun fontFamilyOf(font: String) = platformFontFamily(font) ?: when (font) {
     "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
     "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
@@ -243,14 +304,23 @@ fun NocturneTheme(
     if (style != DesignStyle.MATERIAL && seedOverride == null) {
         // Keep a user-picked accent, default to the icon violet.
         val accent = if (settings.accentColor != DefaultAccent) Color(settings.accentColor) else if (dark) IconVioletDark else IconViolet
-        scheme = if (style == DesignStyle.GLASS) iosColorScheme(scheme, dark, accent) else fluentColorScheme(scheme, dark, accent, dark && settings.pureBlack)
+        scheme = when (style) {
+            DesignStyle.GLASS -> iosColorScheme(scheme, dark, accent)
+            DesignStyle.ARCH -> archColorScheme(scheme, dark, Color(settings.accentColor).takeIf { settings.accentColor != DefaultAccent })
+            else -> fluentColorScheme(scheme, dark, accent, dark && settings.pureBlack)
+        }
     }
     val typography = when (style) {
         DesignStyle.GLASS -> iosTypography(settings.fontStyle)
         DesignStyle.WINDOWS -> fluentTypography(settings.fontStyle)
+        DesignStyle.ARCH -> archTypography()
         DesignStyle.MATERIAL -> nocturneTypography(settings.fontStyle)
     }
-    val shapes = if (style == DesignStyle.WINDOWS) FluentShapes else NocturneShapes
+    val shapes = when (style) {
+        DesignStyle.WINDOWS -> FluentShapes
+        DesignStyle.ARCH -> ArchShapes
+        else -> NocturneShapes
+    }
     CompositionLocalProvider(
         LocalDarkTheme provides dark, LocalBackdrop provides backdrop, LocalDesignStyle provides style,
         LocalPixelIcons provides (settings.fontStyle == "minecraft"),

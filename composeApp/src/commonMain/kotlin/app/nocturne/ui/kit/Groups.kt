@@ -50,12 +50,12 @@ fun GroupedColumn(modifier: Modifier = Modifier, side: Dp = 16.dp, segmented: Bo
         DesignStyle.GLASS -> cs.surfaceContainerLow
         DesignStyle.MATERIAL -> cs.surfaceContainerHigh
         // WinUI CardBackgroundFillColorDefault: works on the page and on sheets.
-        DesignStyle.WINDOWS -> if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.7f)
+        DesignStyle.WINDOWS, DesignStyle.ARCH -> if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.7f)
     }
     val stroke = if (style == DesignStyle.WINDOWS) cs.outlineVariant else null
     val sep = cs.outlineVariant
     val hair = if (style == DesignStyle.GLASS) 0.5.dp else 1.dp
-    val outer = when (style) { DesignStyle.GLASS -> 22.dp; DesignStyle.MATERIAL -> 20.dp; DesignStyle.WINDOWS -> 8.dp }
+    val outer = when (style) { DesignStyle.GLASS -> 22.dp; DesignStyle.MATERIAL -> 20.dp; DesignStyle.WINDOWS, DesignStyle.ARCH -> 8.dp }
     val inner = if (!split) 0.dp else if (style == DesignStyle.WINDOWS) 8.dp else 4.dp
     val gap = if (!split) 0.dp else if (style == DesignStyle.WINDOWS) 4.dp else 2.dp
     SubcomposeLayout(modifier) { constraints ->
@@ -133,7 +133,7 @@ fun OptionHeader(title: String, modifier: Modifier = Modifier, icon: ImageVector
     val pad = when (style) {
         DesignStyle.GLASS -> PaddingValues(start = side + 16.dp, end = side + 16.dp, top = 24.dp, bottom = 7.dp)
         DesignStyle.MATERIAL -> PaddingValues(start = side + 16.dp, end = side + 16.dp, top = 20.dp, bottom = 8.dp)
-        DesignStyle.WINDOWS -> PaddingValues(start = side + 4.dp, end = side + 4.dp, top = 20.dp, bottom = 8.dp)
+        DesignStyle.WINDOWS, DesignStyle.ARCH -> PaddingValues(start = side + 4.dp, end = side + 4.dp, top = 20.dp, bottom = 8.dp)
     }
     Row(modifier.fillMaxWidth().padding(pad), verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
@@ -144,7 +144,7 @@ fun OptionHeader(title: String, modifier: Modifier = Modifier, icon: ImageVector
             DesignStyle.GLASS -> Text(title.uppercase(), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
             DesignStyle.MATERIAL -> Text(title, style = MaterialTheme.typography.labelLarge, color = cs.primary)
             // Fluent BodyStrong section title.
-            DesignStyle.WINDOWS -> Text(title, style = MaterialTheme.typography.titleSmall, color = cs.onSurface)
+            DesignStyle.WINDOWS, DesignStyle.ARCH -> Text(title, style = MaterialTheme.typography.titleSmall, color = cs.onSurface)
         }
     }
 }
