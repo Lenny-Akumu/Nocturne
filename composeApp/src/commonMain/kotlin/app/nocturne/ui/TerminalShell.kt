@@ -124,7 +124,7 @@ private fun TermBox(
     val cs = MaterialTheme.colorScheme
     Box(modifier.padding(top = 11.dp)) {
         Box(Modifier.matchParentSize().border(1.dp, cs.outline, RoundedCornerShape(10.dp)))
-        Box(Modifier.fillMaxSize().padding(if (pad) PaddingValues(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 10.dp) else PaddingValues(start = 2.dp, end = 2.dp, top = 14.dp, bottom = 2.dp)), content = content)
+        Box(Modifier.fillMaxWidth().padding(if (pad) PaddingValues(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 10.dp) else PaddingValues(start = 2.dp, end = 2.dp, top = 14.dp, bottom = 2.dp)), content = content)
         Row(Modifier.fillMaxWidth().offset(y = (-11).dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = color, modifier = Modifier.background(cs.background).padding(horizontal = 6.dp))
             if (header != null) {
