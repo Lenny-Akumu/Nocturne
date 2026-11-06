@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import app.nocturne.ui.kit.Icon
@@ -457,10 +458,10 @@ fun PlayerCard(modifier: Modifier = Modifier, content: @Composable BoxScope.() -
 @Composable
 fun ShuffleButton(state: app.nocturne.player.PlayerState, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
-    if (!state.smartShuffle) ToggleGlyph(state.shuffle, onClick, androidx.compose.material.icons.Icons.Rounded.Shuffle, "Shuffle", modifier)
+    if (!state.smartShuffle) ToggleGlyph(state.shuffle, onClick, Icons.Rounded.Shuffle, "Shuffle", modifier)
     else ToggleGlyph(true, onClick, "Smart shuffle", modifier) { _, size ->
         androidx.compose.foundation.layout.Box(Modifier.size(size + 14.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary), contentAlignment = Alignment.Center) {
-            Icon(androidx.compose.material.icons.Icons.Rounded.Shuffle, null, Modifier.size(size), tint = cs.onPrimary)
+            Icon(Icons.Rounded.Shuffle, null, Modifier.size(size), tint = cs.onPrimary)
             SparkleStar(cs.onPrimary, Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 3.dp).size(size * 0.42f))
         }
     }
