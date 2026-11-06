@@ -1,5 +1,6 @@
 package app.nocturne.ui
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
