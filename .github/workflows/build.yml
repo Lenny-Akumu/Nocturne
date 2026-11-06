@@ -34,6 +34,8 @@ jobs:
   android:
     name: Android APK
     needs: meta
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -97,10 +99,21 @@ jobs:
         with:
           name: Nocturne-android
           path: out/*.apk
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ needs.meta.outputs.version }}"
+          for i in $(seq 1 60); do gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break; sleep 20; done
+          gh release upload "$tag" out/*.apk -R "$GITHUB_REPOSITORY" --clobber
 
   windows:
     name: Windows installer
     needs: meta
+    permissions:
+      contents: write
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -195,10 +208,21 @@ jobs:
         with:
           name: Nocturne-windows
           path: dist/*
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ needs.meta.outputs.version }}"
+          for i in $(seq 1 60); do gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break; sleep 20; done
+          gh release upload "$tag" dist/* -R "$GITHUB_REPOSITORY" --clobber
 
   linux:
     name: Linux build
     needs: meta
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -232,6 +256,15 @@ jobs:
         with:
           name: Nocturne-linux
           path: dist/*
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ needs.meta.outputs.version }}"
+          for i in $(seq 1 60); do gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break; sleep 20; done
+          gh release upload "$tag" dist/* -R "$GITHUB_REPOSITORY" --clobber
 
   ios:
     name: iOS app
@@ -310,7 +343,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="v${{ needs.meta.outputs.version }}"
-          for i in $(seq 1 60); do gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break; sleep 30; done
+          for i in $(seq 1 60); do gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break; sleep 20; done
           gh release upload "$tag" out/*.ipa -R "$GITHUB_REPOSITORY" --clobber
       - name: Screenshots in the iPhone simulator
         continue-on-error: true
@@ -345,15 +378,12 @@ jobs:
 
   release:
     name: GitHub release
-    if: always() && needs.android.result == 'success' && needs.windows.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release))
-    needs: [meta, android, windows, linux]
+    if: (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release))
+    needs: [meta]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
       - name: Turn the old release into this hotfix
         if: github.event_name == 'workflow_dispatch' && inputs.replace != ''
         env:
@@ -367,11 +397,6 @@ jobs:
           done
       - uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/**/*.apk
-            dist/**/*.exe
-            dist/**/*.tar.gz
-            dist/**/*.ipa
           tag_name: v${{ needs.meta.outputs.version }}
           name: Nocturne ${{ needs.meta.outputs.version }}
           target_commitish: ${{ github.sha }}
