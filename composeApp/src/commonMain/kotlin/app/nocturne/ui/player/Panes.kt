@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -88,6 +89,7 @@ fun LyricsView() {
     val l = lyrics
     when {
         loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        (l == null || l.isEmpty) && wantsLiveText(track) -> LiveTranscriptView(track)
         l == null || l.isEmpty -> MessageBox(Icons.Rounded.Lyrics, "No lyrics found", "We couldn't find lyrics for this song.")
         !l.synced.isNullOrEmpty() -> {
             val lines = l.synced
@@ -183,12 +185,15 @@ fun QueueView() {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             itemsIndexed(state.queue, key = { i, _ -> keys[i] }) { i, qt ->
                 val dim by androidx.compose.animation.core.animateFloatAsState(if (i < state.index) 0.5f else 1f, label = "played")
-                TrackRow(
-                    qt,
-                    onClick = { graph.player.skipTo(i) },
-                    modifier = rowMotion().alpha(dim),
-                    menuContext = TrackMenuContext(queueIndex = i),
-                )
+                androidx.compose.foundation.layout.Box(rowMotion().alpha(dim)) {
+                    TrackRow(
+                        qt,
+                        onClick = { graph.player.skipTo(i) },
+                        menuContext = TrackMenuContext(queueIndex = i),
+                    )
+                    // smart shuffle picks carry a small star
+                    if (qt.key in state.smartPicks) SparkleStar(MaterialTheme.colorScheme.primary, Modifier.align(Alignment.TopStart).padding(start = 6.dp, top = 6.dp).size(12.dp))
+                }
             }
             item {
                 Row(

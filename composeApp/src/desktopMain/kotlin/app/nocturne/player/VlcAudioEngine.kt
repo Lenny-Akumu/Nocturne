@@ -53,6 +53,9 @@ class VlcAudioEngine : AudioEngine {
 
     override fun levels(): FloatArray? = if (dspActive) dsp.analyzer.levels() else null
 
+    @Volatile private var pcmTap: ((FloatArray, Int) -> Unit)? = null
+    override fun setPcmTap(tap: ((FloatArray, Int) -> Unit)?) { pcmTap = tap }
+
     private val events = object : MediaPlayerEventAdapter() {
         override fun playing(mediaPlayer: MediaPlayer) {
             if (mediaPlayer !== player) return
@@ -134,6 +137,7 @@ class VlcAudioEngine : AudioEngine {
         private var shorts = ShortArray(0)
         private var floats = FloatArray(0)
         private var bytes = ByteArray(0)
+        private var mono = FloatArray(0)
         val vari = VariSpeed()
 
         fun open(): Boolean = line != null || runCatching {
@@ -148,6 +152,17 @@ class VlcAudioEngine : AudioEngine {
             if (shorts.size < n) { shorts = ShortArray(n); floats = FloatArray(n); bytes = ByteArray(n * 2) }
             samples.read(0, shorts, 0, n)
             for (i in 0 until n) floats[i] = shorts[i] / 32768f
+            pcmTap?.let { tap ->
+                // 48 kHz stereo -> 16 kHz mono for speech recognition
+                val m = sampleCount / 3
+                if (mono.size < m) mono = FloatArray(m)
+                for (k in 0 until m) {
+                    var acc = 0f
+                    for (j in 0 until 3) { val f = (k * 3 + j) * 2; acc += floats[f] + floats[f + 1] }
+                    mono[k] = acc / 6f
+                }
+                runCatching { tap(mono, m) }
+            }
             // VLC never flushed for the committed rate: assume it switched seamlessly
             if (pendingRate && System.nanoTime() - rateAt > 600_000_000L) rateSwitched()
             val frames = vari.process(floats, sampleCount)

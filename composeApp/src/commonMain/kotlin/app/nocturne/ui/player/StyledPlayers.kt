@@ -245,7 +245,8 @@ private fun LyricList(track: Track, pos: Long, now: Color, idle: Color, sub: Col
     val st = rememberLyricState(track, pos)
     val list = rememberLazyListState()
     if (st == null) {
-        Text(t("No lyrics"), color = idle, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
+        if (wantsLiveText(track)) LiveTranscriptView(track, modifier)
+        else Text(t("No lyrics"), color = idle, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
         return
     }
     LaunchedEffect(st.current) { if (st.current > 1) list.animateScrollToItem(st.current - 1) }
@@ -393,7 +394,7 @@ private fun LinuxControls(track: Track) {
             Text(clock(state.durationMs), color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelMedium)
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            SmallIcon(Icons.Rounded.Shuffle, t("Shuffle"), if (state.shuffle) LPink else Color.White.copy(alpha = 0.7f)) { p.toggleShuffle() }
+            ShuffleButton(state, { p.toggleShuffle() })
             Spacer(Modifier.width(26.dp))
             SmallIcon(Icons.Rounded.SkipPrevious, t("Previous"), Color.White, size = 32.dp) { p.previous() }
             Spacer(Modifier.width(26.dp))
@@ -477,7 +478,7 @@ private fun ArchPlayer(onCollapse: () -> Unit) {
                             }
                             val liked = library.liked.any { it.key == track.key }
                             androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                ArchToggle("z", t("shuffle"), state.shuffle) { p.toggleShuffle() }
+                                ArchToggle("z", if (state.smartShuffle) "✦ " + t("smart shuffle") else t("shuffle"), state.shuffle) { p.toggleShuffle() }
                                 ArchToggle("r", t("repeat") + when (state.repeat) { RepeatMode.ONE -> ":one"; RepeatMode.OFF -> ":off"; else -> ":all" }, state.repeat != RepeatMode.OFF) { p.cycleRepeat() }
                                 ArchToggle("♥", if (liked) t("liked") else t("like"), liked, GRed) { graph.toggleLike(track) }
                                 ArchToggle("e", t("eq") + if (settings.playbackSpeed != 1f) " ${settings.playbackSpeed}x" else "", settings.eqEnabled) { overlays.audio = true }
@@ -576,7 +577,7 @@ private fun TerminalPlayer(onCollapse: () -> Unit) {
                         app.nocturne.ui.BlockBar(state.positionMs, state.durationMs, state.isPlaying, onToggle = { p.toggle() }) { p.seekTo(it) }
                         val liked = library.liked.any { it.key == track.key }
                         Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            SmallIcon(Icons.Rounded.Shuffle, t("Shuffle"), if (state.shuffle) TGreen else cs.onSurfaceVariant) { p.toggleShuffle() }
+                            ShuffleButton(state, { p.toggleShuffle() })
                             SmallIcon(Icons.Rounded.SkipPrevious, t("Previous"), cs.onSurface) { p.previous() }
                             SmallIcon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t("Play"), TGreen) { p.toggle() }
                             SmallIcon(Icons.Rounded.SkipNext, t("Next"), cs.onSurface) { p.next() }

@@ -452,3 +452,35 @@ fun PlayerCard(modifier: Modifier = Modifier, content: @Composable BoxScope.() -
     }
     Box(m, contentAlignment = Alignment.Center, content = content)
 }
+
+/** Shuffle toggle; on smart shuffle it fills with the accent colour and gets a small four-point star. */
+@Composable
+fun ShuffleButton(state: app.nocturne.player.PlayerState, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    if (!state.smartShuffle) ToggleGlyph(state.shuffle, onClick, androidx.compose.material.icons.Icons.Rounded.Shuffle, "Shuffle", modifier)
+    else ToggleGlyph(true, onClick, "Smart shuffle", modifier) { _, size ->
+        androidx.compose.foundation.layout.Box(Modifier.size(size + 14.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary), contentAlignment = Alignment.Center) {
+            Icon(androidx.compose.material.icons.Icons.Rounded.Shuffle, null, Modifier.size(size), tint = cs.onPrimary)
+            SparkleStar(cs.onPrimary, Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 3.dp).size(size * 0.42f))
+        }
+    }
+}
+
+@Composable
+fun SparkleStar(color: Color, modifier: Modifier) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val c = androidx.compose.ui.geometry.Offset(w / 2, h / 2)
+        val k = 0.18f
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(c.x, 0f)
+            quadraticTo(c.x + w * k, c.y - h * k, w, c.y)
+            quadraticTo(c.x + w * k, c.y + h * k, c.x, h)
+            quadraticTo(c.x - w * k, c.y + h * k, 0f, c.y)
+            quadraticTo(c.x - w * k, c.y - h * k, c.x, 0f)
+            close()
+        }
+        drawPath(path, color)
+    }
+}

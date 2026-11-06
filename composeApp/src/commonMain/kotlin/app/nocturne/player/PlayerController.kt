@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,9 @@ data class PlayerState(
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val shuffle: Boolean = false,
+    /** Smart shuffle: recommendations mixed into the shuffled queue, marked by key. */
+    val smartShuffle: Boolean = false,
+    val smartPicks: Set<String> = emptySet(),
     val repeat: RepeatMode = RepeatMode.OFF,
     val error: String? = null,
     val sleepAtMs: Long? = null,
@@ -156,7 +160,7 @@ class PlayerController(
             val first = filtered[start]
             listOf(first) + (filtered - first).shuffled()
         } else filtered
-        _state.update { it.copy(queue = queue, index = if (shuffle) 0 else start, shuffle = shuffle, queueTitle = title, error = null) }
+        _state.update { it.copy(queue = queue, index = if (shuffle) 0 else start, shuffle = shuffle, smartShuffle = false, smartPicks = emptySet(), queueTitle = title, error = null) }
         loadCurrent(0, true)
     }
 
@@ -166,7 +170,7 @@ class PlayerController(
     fun playSynced(track: Track, title: String, playing: Boolean, startAt: () -> Long) {
         originalOrder = listOf(track)
         synced = true
-        _state.update { it.copy(queue = listOf(track), index = 0, shuffle = false, queueTitle = title, error = null) }
+        _state.update { it.copy(queue = listOf(track), index = 0, shuffle = false, smartShuffle = false, smartPicks = emptySet(), queueTitle = title, error = null) }
         loadCurrent(startAt(), playing, startAt)
     }
 
@@ -175,7 +179,7 @@ class PlayerController(
         if (tracks.isEmpty()) return
         originalOrder = tracks
         synced = false
-        _state.update { it.copy(queue = tracks, index = index.coerceIn(0, tracks.lastIndex), shuffle = false, queueTitle = title, error = null) }
+        _state.update { it.copy(queue = tracks, index = index.coerceIn(0, tracks.lastIndex), shuffle = false, smartShuffle = false, smartPicks = emptySet(), queueTitle = title, error = null) }
         loadCurrent(startMs.coerceAtLeast(0), playWhenReady)
     }
 
@@ -340,7 +344,21 @@ class PlayerController(
         seekTo((pos + deltaMs).coerceIn(0, dur.coerceAtLeast(0)))
     }
 
+    private var smartJob: kotlinx.coroutines.Job? = null
+
+    /** off -> shuffle -> smart shuffle -> off. */
     fun toggleShuffle() {
+        val s0 = _state.value
+        if (s0.shuffle && !s0.smartShuffle && s0.current != null && s0.queue.size > 1) { startSmartShuffle(); return }
+        if (s0.smartShuffle) {
+            smartJob?.cancel()
+            _state.update { s ->
+                val picks = s.smartPicks
+                val cur = s.current
+                val q = s.queue.filterIndexed { i, t -> i == s.index || t.key !in picks }
+                s.copy(queue = q, index = cur?.let { c -> q.indexOfFirst { it.key == c.key } }?.coerceAtLeast(0) ?: 0, smartShuffle = false, smartPicks = emptySet())
+            }
+        }
         _state.update { s ->
             val cur = s.current ?: return@update s.copy(shuffle = !s.shuffle)
             if (!s.shuffle) {
@@ -353,6 +371,40 @@ class PlayerController(
             }
         }
         queueChanged()
+    }
+
+    // Like Spotify: shuffle the queue and slip in a fitting recommendation after every few songs.
+    private fun startSmartShuffle() {
+        _state.update { it.copy(smartShuffle = true) }
+        queueChanged()
+        smartJob?.cancel()
+        smartJob = scope.launch {
+            val st = _state.value
+            val have = st.queue.map { it.key }.toSet()
+            val seeds = st.queue.shuffled().take(6)
+            val found = withContext(Dispatchers.Default) {
+                seeds.map { seed -> async { runCatching { providers[seed.source]?.related(seed).orEmpty() }.getOrDefault(emptyList()) } }.awaitAll()
+            }
+            // round-robin across seeds so one artist doesn't take over
+            val picks = mutableListOf<Track>()
+            val seen = have.toMutableSet()
+            val max = found.maxOfOrNull { it.size } ?: 0
+            for (i in 0 until max) for (l in found) l.getOrNull(i)?.let { t -> if (seen.add(t.key) && !library.isBlocked(t)) picks += t }
+            if (picks.isEmpty()) return@launch
+            _state.update { s ->
+                if (!s.smartShuffle) return@update s
+                val out = s.queue.take(s.index + 1).toMutableList()
+                val rest = s.queue.drop(s.index + 1)
+                var p = 0
+                rest.forEachIndexed { i, t ->
+                    out += t
+                    if (i % 3 == 2 && p < picks.size) out += picks[p++]
+                }
+                while (p < picks.size && p < 3 + rest.size / 3) out += picks[p++]
+                s.copy(queue = out, smartPicks = picks.take(p).map { it.key }.toSet())
+            }
+            queueChanged()
+        }
     }
 
     fun cycleRepeat() {

@@ -110,6 +110,8 @@ kotlin {
             implementation(libs.jna)
             implementation(libs.jna.platform)
             implementation("com.google.zxing:core:3.5.3")
+            // offline speech-to-text for radio and podcasts
+            implementation("io.github.givimad:whisper-jni:1.7.1")
             // MPRIS (media keys / panel controls) on Linux
             implementation("com.github.hypfvieh:dbus-java-core:5.2.2")
             implementation("com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.2.2")

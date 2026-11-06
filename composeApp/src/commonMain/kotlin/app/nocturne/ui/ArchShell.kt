@@ -219,7 +219,7 @@ private fun ArchPlayback() {
                 Text("vol ", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 app.nocturne.ui.player.BlockMeter(settings.volume, { p.setVolume(it) }, cs.tertiary, cs.outline.copy(alpha = 0.5f), Modifier.width(110.dp), cells = 10)
                 Text(" ${(settings.volume * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
-                Text("  ⤮", color = if (player.shuffle) cs.secondary else cs.onSurfaceVariant, modifier = Modifier.clickable { p.toggleShuffle() })
+                Text(if (player.smartShuffle) "  ⤮✦" else "  ⤮", color = if (player.shuffle) cs.secondary else cs.onSurfaceVariant, modifier = Modifier.clickable { p.toggleShuffle() })
                 Text(" " + if (player.repeat == RepeatMode.ONE) "⟳¹" else "⟳", color = if (player.repeat != RepeatMode.OFF) cs.secondary else cs.onSurfaceVariant, modifier = Modifier.clickable { p.cycleRepeat() })
             }
             Text(

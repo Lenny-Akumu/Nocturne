@@ -202,7 +202,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     val overlays = remember { Overlays() }
     var noLyrics by remember(track.key) { mutableStateOf(false) }
     LaunchedEffect(track.key, settings.showLyrics) {
-        if (settings.showLyrics) noLyrics = runCatching { graph.lyrics.lyrics(track).isEmpty }.getOrDefault(true)
+        if (settings.showLyrics) noLyrics = !wantsLiveText(track) && runCatching { graph.lyrics.lyrics(track).isEmpty }.getOrDefault(true)
     }
     LaunchedEffect(noLyrics) { if (noLyrics && pane == Pane.LYRICS) pane = Pane.QUEUE }
     LaunchedEffect(Unit) {
@@ -441,7 +441,7 @@ private fun TransportRow(modifier: Modifier, compact: Boolean) {
     val graph = AppGraph.instance
     val state by graph.player.state.collectAsState()
     Row(modifier, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        ToggleGlyph(state.shuffle, { graph.player.toggleShuffle() }, Icons.Rounded.Shuffle, "Shuffle")
+        ShuffleButton(state, { graph.player.toggleShuffle() })
         TransportButton(Icons.Rounded.SkipPrevious, "Previous", graph.player::previous, size = 56.dp, iconSize = 38.dp, glassIcon = Icons.Rounded.FastRewind)
         PlayPauseButton(state.isPlaying, graph.player::toggle, buffering = state.isBuffering, hero = true, compact = compact)
         TransportButton(Icons.Rounded.SkipNext, "Next", graph.player::next, size = 56.dp, iconSize = 38.dp, glassIcon = Icons.Rounded.FastForward)

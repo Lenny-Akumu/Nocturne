@@ -189,7 +189,7 @@ private fun NowColumn(onExpand: () -> Unit) {
             Text(clock(player.durationMs), style = Mono, color = cs.onSurfaceVariant)
         }
         Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Icon(Icons.Rounded.Shuffle, t("Shuffle"), Modifier.size(22.dp).clickable { p.toggleShuffle() }, tint = if (player.shuffle) Cyan else cs.onSurfaceVariant)
+            app.nocturne.ui.player.ShuffleButton(player, { p.toggleShuffle() })
             Icon(Icons.Rounded.SkipPrevious, t("Previous"), Modifier.size(28.dp).clickable { p.previous() }, tint = cs.onSurface)
             Box(
                 Modifier.size(58.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Cyan, Pink))).clickable { p.toggle() },
