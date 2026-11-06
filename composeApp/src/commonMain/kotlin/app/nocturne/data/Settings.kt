@@ -190,6 +190,8 @@ data class Settings(
     val podcastSpeed: Float = 1f,
     /** Radio: country code ("" = content country), favourites and recently played stations. */
     val radioCountry: String = "",
+    /** First-run setup finished (bumped when the setup gains steps worth showing again). */
+    val onboarded: Int = 0,
     val radioFavorites: List<RadioStation> = emptyList(),
     val radioRecent: List<RadioStation> = emptyList(),
     /** Achievement id -> unlock time. */

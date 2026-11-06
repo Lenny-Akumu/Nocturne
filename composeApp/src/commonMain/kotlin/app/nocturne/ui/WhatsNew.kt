@@ -33,7 +33,7 @@ fun WhatsNewDialog() {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val seen = settings.lastSeenVersion
-    if (seen == BuildInfo.VERSION || Demo.enabled) return
+    if (seen == BuildInfo.VERSION || Demo.enabled || settings.onboarded < ONBOARDING) return
     // older builds didn't record this: if there's listening data it's an update, not a fresh install
     val lib = graph.library.state.value
     val updated = seen.isNotEmpty() || lib.history.isNotEmpty() || lib.liked.isNotEmpty()

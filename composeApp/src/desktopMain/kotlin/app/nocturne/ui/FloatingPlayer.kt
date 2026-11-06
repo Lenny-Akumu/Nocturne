@@ -237,10 +237,14 @@ fun FloatingPlayerWindow() {
                     else -> Alignment.TopCenter
                 }
                 Box(Modifier.fillMaxSize(), contentAlignment = align) {
+                    val pulse by androidx.compose.animation.core.rememberInfiniteTransition(label = "hl").animateFloat(
+                        0.25f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(450), androidx.compose.animation.core.RepeatMode.Reverse), label = "hl",
+                    )
                     val pillModifier = Modifier
                         .wrapContentSize(align, unbounded = true)
                         .padding(4.dp)
                         .onSizeChanged { pillPx.value = it }
+                        .then(if (FloatingEdit.highlight) Modifier.border(3.dp, Color(0xFFEE66FF).copy(alpha = pulse), RoundedCornerShape(34.dp)) else Modifier)
                     if (editing) {
                         WindowDraggableArea(Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp)).background(Color(0x55000000))) {
                             Box(Modifier.fillMaxSize(), contentAlignment = align) { Box(pillModifier) { Pill(interactive = false, window = null, canOpen = false) {} } }
@@ -254,6 +258,8 @@ fun FloatingPlayerWindow() {
                             },
                             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
                         ) { Text(t("Done")) }
+                    } else if (FloatingEdit.preview && graph.player.state.value.current == null) {
+                        Box(pillModifier) { Pill(interactive = false, window = null, canOpen = false) {} }
                     } else if (hidden) {
                         HiddenTab(edge, tabIn.value) {
                             scope.launch {

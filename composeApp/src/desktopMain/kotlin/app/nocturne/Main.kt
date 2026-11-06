@@ -141,7 +141,7 @@ private fun launchApp() {
         }
         val playing by graph.player.state.collectAsState()
         val panel = PanelWidget.supported && settings.floatingMode == 1 && settings.floatingPlayer
-        if (settings.floatingPlayer && !panel && (playing.current != null || app.nocturne.ui.FloatingEdit.editing)) app.nocturne.ui.FloatingPlayerWindow()
+        if (settings.floatingPlayer && !panel && (playing.current != null || app.nocturne.ui.FloatingEdit.editing || app.nocturne.ui.FloatingEdit.preview)) app.nocturne.ui.FloatingPlayerWindow()
         if (PanelWidget.supported) {
             LaunchedEffect(panel, settings.floatingButtons) {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {

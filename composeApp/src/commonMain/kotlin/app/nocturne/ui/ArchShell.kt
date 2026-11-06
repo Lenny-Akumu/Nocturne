@@ -58,10 +58,12 @@ internal fun ArchShell(top: Dp, onExpand: () -> Unit) {
     val graph = AppGraph.instance
     val nav = graph.navigator
     val cs = MaterialTheme.colorScheme
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    val compact = maxWidth < 1000.dp
     Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = top + 10.dp, bottom = 12.dp)) {
         ArchHeader()
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.width(230.dp).fillMaxHeight()) {
+            Column(Modifier.width(if (compact) 190.dp else 230.dp).fillMaxHeight()) {
                 TuiBox("[1] ${t("browse")}") {
                     Column {
                         (tabs + settingsTab).forEach { tab ->
@@ -85,12 +87,13 @@ internal fun ArchShell(top: Dp, onExpand: () -> Unit) {
             TuiBox("[3] ${t(title).lowercase()}", Modifier.weight(1f).fillMaxHeight(), focused = true, pad = false) {
                 ScreenHost(PaddingValues(top = 4.dp, bottom = 12.dp))
             }
-            Column(Modifier.width(320.dp).fillMaxHeight()) {
+            if (!compact) Column(Modifier.width(if (maxWidth < 1250.dp) 270.dp else 320.dp).fillMaxHeight()) {
                 ArchNow(onExpand)
                 ArchLyrics(Modifier.weight(1f).fillMaxWidth())
             }
         }
         ArchPlayback()
+    }
     }
 }
 
@@ -239,7 +242,7 @@ private fun ArchPlayback() {
 }
 
 @Composable
-private fun SeekLine(pos: Long, dur: Long, modifier: Modifier, onSeek: (Long) -> Unit) {
+internal fun SeekLine(pos: Long, dur: Long, modifier: Modifier, onSeek: (Long) -> Unit) {
     val cs = MaterialTheme.colorScheme
     val frac = if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
     var drag by remember { mutableStateOf<Float?>(null) }

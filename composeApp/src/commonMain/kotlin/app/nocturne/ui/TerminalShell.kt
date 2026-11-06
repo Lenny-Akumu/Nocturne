@@ -67,8 +67,10 @@ private val PeachC = Color(0xFFFAB387)
 @Composable
 internal fun TerminalShell(top: Dp, onExpand: () -> Unit) {
     val nav = AppGraph.instance.navigator
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    val compact = maxWidth < 1000.dp
     Column(Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = top + 16.dp, bottom = 12.dp)) {
-        Hero(onExpand)
+        Hero(onExpand, if (compact) 130.dp else 190.dp)
         Spacer(Modifier.height(8.dp))
         Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             val title = (tabs + settingsTab).firstOrNull { it.screen == nav.currentTab }?.label ?: "Nocturne"
@@ -76,7 +78,7 @@ internal fun TerminalShell(top: Dp, onExpand: () -> Unit) {
                 ScreenHost(PaddingValues(top = 4.dp, bottom = 10.dp))
             }
             TermBox("² " + t("queue"), PinkC, Modifier.weight(1f).fillMaxHeight()) { Queue() }
-            Column(Modifier.weight(0.9f).fillMaxHeight()) {
+            if (!compact) Column(Modifier.weight(0.9f).fillMaxHeight()) {
                 TermBox("³ " + t("lyrics"), MauveC, Modifier.weight(1f).fillMaxWidth()) { LyricLines() }
                 TermBox("⁴ " + t("session"), Teal, Modifier.fillMaxWidth()) { Session() }
             }
@@ -90,6 +92,7 @@ internal fun TerminalShell(top: Dp, onExpand: () -> Unit) {
             },
             style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp),
         )
+    }
     }
 }
 
@@ -133,14 +136,14 @@ private fun TermBox(
 }
 
 @Composable
-private fun Hero(onExpand: () -> Unit) {
+private fun Hero(onExpand: () -> Unit, art: Dp) {
     val graph = AppGraph.instance
     val p = graph.player
     val cs = MaterialTheme.colorScheme
     val player by p.state.collectAsState()
     val track = player.current
-    Row(Modifier.fillMaxWidth().height(190.dp), verticalAlignment = Alignment.Bottom) {
-        Box(Modifier.size(190.dp).clickable(enabled = track != null, onClick = onExpand)) {
+    Row(Modifier.fillMaxWidth().height(art), verticalAlignment = Alignment.Bottom) {
+        Box(Modifier.size(art).clickable(enabled = track != null, onClick = onExpand)) {
             Artwork(track?.artworkUrl, Modifier.fillMaxSize(), RoundedCornerShape(10.dp))
         }
         Spacer(Modifier.width(26.dp))
@@ -149,9 +152,9 @@ private fun Hero(onExpand: () -> Unit) {
                 "● " + if (track == null) t("idle") else listOfNotNull(t("now playing"), player.queueTitle?.lowercase(), "${player.index + 1}/${player.queue.size}").joinToString(" · "),
                 color = Green, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
-            Text(track?.title ?: "nocturne", color = cs.primary, style = MaterialTheme.typography.displaySmall.copy(fontSize = 34.sp, fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(track?.title ?: "nocturne", color = cs.primary, style = MaterialTheme.typography.displaySmall.copy(fontSize = if (art < 150.dp) 24.sp else 34.sp, fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(track?.let { listOfNotNull(it.artistNames, it.album).joinToString(" — ") }.orEmpty(), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Cava(player.isPlaying, Modifier.fillMaxWidth().height(64.dp).padding(top = 6.dp))
+            Cava(player.isPlaying, Modifier.fillMaxWidth().height(if (art < 150.dp) 24.dp else 64.dp).padding(top = 6.dp))
             BlockBar(player.positionMs, player.durationMs, player.isPlaying, onToggle = { p.toggle() }) { p.seekTo(it) }
         }
     }
@@ -159,7 +162,7 @@ private fun Hero(onExpand: () -> Unit) {
 
 /** Segmented spectrum bars: real levels when the engine has them, a gentle synthetic motion otherwise. */
 @Composable
-private fun Cava(playing: Boolean, modifier: Modifier) {
+internal fun Cava(playing: Boolean, modifier: Modifier) {
     val p = AppGraph.instance.player
     val bands = 70
     var heights by remember { mutableStateOf(FloatArray(bands) { 0.1f }) }
@@ -199,7 +202,7 @@ private fun Cava(playing: Boolean, modifier: Modifier) {
 
 /** ████░░░ progress line with time stamps; click or drag to seek. */
 @Composable
-private fun BlockBar(pos: Long, dur: Long, playing: Boolean, onToggle: () -> Unit, onSeek: (Long) -> Unit) {
+internal fun BlockBar(pos: Long, dur: Long, playing: Boolean, onToggle: () -> Unit, onSeek: (Long) -> Unit) {
     val cs = MaterialTheme.colorScheme
     var drag by remember { mutableStateOf<Float?>(null) }
     val frac = (drag ?: if (dur > 0) pos.toFloat() / dur else 0f).coerceIn(0f, 1f)

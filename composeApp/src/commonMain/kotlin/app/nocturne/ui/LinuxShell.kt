@@ -81,25 +81,33 @@ internal fun LinuxShell(top: Dp, onExpand: () -> Unit) {
     val graph = AppGraph.instance
     val nav = graph.navigator
     val cs = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxSize().drawBehind {
-        drawRect(Color(0xFF0D0B14))
-        drawRect(Brush.radialGradient(listOf(Color(0xFF5B2A86), Color.Transparent), Offset(size.width * 0.15f, size.height * 0.15f), size.minDimension * 0.6f))
-        drawRect(Brush.radialGradient(listOf(Color(0xFF1F6F8B), Color.Transparent), Offset(size.width * 0.85f, size.height * 0.8f), size.minDimension * 0.65f))
-        drawRect(Brush.radialGradient(listOf(Color(0xAAC2417B), Color.Transparent), Offset(size.width * 0.7f, 0f), size.minDimension * 0.45f))
-    }) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        // tablets: the now-playing column narrows, then folds into a player bar
+        val compact = maxWidth < 980.dp
         Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 14.dp, top = top + 14.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Pane(Modifier.width(220.dp).fillMaxHeight()) { NavPane() }
+                    Pane(Modifier.width(if (compact) 190.dp else 220.dp).fillMaxHeight()) { NavPane() }
                     Pane(Modifier.weight(1f).fillMaxHeight(), focused = true, pad = false) {
                         ScreenHost(PaddingValues(top = 8.dp, bottom = 12.dp))
                     }
                 }
-                UpNext()
+                if (compact) LinuxBar(onExpand, showTabs = false) else UpNext()
             }
-            Pane(Modifier.width(360.dp).fillMaxHeight()) { NowColumn(onExpand) }
+            if (!compact) Pane(Modifier.width(if (maxWidth < 1200.dp) 300.dp else 360.dp).fillMaxHeight()) { NowColumn(onExpand) }
         }
     }
+}
+
+/** Hyprland-style wallpaper behind the Linux design (any width). */
+@Composable
+internal fun LinuxWallpaper(modifier: Modifier) {
+    Box(modifier.drawBehind {
+        drawRect(Color(0xFF0D0B14))
+        drawRect(Brush.radialGradient(listOf(Color(0xFF5B2A86), Color.Transparent), Offset(size.width * 0.15f, size.height * 0.15f), size.minDimension * 0.6f))
+        drawRect(Brush.radialGradient(listOf(Color(0xFF1F6F8B), Color.Transparent), Offset(size.width * 0.85f, size.height * 0.8f), size.minDimension * 0.65f))
+        drawRect(Brush.radialGradient(listOf(Color(0xAAC2417B), Color.Transparent), Offset(size.width * 0.7f, 0f), size.minDimension * 0.45f))
+    })
 }
 
 @Composable

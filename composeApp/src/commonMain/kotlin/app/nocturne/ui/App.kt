@@ -165,6 +165,7 @@ fun App(backdrop: Boolean = false) {
                         WindowChrome.bar?.invoke()
                         UpdateBanner(Modifier.align(Alignment.TopCenter))
                         WhatsNewDialog()
+                        Onboarding()
                         StartupIntro()
                         if (Demo.flash) Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.White))
                         // Opened by a nocturne://join link.
@@ -192,6 +193,8 @@ private fun AppScaffold() {
     val aurora = LocalDesignStyle.current == app.nocturne.data.DesignStyle.WINDOWS
     BoxWithConstraints(Modifier.fillMaxSize().background(bg)) {
         if (aurora && !backdrop) AuroraGlow(Modifier.fillMaxSize())
+        val styledStyle = LocalDesignStyle.current.takeIf { it == app.nocturne.data.DesignStyle.LINUX || it == app.nocturne.data.DesignStyle.ARCH || it == app.nocturne.data.DesignStyle.TERMINAL }
+        if (styledStyle == app.nocturne.data.DesignStyle.LINUX && !backdrop) LinuxWallpaper(Modifier.fillMaxSize())
         // desktop without a title bar: the top strip drags the window, keep content clear of it
         val caption = if (WindowChrome.bar != null) WindowChrome.height else 0.dp
         val wide = maxWidth >= 720.dp
@@ -235,7 +238,8 @@ private fun AppScaffold() {
             RemoteStrip(Modifier.align(Alignment.BottomCenter).padding(start = 80.dp, bottom = 12.dp).navigationBarsPadding().widthIn(max = 560.dp))
         } else {
             val glass = LocalGlass.current != null
-            val bottomPad = if (glass) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + (if (hasPlayer) 146.dp else 82.dp)
+            val bottomPad = if (styledStyle != null) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + styledBarHeight(hasPlayer)
+                else if (glass) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + (if (hasPlayer) 146.dp else 82.dp)
                 else if (aurora) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + (if (hasPlayer) 168.dp else 90.dp)
                 else if (hasPlayer) 160.dp else 90.dp
             // Glass: observe scrolling so the tab bar minimizes / expands (iOS 26).
@@ -246,7 +250,9 @@ private fun AppScaffold() {
                     }
                 }
             }
-            if (glass) {
+            if (styledStyle != null) {
+                StyledPhoneBar(styledStyle, onExpand = { nav.playerExpanded = true }, modifier = Modifier.align(Alignment.BottomCenter))
+            } else if (glass) {
                 app.nocturne.ui.style.glass.GlassInlineBar(Modifier.align(Alignment.TopCenter))
                 app.nocturne.ui.style.glass.GlassBottomBar(nav, onExpand = { nav.playerExpanded = true }, modifier = Modifier.align(Alignment.BottomCenter))
             } else if (aurora) Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding()) {

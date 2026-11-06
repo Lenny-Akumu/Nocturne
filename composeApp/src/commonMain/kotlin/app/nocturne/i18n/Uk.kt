@@ -940,5 +940,16 @@ internal object Uk {
         "listened" to "слухав",
         "tracks" to "треків",
         "top" to "топ",
+        "Choose your language" to "Обери мову",
+        "Design" to "Дизайн",
+        "Tap a style to try it on the whole app." to "Натисни на стиль, щоб приміряти його на весь застосунок.",
+        "Pick how text looks. You see it live." to "Обери вигляд тексту. Зміни видно одразу.",
+        "Mini player" to "Міні-плеєр",
+        "A small always-on-top player. It's glowing at the top of your screen." to "Маленький плеєр поверх усіх вікон. Він зараз світиться вгорі екрана.",
+        "In the top panel" to "У верхній панелі",
+        "Don't show" to "Не показувати",
+        "Shape and colour of Nocturne's icon." to "Форма й колір іконки Nocturne.",
+        "Sign in to your accounts?" to "Увійти в акаунти?",
+        "Bring your likes, playlists and recommendations from YouTube Music, Spotify and SoundCloud." to "Перенеси лайки, плейлисти й рекомендації з YouTube Music, Spotify і SoundCloud.",
     )
 }
