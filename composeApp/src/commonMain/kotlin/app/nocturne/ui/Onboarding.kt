@@ -99,6 +99,13 @@ private enum class Step { LANGUAGE, STYLE, FONT, FLOATING, ICON, ACCOUNTS, REVEA
 
 private val desktop get() = platformKind == PlatformKind.DESKTOP
 
+// lives outside composition: language/style changes rebuild the tree and must not restart setup
+private object Flow {
+    var step: Step? by mutableStateOf(null)
+    var ready by mutableStateOf(false)
+    var flipped by mutableStateOf(false)
+}
+
 private fun DesignStyle.icon(): ImageVector = when (this) {
     DesignStyle.MATERIAL -> Icons.Rounded.Android
     DesignStyle.GLASS -> Icons.Rounded.PhoneIphone
@@ -129,24 +136,24 @@ fun Onboarding() {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     if (Demo.enabled) return
-    var step by remember { mutableStateOf(if (settings.onboarded >= ONBOARDING) Step.DONE else Step.LANGUAGE) }
+    val step = Flow.step ?: if (settings.onboarded >= ONBOARDING) Step.DONE else Step.LANGUAGE
     if (step == Step.DONE) return
-    var ready by remember { mutableStateOf(false) }
     // let the startup splash finish first
-    LaunchedEffect(Unit) { delay(if (settings.startupIntro) 2300 else 300); ready = true }
-    if (!ready) return
+    LaunchedEffect(Unit) { if (!Flow.ready) { delay(if (settings.startupIntro) 2300 else 300); Flow.ready = true } }
+    if (!Flow.ready) return
 
     val steps = remember { Step.entries.filter { it != Step.DONE && (it != Step.FLOATING || desktop) } }
     fun next() {
-        val i = steps.indexOf(step)
-        if (step == Step.FLOATING) { FloatingEdit.preview = false; FloatingEdit.highlight = false }
-        step = steps.getOrElse(i + 1) { Step.DONE }
+        val cur = Flow.step ?: Step.LANGUAGE
+        val i = steps.indexOf(cur)
+        if (cur == Step.FLOATING) { FloatingEdit.preview = false; FloatingEdit.highlight = false }
+        Flow.step = steps.getOrElse(i + 1) { Step.DONE }
     }
     fun finish(then: (() -> Unit)? = null) {
         FloatingEdit.preview = false
         FloatingEdit.highlight = false
         graph.settings.update { it.copy(onboarded = ONBOARDING) }
-        step = Step.REVEAL
+        Flow.step = Step.REVEAL
         then?.invoke()
     }
 
@@ -172,7 +179,7 @@ fun Onboarding() {
                     onSkip = { finish() },
                 )
             }
-            Step.REVEAL -> Reveal { step = Step.DONE }
+            Step.REVEAL -> Reveal { Flow.step = Step.DONE }
             Step.DONE -> Unit
         }
     }
@@ -232,18 +239,15 @@ private fun StyleStep(phone: Boolean, onDone: () -> Unit, onSkip: () -> Unit) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val styles = DesignStyle.entries
-    var flipping by remember { mutableStateOf(true) }
     var shown by remember { mutableStateOf(styles.first()) }
     LaunchedEffect(Unit) {
-        for (st in styles) {
-            shown = st
-            graph.settings.update { it.copy(designStyle = st) }
-            delay(650)
-        }
+        if (Flow.flipped) return@LaunchedEffect
+        // only the cards flip; restyling the whole app every frame is what made it crawl
+        for (st in styles) { shown = st; delay(520) }
+        Flow.flipped = true
         graph.settings.update { it.copy(designStyle = if (desktop) DesignStyle.WINDOWS else defaultDesignStyle()) }
-        flipping = false
     }
-    if (flipping) {
+    if (!Flow.flipped) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f)), contentAlignment = Alignment.Center) {
             AnimatedContent(shown, transitionSpec = {
                 (slideInVertically { it / 2 } + fadeIn(tween(220))) togetherWith (slideOutVertically { -it / 2 } + fadeOut(tween(180)))
