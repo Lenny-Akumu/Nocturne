@@ -23,7 +23,7 @@ import kotlinx.serialization.json.jsonPrimitive
 @Serializable
 data class PodcastSub(val feedUrl: String, val title: String, val author: String = "", val artworkUrl: String? = null)
 
-data class Episode(val guid: String, val title: String, val url: String, val published: String, val durationMs: Long, val art: String?, val summary: String)
+data class Episode(val guid: String, val title: String, val url: String, val published: String, val durationMs: Long, val art: String?, val summary: String, val transcript: String? = null)
 
 /** Episodes play as plain audio URLs through the local source. */
 val Track.isPodcast: Boolean get() = source == Source.LOCAL && (id.startsWith("http://") || id.startsWith("https://")) && !isRadio
@@ -59,10 +59,21 @@ object Podcasts {
                 durationMs = parseDuration(tag(it, "itunes:duration")),
                 art = Regex("<itunes:image[^>]*href=\"([^\"]+)\"").find(it)?.groupValues?.get(1) ?: channelArt,
                 summary = (tag(it, "itunes:summary") ?: tag(it, "description")).orEmpty().replace(Regex("<[^>]+>"), " ").replace(Regex("\\s+"), " ").trim(),
-            )
+                transcript = transcriptUrl(it),
+            ).also { e -> e.transcript?.let { t -> transcripts[e.url] = t } }
         }.toList()
         feeds[sub.feedUrl] = list
         return list
+    }
+
+    /** Episode audio url -> transcript url (Podcasting 2.0 <podcast:transcript>). */
+    val transcripts = mutableMapOf<String, String>()
+
+    private fun transcriptUrl(item: String): String? {
+        val tags = Regex("<podcast:transcript[^>]*>").findAll(item).map { it.value }.toList()
+        fun attr(t: String, a: String) = Regex("$a=\"([^\"]+)\"").find(t)?.groupValues?.get(1)?.let(::unescape)
+        val rank = listOf("vtt", "srt", "json", "html", "plain")
+        return tags.sortedBy { t -> rank.indexOfFirst { attr(t, "type").orEmpty().contains(it) }.let { if (it < 0) 99 else it } }.firstNotNullOfOrNull { attr(it, "url") }
     }
 
     private fun tag(x: String, name: String): String? {

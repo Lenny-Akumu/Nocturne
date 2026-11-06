@@ -142,10 +142,18 @@ fun RadioView(padding: PaddingValues) {
     }
     }
 
+    var confirmRu by remember { mutableStateOf(false) }
     if (picking) CountryPicker(countries, country, onDismiss = { picking = false }) { code ->
-        graph.settings.update { it.copy(radioCountry = code) }
         picking = false
+        if (code == "RU") confirmRu = true else graph.settings.update { it.copy(radioCountry = code) }
     }
+    if (confirmRu) app.nocturne.ui.kit.AlertDialog(
+        onDismissRequest = { confirmRu = false },
+        title = { Text(t("Are you sure?")) },
+        text = { Text(t("Are you sure about your choice?")) },
+        confirmButton = { app.nocturne.ui.kit.TextButton(onClick = { confirmRu = false; graph.settings.update { it.copy(radioCountry = "RU") } }) { Text(t("Yes")) } },
+        dismissButton = { app.nocturne.ui.kit.TextButton(onClick = { confirmRu = false }) { Text(t("No")) } },
+    )
 }
 
 @Composable

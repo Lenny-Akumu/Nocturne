@@ -10,6 +10,11 @@ import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.math.abs
 
 data class LyricLine(val timeMs: Long, val text: String)
@@ -26,6 +31,10 @@ class LyricsProvider(private val http: HttpClient, private val innerTube: InnerT
 
     suspend fun lyrics(track: Track): Lyrics {
         cache[track.key]?.let { return it }
+        app.nocturne.data.Podcasts.transcripts[track.id]?.let { url ->
+            val l = runCatching { transcript(http.get(url).bodyAsText()) }.getOrNull()
+            if (l != null && !l.isEmpty) { cache[track.key] = l; return l }
+        }
         val (title, artist) = cleanup(track)
         val durationSec = track.durationMs / 1000
         var plainFallback: Lyrics? = null
@@ -208,5 +217,49 @@ class LyricsProvider(private val http: HttpClient, private val innerTube: InnerT
                     .replace("&lt;", "<").replace("&gt;", ">")
             }.lines().joinToString("\n") { it.trim() }.replace(Regex("\n{3,}"), "\n\n").trim()
         }
+    }
+
+    /** Podcast transcript (WebVTT, SRT, Podcasting 2.0 JSON, HTML or plain text) as lyrics. */
+    private fun transcript(body: String): Lyrics {
+        val text = body.trim()
+        if (text.startsWith("{")) {
+            val segs = runCatching { json.parseToJsonElement(text).jsonObject["segments"]!!.jsonArray }.getOrNull()
+            if (segs != null) {
+                val lines = segs.mapNotNull { e ->
+                    val o = e.jsonObject
+                    val start = o["startTime"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
+                    val b = o["body"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+                    if (b.isEmpty()) null else LyricLine((start * 1000).toLong(), b)
+                }
+                return Lyrics(mergeShort(lines), null, "Transcript")
+            }
+        }
+        val cue = Regex("""(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})\s*-->""")
+        if (cue.containsMatchIn(text)) {
+            val lines = mutableListOf<LyricLine>()
+            text.replace("\r", "").split(Regex("\n\\s*\n")).forEach { block ->
+                val rows = block.lines()
+                val at = rows.indexOfFirst { cue.containsMatchIn(it) }
+                if (at < 0) return@forEach
+                val m = cue.find(rows[at])!!.groupValues
+                val ms = ((m[1].toLongOrNull() ?: 0) * 3600 + m[2].toLong() * 60 + m[3].toLong()) * 1000 + m[4].padEnd(3, '0').toLong()
+                val words = rows.drop(at + 1).joinToString(" ").replace(Regex("<[^>]+>"), "").trim()
+                if (words.isNotEmpty()) lines += LyricLine(ms, words)
+            }
+            if (lines.isNotEmpty()) return Lyrics(mergeShort(lines), null, "Transcript")
+        }
+        val plain = text.replace(Regex("<(br|p|/p)[^>]*>", RegexOption.IGNORE_CASE), "\n").replace(Regex("<[^>]+>"), "").trim()
+        return Lyrics(null, plain.ifBlank { null }, "Transcript")
+    }
+
+    // cues of a word or two read badly as lyric lines: join them up to about a sentence
+    private fun mergeShort(lines: List<LyricLine>): List<LyricLine> {
+        val out = mutableListOf<LyricLine>()
+        for (l in lines) {
+            val last = out.lastOrNull()
+            if (last != null && last.text.length < 60 && !last.text.endsWith(".") && !last.text.endsWith("?") && !last.text.endsWith("!")) out[out.lastIndex] = LyricLine(last.timeMs, last.text + " " + l.text)
+            else out += l
+        }
+        return out
     }
 }
