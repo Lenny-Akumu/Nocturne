@@ -14,6 +14,7 @@ object Eq {
         "Rock" to listOf(5f, 3f, -1f, 1f, 3f, 5f),
         "Pop" to listOf(-1f, 1f, 3f, 3f, 1f, -1f),
         "Electronic" to listOf(5f, 3f, 0f, -1f, 2f, 5f),
+        "Hardstyle" to listOf(8f, 4f, -2f, 0f, 3f, 4f),
         "Hip-Hop" to listOf(6f, 4f, 0f, 1f, 1f, 2f),
         "Jazz" to listOf(3f, 2f, -1f, 1f, 2f, 3f),
         "Classical" to listOf(3f, 2f, 0f, 0f, 2f, 4f),

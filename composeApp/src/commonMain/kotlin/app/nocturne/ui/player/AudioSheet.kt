@@ -1,5 +1,9 @@
 package app.nocturne.ui.player
 
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.ChevronLeft
 import app.nocturne.ui.demo
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.size
@@ -20,6 +24,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandMore
 import app.nocturne.ui.kit.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.rotate
@@ -165,7 +170,14 @@ fun AudioSheet(onDismiss: () -> Unit) {
                 var extraToast by remember { mutableStateOf(false) }
                 LaunchedEffect(extraToast) { if (extraToast) { delay(2200); extraToast = false } }
                 val custom = settings.customEqPresets
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
+                val presetRow = androidx.compose.foundation.lazy.rememberLazyListState()
+                val arrows = app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP
+                val rowScope = androidx.compose.runtime.rememberCoroutineScope()
+                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                if (arrows) IconButton(onClick = { rowScope.launch { presetRow.animateScrollBy(-360f) } }, enabled = presetRow.canScrollBackward) {
+                    Icon(Icons.Rounded.ChevronLeft, t("Back"))
+                }
+                LazyRow(Modifier.weight(1f), state = presetRow, horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
                     val names = listOf("Custom") + Eq.presets.keys + custom.keys
                     items(names) { name ->
                         val bass = name == "Bass Boost"
@@ -203,6 +215,10 @@ fun AudioSheet(onDismiss: () -> Unit) {
                             leadingIcon = { Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)) },
                         )
                     }
+                }
+                if (arrows) IconButton(onClick = { rowScope.launch { presetRow.animateScrollBy(360f) } }, enabled = presetRow.canScrollForward) {
+                    Icon(Icons.Rounded.ChevronRight, t("Next"))
+                }
                 }
                 AnimatedVisibility(extraToast, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                     Text(t("Extra Bass Boost unlocked"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
