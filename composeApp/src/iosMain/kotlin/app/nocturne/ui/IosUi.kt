@@ -53,6 +53,7 @@ actual fun WebLoginDialog(
     onDismiss: () -> Unit,
 ) {
     val done = remember { booleanArrayOf(false) }
+    val popups = remember { SamePagePopups() }
     val hosts = remember(cookieUrls) { cookieUrls.mapNotNull { NSURL.URLWithString(it)?.host } }
 
     fun check(onResult: (Boolean) -> Unit = {}) {
@@ -85,7 +86,14 @@ actual fun WebLoginDialog(
                 }
                 UIKitView(
                     factory = {
-                        WKWebView(platform.CoreGraphics.CGRectMake(0.0, 0.0, 0.0, 0.0), WKWebViewConfiguration()).apply {
+                        val config = WKWebViewConfiguration().apply {
+                            preferences.javaScriptCanOpenWindowsAutomatically = true
+                            userContentController.addUserScript(
+                                platform.WebKit.WKUserScript(LIFT_LOGIN_FRAME, platform.WebKit.WKUserScriptInjectionTime.WKUserScriptInjectionTimeAtDocumentEnd, true),
+                            )
+                        }
+                        WKWebView(platform.CoreGraphics.CGRectMake(0.0, 0.0, 0.0, 0.0), config).apply {
+                            UIDelegate = popups
                             customUserAgent = if (desktopMode) DESKTOP_UA else SAFARI_UA
                             NSURL.URLWithString(url)?.let { loadRequest(NSURLRequest.requestWithURL(it)) }
                         }
@@ -94,6 +102,19 @@ actual fun WebLoginDialog(
                 )
             }
         }
+    }
+}
+
+// window.open from a sign-in page loads in the same view (WKWebView ignores it otherwise)
+private class SamePagePopups : platform.darwin.NSObject(), platform.WebKit.WKUIDelegateProtocol {
+    override fun webView(
+        webView: WKWebView,
+        createWebViewWithConfiguration: WKWebViewConfiguration,
+        forNavigationAction: platform.WebKit.WKNavigationAction,
+        windowFeatures: platform.WebKit.WKWindowFeatures,
+    ): WKWebView? {
+        webView.loadRequest(forNavigationAction.request)
+        return null
     }
 }
 

@@ -106,6 +106,12 @@ expect fun WebLoginDialog(
 
 expect fun clearWebLogins()
 
+/**
+ * SoundCloud's sign-in opens in an embedded frame from secure.soundcloud.com, which in-app browsers
+ * block (third-party cookies, no popups). Opening that frame as the page itself makes it work.
+ */
+internal const val LIFT_LOGIN_FRAME = """(function(){if(window.__nct)return;window.__nct=1;setInterval(function(){if(location.hostname.indexOf('secure.soundcloud.com')>=0||location.hostname.indexOf('api-auth.soundcloud.com')>=0)return;var f=document.querySelector('iframe[src*="secure.soundcloud.com"],iframe[src*="api-auth.soundcloud.com"]');if(f&&f.src){location.href=f.src;}},600);})();"""
+
 @Composable
 expect fun PairingCard()
 

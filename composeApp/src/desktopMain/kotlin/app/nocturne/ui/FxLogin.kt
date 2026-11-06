@@ -75,7 +75,12 @@ internal object FxLogin {
         engine.userAgent = FIREFOX_UA
         engine.isJavaScriptEnabled = true
         engine.locationProperty().addListener { _, _, _ -> onChange() }
-        engine.loadWorker.stateProperty().addListener { _, _, s -> if (s == Worker.State.SUCCEEDED) onChange() }
+        engine.loadWorker.stateProperty().addListener { _, _, s ->
+            if (s == Worker.State.SUCCEEDED) {
+                runCatching { engine.executeScript(LIFT_LOGIN_FRAME) }
+                onChange()
+            }
+        }
         engine.setCreatePopupHandler {
             val popup = WebView()
             val stage = Stage()

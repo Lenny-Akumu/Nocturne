@@ -6,8 +6,8 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 val Changelog = listOf(
     ChangelogEntry(
         "1.10.11",
-        en = listOf("Quick setup on first launch", "New Linux, Arch and Terminal designs for PC, phones and tablets", "Performance updates and optimisations", "Comments fixes"),
-        uk = listOf("Швидке налаштування при першому запуску", "Нові дизайни Linux, Arch і Terminal для ПК, телефонів і планшетів", "Оновлення та оптимізація швидкодії", "Виправлення коментарів"),
+        en = listOf("Quick setup on first launch", "New Linux, Arch and Terminal designs for PC, phones and tablets", "Performance updates and optimisations", "Comments fixes", "Libraries load all their songs", "SoundCloud sign-in fixes"),
+        uk = listOf("Швидке налаштування при першому запуску", "Нові дизайни Linux, Arch і Terminal для ПК, телефонів і планшетів", "Оновлення та оптимізація швидкодії", "Виправлення коментарів", "Бібліотеки завантажують усі пісні", "Виправлення входу в SoundCloud"),
     ),
     ChangelogEntry(
         "1.10.10",

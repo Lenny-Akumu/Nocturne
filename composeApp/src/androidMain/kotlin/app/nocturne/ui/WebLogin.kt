@@ -100,6 +100,7 @@ actual fun WebLoginDialog(
                             web.webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(view: WebView?, pageUrl: String?) {
                                     if (check()) return
+                                    view?.evaluateJavascript(LIFT_LOGIN_FRAME, null)
                                     view?.evaluateJavascript("document.cookie") { raw ->
                                         val jar = raw?.trim('"').orEmpty()
                                         if (!done[0] && jar.contains("$cookieKey=")) {

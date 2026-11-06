@@ -235,7 +235,7 @@ fun AccountsSettings() {
         AlertDialog(
             onDismissRequest = { scHelp = false },
             icon = { SourceBadge(Source.SOUNDCLOUD, size = 32.dp) },
-            title = { Text(t("SoundCloud on Windows")) },
+            title = { Text(t("SoundCloud on PC")) },
             text = {
                 Text(
                     t("SoundCloud's sign-in page doesn't load in the built-in browser on Windows. The easiest way: sign in to SoundCloud in Nocturne on your phone, then press “Show QR code” above and scan it — your account moves here in seconds."),

@@ -951,5 +951,6 @@ internal object Uk {
         "Shape and colour of Nocturne's icon." to "Форма й колір іконки Nocturne.",
         "Sign in to your accounts?" to "Увійти в акаунти?",
         "Bring your likes, playlists and recommendations from YouTube Music, Spotify and SoundCloud." to "Перенеси лайки, плейлисти й рекомендації з YouTube Music, Spotify і SoundCloud.",
+        "SoundCloud on PC" to "SoundCloud на ПК",
     )
 }
