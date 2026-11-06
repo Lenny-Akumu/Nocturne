@@ -144,6 +144,12 @@ object WindowChrome {
 @Composable
 fun App(backdrop: Boolean = false) {
     val graph = AppGraph.instance
+    // smaller decoded-artwork cache, mostly for weak PCs; artwork is still cached on disk
+    coil3.compose.setSingletonImageLoaderFactory { ctx ->
+        coil3.ImageLoader.Builder(ctx)
+            .memoryCache { coil3.memory.MemoryCache.Builder().maxSizePercent(ctx, if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) 0.12 else 0.18).build() }
+            .build()
+    }
     val settings by graph.settings.state.collectAsState()
     val wallpaper by app.nocturne.data.AppBackground.state.collectAsState()
     // a custom background makes the chrome translucent the same way a window backdrop does

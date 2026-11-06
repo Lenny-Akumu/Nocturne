@@ -1,5 +1,9 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded.Search
 import app.nocturne.ui.components.rowMotion
 import androidx.compose.material.icons.rounded.Download
 import app.nocturne.i18n.t
@@ -106,9 +110,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     val playing by graph.player.state.collectAsState()
     val active = p?.let { pg -> playing.current?.key?.let { k -> pg.tracks.indexOfFirst { it.key == k } } }?.takeIf { it >= 0 }
         ?.plus(if (header.type == CollectionType.ARTIST) 3 else 2)
-    app.nocturne.ui.components.JumpBox(listState, active) {
-    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)) {
-        item {
+    val topBar: @Composable () -> Unit = {
             Row(Modifier.padding(top = contentPadding.calculateTopPadding()).padding(horizontal = 4.dp)) {
                 IconButton(onClick = { graph.navigator.back() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                 Spacer(Modifier.weight(1f))
@@ -117,8 +119,8 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                     IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.Delete, "Delete") }
                 }
             }
-        }
-        item {
+    }
+    val headerInfo: @Composable () -> Unit = {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 app.nocturne.ui.components.CollectionArtwork(header, Modifier.size(220.dp), header.type.shape())
                 Spacer(Modifier.height(18.dp))
@@ -168,7 +170,15 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                 }
                 Spacer(Modifier.height(8.dp))
             }
-        }
+    }
+    val splitStyle = app.nocturne.ui.kit.LocalDesignStyle.current.let { it == app.nocturne.data.DesignStyle.LINUX || it == app.nocturne.data.DesignStyle.TERMINAL }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    if (splitStyle && maxWidth >= 900.dp) SplitCollection(p, header, error, local, editable, ref, contentPadding, topBar, headerInfo) { attempt++ }
+    else {
+    app.nocturne.ui.components.JumpBox(listState, active) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)) {
+        item { topBar() }
+        item { headerInfo() }
         when {
             p == null && error != null -> item {
                 MessageBox(Icons.Rounded.ErrorOutline, "Couldn't load", error, actionLabel = "Retry", onAction = { attempt++ })
@@ -197,6 +207,8 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
         }
     }
     }
+    }
+    }
 
     if (renaming) {
         var name by remember { mutableStateOf(header.title) }
@@ -219,5 +231,55 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     }
     if (addAll) {
         AddToPlaylistDialog(p?.tracks.orEmpty(), onDismiss = { addAll = false })
+    }
+}
+
+@Composable
+private fun SplitCollection(
+    p: CollectionPage?, header: CollectionRef, error: String?, local: Boolean, editable: Boolean, ref: CollectionRef,
+    contentPadding: PaddingValues, topBar: @Composable () -> Unit, headerInfo: @Composable () -> Unit, retry: () -> Unit,
+) {
+    val graph = AppGraph.instance
+    var filter by remember(ref.key) { mutableStateOf("") }
+    Row(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding()), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+        Column(Modifier.width(340.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(bottom = contentPadding.calculateBottomPadding() + 16.dp)) {
+            topBar()
+            headerInfo()
+        }
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            val all = p?.tracks.orEmpty()
+            if (all.size > 8) OutlinedTextField(
+                filter, { filter = it }, singleLine = true, placeholder = { Text(t("Find in playlist")) },
+                leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                modifier = Modifier.fillMaxWidth().padding(end = 12.dp, top = 8.dp, bottom = 6.dp),
+            )
+            val q = filter.trim()
+            val shown = if (q.isEmpty()) all.indices.toList() else all.indices.filter { all[it].title.contains(q, true) || all[it].artistNames.contains(q, true) }
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            val playing by graph.player.state.collectAsState()
+            val active = playing.current?.key?.let { k -> shown.indexOfFirst { all[it].key == k } }?.takeIf { it >= 0 }
+            when {
+                p == null && error != null -> MessageBox(Icons.Rounded.ErrorOutline, "Couldn't load", error, actionLabel = "Retry", onAction = retry)
+                p == null -> LoadingBox()
+                all.isEmpty() && p.sections.isEmpty() -> MessageBox(Icons.Rounded.MusicOff, "No songs here yet")
+                else -> app.nocturne.ui.components.JumpBox(listState, active) {
+                    val keys = app.nocturne.ui.components.occurrenceKeys(all)
+                    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)) {
+                        items(shown.size, key = { keys[shown[it]] }) { n ->
+                            val i = shown[n]
+                            TrackRow(
+                                all[i],
+                                onClick = { graph.player.play(all, i, header.displayTitle()) },
+                                index = if (header.type == CollectionType.ALBUM) i + 1 else null,
+                                menuContext = TrackMenuContext(playlistId = if (local && ref.id != LikedRef.id) ref.id else null, remotePlaylist = if (editable) ref.copy(title = header.title) else null),
+                            )
+                        }
+                        if (q.isEmpty()) p.sections.forEach { section ->
+                            item { SectionView(section) { list, i -> graph.player.play(list, i) } }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -337,7 +337,10 @@ fun SearchScreen(contentPadding: PaddingValues) {
                 val results = s.results.orEmpty()
                 if (s.filter == SearchFilter.SONGS) {
                     val tracks = results.filterIsInstance<MediaEntry.Song>().map { it.track }
-                    LazyColumn(contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = contentPadding.calculateBottomPadding())) {
+                    val searchStyle = LocalDesignStyle.current
+                    if (searchStyle.dashboardPages) SplitSongResults(s.submitted ?: s.query, tracks, contentPadding.calculateBottomPadding()) { i -> playFromSearch(tracks[i], tracks, i) }
+                    else if (searchStyle == DesignStyle.ARCH) ArchSongResults(tracks, contentPadding.calculateBottomPadding()) { i -> playFromSearch(tracks[i], tracks, i) }
+                    else LazyColumn(contentPadding = PaddingValues(start = 4.dp, end = 4.dp, bottom = contentPadding.calculateBottomPadding())) {
                         items(tracks.size, key = { tracks[it].key + it }) { i ->
                             TrackRow(tracks[i], onClick = { playFromSearch(tracks[i], tracks, i) })
                         }

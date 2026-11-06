@@ -149,6 +149,15 @@ fun HomeScreen(contentPadding: PaddingValues) {
         refreshing = false
     }
 
+    val homeStyle = app.nocturne.ui.kit.LocalDesignStyle.current
+    if (homeStyle.dashboardPages) {
+        DashboardHome(contentPadding, listState, greeting(), recommended, sections) { list, i, title -> playTrack(list, i, title) }
+        return
+    }
+    if (homeStyle == app.nocturne.data.DesignStyle.ARCH) {
+        ArchHome(contentPadding, listState, recommended, sections) { list, i, title -> playTrack(list, i, title) }
+        return
+    }
     if (app.nocturne.ui.kit.LocalDesignStyle.current == app.nocturne.data.DesignStyle.MATERIAL) {
         app.nocturne.ui.style.material.MaterialHome(
             contentPadding, listState, refreshing, { reload++ }, greeting(), recommended, sections, errors,

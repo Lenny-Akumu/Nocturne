@@ -168,6 +168,8 @@ fun SettingsScreen(contentPadding: PaddingValues) {
     val nav = AppGraph.instance.navigator
     val ios = LocalDesignStyle.current == DesignStyle.GLASS
     val fluent = LocalDesignStyle.current == DesignStyle.WINDOWS
+    if (LocalDesignStyle.current.dashboardPages) { CardSettings(contentPadding); return }
+    if (LocalDesignStyle.current == DesignStyle.ARCH) { ConfigSettings(contentPadding); return }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
             Text(t("Settings"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 12.dp))

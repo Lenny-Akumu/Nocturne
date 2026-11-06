@@ -12,4 +12,11 @@ class NocturneApplication : Application() {
         AppGraph.init(AndroidAudioEngine(this, cacheMb))
         Widgets.start(this)
     }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level < TRIM_MEMORY_UI_HIDDEN) return
+        runCatching { coil3.SingletonImageLoader.get(this).memoryCache?.let { if (level >= TRIM_MEMORY_BACKGROUND) it.clear() else it.trimToSize(it.maxSize / 2) } }
+        runCatching { AppGraph.instance.clearMemoryCaches() }
+    }
 }

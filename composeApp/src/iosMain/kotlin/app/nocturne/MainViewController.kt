@@ -3,6 +3,7 @@ package app.nocturne
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.preferredFrameRate
 import androidx.compose.ui.window.ComposeUIViewController
@@ -36,7 +37,8 @@ fun MainViewController(): UIViewController {
     return ComposeUIViewController {
         // Settings → Refresh rate: Compose's display link follows this vote (ProMotion is unlocked in Info.plist).
         val hz = g.settings.state.collectAsState().value.refreshRate
-        Box(if (hz > 0) Modifier.fillMaxSize().preferredFrameRate(hz.toFloat()) else Modifier.fillMaxSize()) { App() }
+        val max = remember { platform.UIKit.UIScreen.mainScreen.maximumFramesPerSecond.toFloat() }
+        Box(Modifier.fillMaxSize().preferredFrameRate(if (hz > 0) hz.toFloat() else max)) { App() }
     }
 }
 

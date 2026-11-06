@@ -177,7 +177,13 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "app.nocturne.MainKt"
-        jvmArgs += listOf("-Dfile.encoding=UTF-8")
+        // lean heap: G1 hands unused memory back to the OS while idle
+        jvmArgs += listOf(
+            "-Dfile.encoding=UTF-8",
+            "-Xms48m", "-Xmx1024m", "-Xss512k",
+            "-XX:+UseG1GC", "-XX:G1PeriodicGCInterval=20000", "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=25",
+            "-XX:+UseStringDeduplication", "-XX:ReservedCodeCacheSize=96m",
+        )
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
