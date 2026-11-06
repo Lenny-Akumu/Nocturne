@@ -367,7 +367,17 @@ class AppGraph(val engine: AudioEngine) {
         val ready: Boolean get() = ::instance.isInitialized
 
         fun init(engine: AudioEngine): AppGraph {
-            if (!::instance.isInitialized) instance = AppGraph(engine)
+            if (!::instance.isInitialized) {
+                // before any window asks for an image: a smaller decoded-artwork cache (disk cache unchanged)
+                runCatching {
+                    coil3.SingletonImageLoader.setSafe { ctx ->
+                        coil3.ImageLoader.Builder(ctx)
+                            .memoryCache { coil3.memory.MemoryCache.Builder().maxSizePercent(ctx, if (platformKind == PlatformKind.DESKTOP) 0.12 else 0.18).build() }
+                            .build()
+                    }
+                }
+                instance = AppGraph(engine)
+            }
             return instance
         }
     }
