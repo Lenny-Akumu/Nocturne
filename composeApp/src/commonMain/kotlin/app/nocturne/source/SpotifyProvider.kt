@@ -274,7 +274,7 @@ class SpotifyProvider(
     }
 
     override suspend fun likedTracks(): List<Track> =
-        if (!isSignedIn) emptyList() else pagedTracks(robust("me/tracks?limit=50&market=${market()}"), 2000)
+        if (!isSignedIn) emptyList() else pagedTracks(robust("me/tracks?limit=50&market=${market()}"), 20_000)
 
     private suspend fun api(path: String): JsonElement {
         val url = if (path.startsWith("http")) path else "https://api.spotify.com/v1/$path"
@@ -478,12 +478,12 @@ class SpotifyProvider(
             CollectionPage(fullRef, tracks)
         }
         CollectionType.PLAYLIST -> if (ref.id == LikedRef.id) {
-            val tracks = pagedTracks(robust("me/tracks?limit=50&market=${market()}"), 1000)
+            val tracks = pagedTracks(robust("me/tracks?limit=50&market=${market()}"), 20_000)
             CollectionPage(LikedRef.copy(subtitle = app.nocturne.i18n.t("%s songs", tracks.size), artworkUrl = tracks.firstOrNull()?.artworkUrl), tracks)
         } else {
             val pl = api("playlists/${ref.id}?market=${market()}")
             val fullRef = parsePlaylistRef(pl) ?: ref
-            val tracks = playlistTracks(ref.id, pl, 1000)
+            val tracks = playlistTracks(ref.id, pl, 20_000)
             CollectionPage(fullRef, tracks, description = pl.path("description").str?.takeIf { it.isNotBlank() })
         }
         CollectionType.ARTIST -> {

@@ -197,7 +197,7 @@ class NewPipeBackendImpl : NewPipeBackend {
         val info = PlaylistInfo.getInfo(svc, url)
         val items = info.relatedItems.toMutableList()
         var next: Page? = info.nextPage
-        while (Page.isValid(next) && items.size < 500) {
+        while (Page.isValid(next) && items.size < 20_000) {
             val page = PlaylistInfo.getMoreItems(svc, url, next)
             items += page.items
             next = page.nextPage

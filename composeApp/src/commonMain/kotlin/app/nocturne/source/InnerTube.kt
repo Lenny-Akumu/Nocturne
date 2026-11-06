@@ -178,10 +178,26 @@ class InnerTube(
         val title = root.findAll("musicResponsiveHeaderRenderer").firstOrNull().path("title").runsText()
             ?: root.findAll("musicDetailHeaderRenderer").firstOrNull().path("title").runsText()
             ?: root.findAll("musicEditablePlaylistDetailHeaderRenderer").firstOrNull()?.findAll("title")?.firstOrNull().runsText()
-        val tracks = root.findAll("musicResponsiveListItemRenderer").mapNotNull { parseListItem(it) }
-            .filterIsInstance<MediaEntry.Song>().map { it.track }.distinctBy { it.id }
-        return title to tracks
+        val tracks = songsIn(root).toMutableList()
+        // long playlists (Liked music) come ~100 at a time: follow the continuations to the end
+        var token = nextPage(root)
+        var pages = 0
+        while (token != null && pages++ < 200) {
+            val more = runCatching { request("browse", mapOf("continuation" to primitive(token))) }.getOrNull() ?: break
+            val got = songsIn(more)
+            if (got.isEmpty()) break
+            tracks += got
+            token = nextPage(more)?.takeIf { it != token }
+        }
+        return title to tracks.distinctBy { it.id }
     }
+
+    private fun songsIn(root: JsonElement): List<Track> =
+        root.findAll("musicResponsiveListItemRenderer").mapNotNull { parseListItem(it) }.filterIsInstance<MediaEntry.Song>().map { it.track }
+
+    private fun nextPage(root: JsonElement): String? =
+        root.findAll("continuationItemRenderer").lastOrNull().path("continuationEndpoint", "continuationCommand", "token").str
+            ?: root.findAll("nextContinuationData").firstOrNull().path("continuation").str
 
     suspend fun home(): List<Section> = carousels(browse("FEmusic_home"))
 

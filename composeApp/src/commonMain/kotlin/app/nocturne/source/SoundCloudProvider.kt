@@ -162,11 +162,13 @@ class SoundCloudProvider(
         }
     }
 
-    override suspend fun likedTracks(): List<Track> {
+    override suspend fun likedTracks(): List<Track> = likes(20_000)
+
+    private suspend fun likes(max: Int): List<Track> {
         val id = accounts.value.soundcloudUserId ?: return emptyList()
         val tracks = mutableListOf<Track>()
         var next: String? = "users/$id/track_likes?limit=100"
-        while (next != null && tracks.size < 1000) {
+        while (next != null && tracks.size < max) {
             val page = api(next)
             page.path("collection").arr.orEmpty().mapNotNullTo(tracks) { scTrack(it.path("track")) }
             next = page.path("next_href").str?.substringAfter("api-v2.soundcloud.com/")?.replace(Regex("[&?]client_id=[^&]*"), "")
@@ -203,7 +205,7 @@ class SoundCloudProvider(
 
     override suspend fun home(): List<Section> {
         val mine = if (isSignedIn) runCatching {
-            val likes = likedTracks().take(24)
+            val likes = likes(24).take(24)
             val lib = library()
             listOfNotNull(
                 likes.takeIf { it.isNotEmpty() }?.let { Section("Your SoundCloud likes", it.map { t -> MediaEntry.Song(t) }, SectionLayout.QUICK_PICKS, source) },
