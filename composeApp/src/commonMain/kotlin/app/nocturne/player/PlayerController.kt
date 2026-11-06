@@ -92,6 +92,7 @@ class PlayerController(
         engine.setVolume(settings.value.volume)
         applyAudioSettings()
         restore()
+        warmUp()
         scope.launch {
             var applied = -1f
             var advancedFor: String? = null
@@ -757,6 +758,21 @@ class PlayerController(
         if (s.queue.isEmpty()) return
         runCatching {
             FileStore.write(QUEUE_FILE, json.encodeToString(SavedQueue.serializer(), SavedQueue(s.queue.take(300), s.index, engine.positionMs, s.queueTitle)))
+        }
+    }
+
+    // The first YouTube play of a session downloads and parses the player script (and the JIT is cold);
+    // do that in the background right after launch, on a track you're likely to play anyway.
+    private fun warmUp() {
+        if (engine.fake) return
+        scope.launch(Dispatchers.Default) {
+            delay(1200)
+            if (loadingKey != null || loadedKey != null) return@launch
+            val lib = library.state.value
+            val pick = (listOfNotNull(_state.value.current) + lib.history.map { it.track } + lib.liked)
+                .firstOrNull { it.source == Source.YOUTUBE_MUSIC }
+                ?: Track(id = "jfKfPfyJRdk", source = Source.YOUTUBE_MUSIC, title = "")
+            runCatching { resolve(pick) }
         }
     }
 
