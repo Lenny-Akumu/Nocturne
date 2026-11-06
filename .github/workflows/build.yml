@@ -391,6 +391,10 @@ jobs:
           OLD: ${{ inputs.replace }}
           VER: ${{ needs.meta.outputs.version }}
         run: |
+          # an earlier, cancelled run may have left an empty release for the new tag
+          if [ "$OLD" != "v$VER" ] && gh release view "v$VER" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "v$VER" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          fi
           gh release edit "$OLD" -R "$GITHUB_REPOSITORY" --tag "v$VER" --title "Nocturne $VER" --target "$GITHUB_SHA"
           gh release view "v$VER" -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | while read -r n; do
             gh release delete-asset "v$VER" "$n" -R "$GITHUB_REPOSITORY" -y
