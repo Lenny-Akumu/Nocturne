@@ -141,10 +141,22 @@ class VlcAudioEngine : AudioEngine {
         val vari = VariSpeed()
 
         fun open(): Boolean = line != null || runCatching {
-            val l = AudioSystem.getSourceDataLine(format)
+            val l = pickLine()
             l.open(format, RATE / 8 * 4)
             line = l
         }.isSuccess
+
+        // Linux: Java Sound talks to ALSA directly and may grab a raw card (HDMI, an idle sound card) that nobody hears.
+        // Only the "default" device goes through PipeWire / PulseAudio; without it VLC keeps its own output.
+        private fun pickLine(): SourceDataLine {
+            if (!System.getProperty("os.name").orEmpty().startsWith("Linux", ignoreCase = true)) return AudioSystem.getSourceDataLine(format)
+            val info = javax.sound.sampled.DataLine.Info(SourceDataLine::class.java, format)
+            val mixer = AudioSystem.getMixerInfo().firstOrNull { m ->
+                val n = m.name.lowercase()
+                (n.startsWith("default") || "pipewire" in n || "pulse" in n) && runCatching { AudioSystem.getMixer(m).isLineSupported(info) }.getOrDefault(false)
+            } ?: error("no default ALSA device")
+            return AudioSystem.getMixer(mixer).getLine(info) as SourceDataLine
+        }
 
         override fun play(mediaPlayer: MediaPlayer, samples: Pointer, sampleCount: Int, pts: Long) {
             val n = sampleCount * 2
@@ -225,7 +237,11 @@ class VlcAudioEngine : AudioEngine {
             return
         }
         if (player == null) {
-            listener?.onError(IllegalStateException("The audio engine failed to load — reinstall Nocturne"))
+            val linux = System.getProperty("os.name").orEmpty().startsWith("Linux", ignoreCase = true)
+            listener?.onError(IllegalStateException(
+                if (linux) "VLC isn't installed. Install the vlc package (Arch/Omarchy: sudo pacman -S vlc, Ubuntu: sudo apt install vlc) and restart Nocturne"
+                else "The audio engine failed to load — reinstall Nocturne",
+            ))
             return
         }
         time = startPositionMs
