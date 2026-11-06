@@ -194,7 +194,7 @@ fun Switch(
             thumbContent = thumbContent ?: if (checked) ({ Icon(Icons.Rounded.Check, null, Modifier.size(SwitchDefaults.IconSize)) }) else null,
             enabled = enabled, colors = colors, interactionSource = interactionSource,
         )
-        DesignStyle.WINDOWS, DesignStyle.ARCH -> FluentSwitch(checked, onCheckedChange, modifier, enabled, interactionSource)
+        DesignStyle.WINDOWS, DesignStyle.LINUX, DesignStyle.ARCH -> FluentSwitch(checked, onCheckedChange, modifier, enabled, interactionSource)
         DesignStyle.GLASS -> IosSwitch(checked, onCheckedChange, modifier, enabled, interactionSource)
     }
 }
@@ -611,7 +611,7 @@ fun Button(
                 elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = src, content = content,
             )
         }
-        DesignStyle.WINDOWS, DesignStyle.ARCH -> FluentButton(onClick, modifier, enabled, true, colors, border, fluentPadding(contentPadding), interactionSource, content)
+        DesignStyle.WINDOWS, DesignStyle.LINUX, DesignStyle.ARCH -> FluentButton(onClick, modifier, enabled, true, colors, border, fluentPadding(contentPadding), interactionSource, content)
         DesignStyle.GLASS -> IosButton(
             onClick, modifier, enabled, colors?.containerColor ?: cs.primary, colors?.contentColor ?: cs.onPrimary,
             border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, glass = true, body = content,
@@ -641,7 +641,7 @@ fun FilledTonalButton(
                 elevation = elevation, border = border, contentPadding = contentPadding, interactionSource = src, content = content,
             )
         }
-        DesignStyle.WINDOWS, DesignStyle.ARCH -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
+        DesignStyle.WINDOWS, DesignStyle.LINUX, DesignStyle.ARCH -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
         DesignStyle.GLASS -> {
             val tint = lerp(glassFill(), cs.primary, if (LocalDarkTheme.current) 0.22f else 0.12f)
             IosButton(
@@ -675,7 +675,7 @@ fun OutlinedButton(
                 interactionSource = src, content = content,
             )
         }
-        DesignStyle.WINDOWS, DesignStyle.ARCH -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
+        DesignStyle.WINDOWS, DesignStyle.LINUX, DesignStyle.ARCH -> FluentButton(onClick, modifier, enabled, false, colors, border, fluentPadding(contentPadding), interactionSource, content)
         DesignStyle.GLASS -> IosButton(
             onClick, modifier, enabled, colors?.containerColor?.takeIf { it.alpha > 0f } ?: glassFill(), colors?.contentColor ?: cs.primary,
             border, contentPadding, interactionSource, MaterialTheme.typography.titleSmall, glass = true, body = content,
@@ -938,7 +938,7 @@ fun Card(
             modifier = modifier, shape = shape, colors = colors ?: CardDefaults.cardColors(),
             elevation = elevation ?: CardDefaults.cardElevation(), border = border, content = content,
         )
-        DesignStyle.WINDOWS, DesignStyle.ARCH -> FluentCard(modifier, colors, border, null, true, null, content)
+        DesignStyle.WINDOWS, DesignStyle.LINUX, DesignStyle.ARCH -> FluentCard(modifier, colors, border, null, true, null, content)
         DesignStyle.GLASS -> IosCard(modifier, colors, elevation != null, border, null, true, content)
     }
 }
@@ -960,7 +960,7 @@ fun Card(
             onClick = onClick, modifier = modifier, enabled = enabled, shape = shape, colors = colors ?: CardDefaults.cardColors(),
             elevation = elevation ?: CardDefaults.cardElevation(), border = border, interactionSource = interactionSource, content = content,
         )
-        DesignStyle.WINDOWS, DesignStyle.ARCH -> FluentCard(modifier, colors, border, onClick, enabled, interactionSource, content)
+        DesignStyle.WINDOWS, DesignStyle.LINUX, DesignStyle.ARCH -> FluentCard(modifier, colors, border, onClick, enabled, interactionSource, content)
         DesignStyle.GLASS -> IosCard(modifier, colors, elevation != null, border, onClick, enabled, content)
     }
 }

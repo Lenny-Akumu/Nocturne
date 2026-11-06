@@ -930,5 +930,7 @@ internal object Uk {
         "repeat" to "повтор",
         "search" to "пошук",
         "back" to "назад",
+        "NOW PLAYING" to "ЗАРАЗ ГРАЄ",
+        "UP NEXT" to "ДАЛІ",
     )
 }

@@ -117,6 +117,26 @@ private fun archColorScheme(base: ColorScheme, dark: Boolean, accent: Color?): C
     )
 }
 
+// Linux: night-violet glass over a Hyprland-style gradient wallpaper, pink→cyan accents.
+private fun linuxColorScheme(base: ColorScheme, accent: Color?): ColorScheme {
+    val bg = Color(0xFF0D0B14)
+    val fg = Color(0xFFECEAF5)
+    val pink = accent ?: Color(0xFFEE66FF)
+    return base.copy(
+        primary = pink, onPrimary = Color(0xFF16101F), primaryContainer = Color(0xFF2A1F3A), onPrimaryContainer = pink, inversePrimary = pink,
+        secondary = Color(0xFF33CCFF), onSecondary = Color(0xFF07121A), secondaryContainer = Color(0xFF1B2A3A), onSecondaryContainer = Color(0xFF33CCFF),
+        tertiary = Color(0xFF9ECE6A), onTertiary = Color(0xFF0E1408), tertiaryContainer = Color(0xFF1E2A18), onTertiaryContainer = Color(0xFF9ECE6A),
+        background = bg, onBackground = fg, surface = Color(0xFF14111F), onSurface = fg,
+        surfaceVariant = Color(0xFF221D31), onSurfaceVariant = Color(0xFF8F8BA8), surfaceTint = Color.Transparent,
+        inverseSurface = fg, inverseOnSurface = bg,
+        error = Color(0xFFFF6B8A), onError = Color.Black, errorContainer = Color(0xFF3A1A24), onErrorContainer = Color(0xFFFF6B8A),
+        outline = Color(0xFF3A3450), outlineVariant = Color(0xFF26213A), scrim = Color.Black,
+        surfaceBright = Color(0xFF2A243B), surfaceDim = bg,
+        surfaceContainerLowest = bg, surfaceContainerLow = Color(0xFF14111F), surfaceContainer = Color(0xFF1A1626),
+        surfaceContainerHigh = Color(0xFF221D31), surfaceContainerHighest = Color(0xFF2A243B),
+    )
+}
+
 private fun fontFamilyOf(font: String) = platformFontFamily(font) ?: when (font) {
     "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
     "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
@@ -307,6 +327,7 @@ fun NocturneTheme(
         scheme = when (style) {
             DesignStyle.GLASS -> iosColorScheme(scheme, dark, accent)
             DesignStyle.ARCH -> archColorScheme(scheme, dark, Color(settings.accentColor).takeIf { settings.accentColor != DefaultAccent })
+            DesignStyle.LINUX -> linuxColorScheme(scheme, Color(settings.accentColor).takeIf { settings.accentColor != DefaultAccent })
             else -> fluentColorScheme(scheme, dark, accent, dark && settings.pureBlack)
         }
     }
@@ -314,6 +335,7 @@ fun NocturneTheme(
         DesignStyle.GLASS -> iosTypography(settings.fontStyle)
         DesignStyle.WINDOWS -> fluentTypography(settings.fontStyle)
         DesignStyle.ARCH -> archTypography()
+        DesignStyle.LINUX -> fluentTypography(settings.fontStyle)
         DesignStyle.MATERIAL -> nocturneTypography(settings.fontStyle)
     }
     val shapes = when (style) {

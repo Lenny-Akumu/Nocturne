@@ -198,6 +198,8 @@ private fun AppScaffold() {
         val hasPlayer = player.current != null
         if (wide && LocalDesignStyle.current == app.nocturne.data.DesignStyle.ARCH) {
             ArchShell(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + caption, onExpand = { nav.playerExpanded = true })
+        } else if (wide && LocalDesignStyle.current == app.nocturne.data.DesignStyle.LINUX) {
+            LinuxShell(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + caption, onExpand = { nav.playerExpanded = true })
         } else if (wide && aurora) {
             GlassSource(Modifier.fillMaxSize()) { Row(Modifier.fillMaxSize()) {
                 AuroraDock(nav, top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + if (caption > 0.dp) caption + 2.dp else 12.dp)
