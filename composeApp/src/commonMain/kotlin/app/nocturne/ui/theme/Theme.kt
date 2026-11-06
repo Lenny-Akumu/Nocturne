@@ -137,6 +137,26 @@ private fun linuxColorScheme(base: ColorScheme, accent: Color?): ColorScheme {
     )
 }
 
+// Terminal: Catppuccin Mocha, like a themed Ghostty window.
+private fun terminalColorScheme(base: ColorScheme, accent: Color?): ColorScheme {
+    val bg = Color(0xFF1E1E2E)
+    val fg = Color(0xFFCDD6F4)
+    val mauve = accent ?: Color(0xFFCBA6F7)
+    return base.copy(
+        primary = mauve, onPrimary = Color(0xFF11111B), primaryContainer = Color(0xFF313244), onPrimaryContainer = mauve, inversePrimary = mauve,
+        secondary = Color(0xFFFAB387), onSecondary = Color(0xFF11111B), secondaryContainer = Color(0xFF313244), onSecondaryContainer = Color(0xFFFAB387),
+        tertiary = Color(0xFF94E2D5), onTertiary = Color(0xFF11111B), tertiaryContainer = Color(0xFF313244), onTertiaryContainer = Color(0xFF94E2D5),
+        background = bg, onBackground = fg, surface = bg, onSurface = fg,
+        surfaceVariant = Color(0xFF313244), onSurfaceVariant = Color(0xFF7F849C), surfaceTint = Color.Transparent,
+        inverseSurface = fg, inverseOnSurface = bg,
+        error = Color(0xFFF38BA8), onError = Color(0xFF11111B), errorContainer = Color(0xFF3B2533), onErrorContainer = Color(0xFFF38BA8),
+        outline = Color(0xFF45475A), outlineVariant = Color(0xFF313244), scrim = Color.Black,
+        surfaceBright = Color(0xFF45475A), surfaceDim = Color(0xFF181825),
+        surfaceContainerLowest = Color(0xFF11111B), surfaceContainerLow = Color(0xFF181825), surfaceContainer = Color(0xFF1E1E2E),
+        surfaceContainerHigh = Color(0xFF313244), surfaceContainerHighest = Color(0xFF45475A),
+    )
+}
+
 private fun fontFamilyOf(font: String) = platformFontFamily(font) ?: when (font) {
     "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
     "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
@@ -327,6 +347,7 @@ fun NocturneTheme(
         scheme = when (style) {
             DesignStyle.GLASS -> iosColorScheme(scheme, dark, accent)
             DesignStyle.ARCH -> archColorScheme(scheme, dark, Color(settings.accentColor).takeIf { settings.accentColor != DefaultAccent })
+            DesignStyle.TERMINAL -> terminalColorScheme(scheme, Color(settings.accentColor).takeIf { settings.accentColor != DefaultAccent })
             DesignStyle.LINUX -> linuxColorScheme(scheme, Color(settings.accentColor).takeIf { settings.accentColor != DefaultAccent })
             else -> fluentColorScheme(scheme, dark, accent, dark && settings.pureBlack)
         }
@@ -336,11 +357,13 @@ fun NocturneTheme(
         DesignStyle.WINDOWS -> fluentTypography(settings.fontStyle)
         DesignStyle.ARCH -> archTypography()
         DesignStyle.LINUX -> fluentTypography(settings.fontStyle)
+        DesignStyle.TERMINAL -> archTypography()
         DesignStyle.MATERIAL -> nocturneTypography(settings.fontStyle)
     }
     val shapes = when (style) {
         DesignStyle.WINDOWS -> FluentShapes
         DesignStyle.ARCH -> ArchShapes
+        DesignStyle.TERMINAL -> FluentShapes
         else -> NocturneShapes
     }
     CompositionLocalProvider(

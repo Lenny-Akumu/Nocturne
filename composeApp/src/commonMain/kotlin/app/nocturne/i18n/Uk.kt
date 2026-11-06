@@ -932,5 +932,13 @@ internal object Uk {
         "back" to "назад",
         "NOW PLAYING" to "ЗАРАЗ ГРАЄ",
         "UP NEXT" to "ДАЛІ",
+        "queue" to "черга",
+        "session" to "сесія",
+        "idle" to "тиша",
+        "now playing" to "зараз грає",
+        "pause" to "пауза",
+        "listened" to "слухав",
+        "tracks" to "треків",
+        "top" to "топ",
     )
 }
