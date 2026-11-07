@@ -1,5 +1,6 @@
 package app.nocturne.ui.player
 
+import app.nocturne.ui.textInput
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.Canvas
@@ -283,7 +284,7 @@ private fun DeviceRows(m: ConnectModel, row: @Composable (name: String, on: Bool
 private fun CodeField(value: String, onChange: (String) -> Unit, hint: String, color: Color, modifier: Modifier) {
     Box(modifier) {
         if (value.isEmpty()) Text(hint, color = color.copy(alpha = 0.4f), fontFamily = FontFamily.Monospace)
-        BasicTextField(value, onChange, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = color, fontFamily = FontFamily.Monospace), cursorBrush = SolidColor(color), modifier = Modifier.fillMaxWidth())
+        BasicTextField(value, onChange, singleLine = true, textStyle = MaterialTheme.typography.bodyLarge.copy(color = color, fontFamily = FontFamily.Monospace), cursorBrush = SolidColor(color), modifier = Modifier.fillMaxWidth().textInput())
     }
 }
 

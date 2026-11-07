@@ -201,8 +201,6 @@ internal fun Cava(playing: Boolean, modifier: Modifier) {
     }
 }
 
-/** ████░░░ progress line with time stamps; click or drag to seek. */
-@Composable
 /** Terminal-style spinner frame (⠋⠙⠹…), advancing while shown. */
 @Composable
 internal fun spinnerFrame(): String {
@@ -212,6 +210,7 @@ internal fun spinnerFrame(): String {
     return frames[i].toString()
 }
 
+/** ████░░░ progress line with time stamps; click or drag to seek. */
 @Composable
 internal fun BlockBar(pos: Long, dur: Long, playing: Boolean, onToggle: () -> Unit, buffering: Boolean = false, onSeek: (Long) -> Unit) {
     val cs = MaterialTheme.colorScheme

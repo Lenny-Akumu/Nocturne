@@ -210,7 +210,9 @@ private fun launchApp() {
                         return@Window true
                     }
                 }
-                Hotkeys.find(e, settings)?.let { performHotkey(it).also { ok -> Hotkeys.ate = ok } } ?: false
+                Hotkeys.find(e, settings)?.let { performHotkey(it).also { ok -> Hotkeys.ate = ok } }
+                    // player keys come first, before a focused button turns Space/Enter into a click; text fields keep their keys
+                    ?: (!Hotkeys.capturing && !e.isCtrlPressed && !e.isMetaPressed && app.nocturne.ui.TextInput.focused == 0 && app.nocturne.ui.handleAppKey(e))
             },
             // plain player keys only if nothing focused (e.g. a text field) used them
             onKeyEvent = { e -> !Hotkeys.capturing && app.nocturne.ui.handleAppKey(e) },

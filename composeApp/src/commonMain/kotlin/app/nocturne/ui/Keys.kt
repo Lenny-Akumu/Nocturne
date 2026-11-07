@@ -61,6 +61,8 @@ fun handleAppKey(e: KeyEvent): Boolean {
         Key.DirectionRight -> if (e.isShiftPressed || mod) p.next() else p.seekBy(step)
         Key.DirectionLeft -> if (e.isShiftPressed || mod) p.previous() else p.seekBy(-step)
         Key.J -> p.seekBy(-step)
+        Key.N -> if (!mod) p.next() else return false
+        Key.P -> if (!mod) p.previous() else return false
         Key.DirectionUp -> p.setVolume((s.volume + 0.05f).coerceAtMost(1f))
         Key.DirectionDown -> p.setVolume((s.volume - 0.05f).coerceAtLeast(0f))
         Key.M -> if (s.volume > 0.01f) { lastVolume = s.volume; p.setVolume(0f) } else p.setVolume(lastVolume.coerceAtLeast(0.1f))
