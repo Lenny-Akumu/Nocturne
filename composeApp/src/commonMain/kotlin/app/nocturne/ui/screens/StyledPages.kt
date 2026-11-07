@@ -138,7 +138,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeSections(sections
 }
 
 @Composable
-private fun WeekBox() {
+private fun WeekBox(modifier: Modifier = Modifier.fillMaxWidth()) {
     val graph = AppGraph.instance
     val cs = MaterialTheme.colorScheme
     val library by graph.library.state.collectAsState()
@@ -147,7 +147,7 @@ private fun WeekBox() {
     val week = library.plays.filter { now - it.t < 7 * day }
     val perDay = FloatArray(7).also { a -> week.forEach { e -> a[(6 - ((now - e.t) / day).toInt()).coerceIn(0, 6)] += e.d / 60_000f } }
     val minutes = week.sumOf { it.d } / 60_000
-    StyledBox(t("Your week")) {
+    StyledBox(t("Your week"), modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
             Column {
                 Text(if (minutes >= 60) "${minutes / 60} " + t("h") + " ${minutes % 60} " + t("min") else "$minutes " + t("min"), style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold), color = cs.primary)
@@ -175,7 +175,7 @@ private fun WeekBox() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TopArtistsBox(play: (List<Track>, Int, String?) -> Unit) {
+private fun TopArtistsBox(play: (List<Track>, Int, String?) -> Unit, modifier: Modifier = Modifier.fillMaxWidth()) {
     val graph = AppGraph.instance
     val cs = MaterialTheme.colorScheme
     val library by graph.library.state.collectAsState()
@@ -185,7 +185,7 @@ private fun TopArtistsBox(play: (List<Track>, Int, String?) -> Unit) {
             .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(6).map { it.key }
     }
     if (top.isEmpty()) return
-    StyledBox(t("Top artists")) {
+    StyledBox(t("Top artists"), modifier) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             top.forEach { name ->
                 val tracks = library.history.map { it.track }.filter { tr -> tr.artistNames.contains(name, ignoreCase = true) }.distinctBy { it.key }

@@ -111,8 +111,8 @@ private fun DesignStyle.icon(): ImageVector = when (this) {
     DesignStyle.GLASS -> Icons.Rounded.PhoneIphone
     DesignStyle.WINDOWS -> Icons.Rounded.Window
     DesignStyle.LINUX -> Icons.Rounded.AutoAwesome
-    DesignStyle.ARCH -> Icons.Rounded.ChangeHistory
-    DesignStyle.TERMINAL -> Icons.Rounded.Terminal
+    DesignStyle.ARCH -> Icons.Rounded.Terminal
+    DesignStyle.TERMINAL -> Icons.Rounded.ChangeHistory
 }
 
 private fun DesignStyle.title(): String = when (this) {
