@@ -626,9 +626,10 @@ class PlayerController(
         streamSave = scope.launch(Dispatchers.Default) {
             delay(1500)
             val now = nowMillis()
-            val list = runCatching { streamCache.entries.toList() }.getOrNull()?.filter { now - it.value.at < STREAM_TTL && !it.value.stream.url.startsWith("file") && !it.value.stream.url.startsWith("/") }
+            val all = runCatching { streamCache.entries.toList() }.getOrNull() ?: return@launch
+            val list = all.filter { now - it.value.at < STREAM_TTL && !it.value.stream.url.startsWith("file") && !it.value.stream.url.startsWith("/") }
                 .sortedByDescending { it.value.at }.take(150)
-                .map { (k, v) -> StreamEntry(k, v.stream.url, v.stream.mimeType, v.stream.isHls, v.stream.bitrate, v.stream.codec, v.at) } ?: return@launch
+                .map { (k, v) -> StreamEntry(k, v.stream.url, v.stream.mimeType, v.stream.isHls, v.stream.bitrate, v.stream.codec, v.at) }
             runCatching { FileStore.write(STREAM_FILE, json.encodeToString(kotlinx.serialization.builtins.ListSerializer(StreamEntry.serializer()), list)) }
         }
     }
