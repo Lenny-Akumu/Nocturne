@@ -507,10 +507,13 @@ private fun ArchAudio(onDismiss: () -> Unit) {
 // ---------- Terminal ----------
 
 @Composable
-private fun TermWindow(title: String, width: Dp, content: @Composable ColumnScope.() -> Unit) {
+private fun TermWindow(title: String, width: Dp, onClose: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.width(width).shadow(30.dp, RoundedCornerShape(12.dp)).clip(RoundedCornerShape(12.dp)).background(TBase).border(1.dp, TSurface, RoundedCornerShape(12.dp))) {
         Row(Modifier.fillMaxWidth().background(TMantle).padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf(Color(0xFFFF5F57), Color(0xFFFEBC2E), Color(0xFF28C840)).forEach { Box(Modifier.padding(end = 7.dp).size(11.dp).clip(CircleShape).background(it)) }
+            listOf(Color(0xFFFF5F57), Color(0xFFFEBC2E), Color(0xFF28C840)).forEachIndexed { i, c ->
+                // the red dot closes the popup, like a window's close button
+                Box(Modifier.padding(end = 7.dp).size(11.dp).clip(CircleShape).background(c).then(if (i == 0 && onClose != null) Modifier.clickable(onClick = onClose) else Modifier))
+            }
             Text(title, color = TMuted, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 6.dp))
         }
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp), content = content)
@@ -530,7 +533,7 @@ private fun TerminalConnect(m: ConnectModel, onDismiss: () -> Unit, onCarMode: (
     val status by m.party.status.collectAsState()
     val members by m.party.members.collectAsState()
     val (copied, copy) = rememberCopy()
-    TermWindow("nocturne · connect", 480.dp) {
+    TermWindow("nocturne · connect", 480.dp, onDismiss) {
         TBox("¹" + t("devices"), TSky) {
             DeviceRows(m) { name, on, sub, click ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(if (on) TSurface else Color.Transparent).clickable(onClick = click).padding(horizontal = 8.dp, vertical = 5.dp)) {
@@ -651,7 +654,7 @@ internal fun StyledMenuFrame(style: DesignStyle, onDismiss: () -> Unit, content:
         when (style) {
             DesignStyle.LINUX -> LinuxCard(400.dp) { Column(scroll, content = content) }
             DesignStyle.ARCH -> ArchFrame("track", 440.dp) { Column(scroll, content = content) }
-            else -> TermWindow("nocturne · track", 440.dp) { Column(scroll, content = content) }
+            else -> TermWindow("nocturne · track", 440.dp, onDismiss) { Column(scroll, content = content) }
         }
     }
 }
@@ -721,7 +724,7 @@ internal fun StyledPanel(style: DesignStyle, title: String, onDismiss: () -> Uni
         when (style) {
             DesignStyle.LINUX -> LinuxCard(600.dp) { Column(body, content = content) }
             DesignStyle.ARCH -> ArchFrame(title, 640.dp) { Column(body, content = content) }
-            else -> TermWindow("nocturne · $title", 640.dp) { Column(body, content = content) }
+            else -> TermWindow("nocturne · $title", 640.dp, onDismiss) { Column(body, content = content) }
         }
     }
 }

@@ -387,7 +387,7 @@ private fun LinuxControls(track: Track) {
                     SmallIcon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, t("Like"), if (liked) LPink else Color.White) { graph.toggleLike(track) }
                     if (canComment(track)) SmallIcon(Icons.Rounded.ChatBubbleOutline, t("Comments"), Color.White) { overlays.comments = true }
                     SmallIcon(Icons.Rounded.ThumbDownOffAlt, t("Not interested"), Color.White) { graph.notInterested(track) }
-                    SmallIcon(Icons.Rounded.GraphicEq, t("Equalizer and speed"), if (settings.eqEnabled) LPink else Color.White) { overlays.audio = true }
+                    EqButton(state.isPlaying, if (settings.eqEnabled) LPink else Color.White) { overlays.audio = true }
                     SmallIcon(if (settings.volume <= 0.01f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp, t("Volume"), Color.White, Modifier.scrollVolume()) { volume = true }
                 }
             }
@@ -484,7 +484,11 @@ private fun ArchPlayer(onCollapse: () -> Unit) {
                                 ArchToggle("z", if (state.smartShuffle) "✦ " + t("smart shuffle") else t("shuffle"), state.shuffle) { p.toggleShuffle() }
                                 ArchToggle("r", t("repeat") + when (state.repeat) { RepeatMode.ONE -> ":one"; RepeatMode.OFF -> ":off"; else -> ":all" }, state.repeat != RepeatMode.OFF) { p.cycleRepeat() }
                                 ArchToggle("♥", if (liked) t("liked") else t("like"), liked, GRed) { graph.toggleLike(track) }
-                                ArchToggle("e", t("eq") + if (settings.playbackSpeed != 1f) " ${settings.playbackSpeed}x" else "", settings.eqEnabled) { overlays.audio = true }
+                                Row(Modifier.clickable { overlays.audio = true }, verticalAlignment = Alignment.CenterVertically) {
+                                    Text("[", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                    EqBars(state.isPlaying, Modifier.size(16.dp), if (settings.eqEnabled) GGreen else cs.onSurfaceVariant)
+                                    Text("] " + t("eq") + if (settings.playbackSpeed != 1f) " ${settings.playbackSpeed}x" else "", color = if (settings.eqEnabled) cs.onSurface else cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                }
                                 if (canComment(track)) ArchToggle("c", t("comments"), false) { overlays.comments = true }
                                 ArchToggle("-", t("not interested"), false) { graph.notInterested(track) }
                             }
@@ -590,7 +594,7 @@ private fun TerminalPlayer(onCollapse: () -> Unit) {
                             SmallIcon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, t("Like"), if (liked) TRed else cs.onSurfaceVariant) { graph.toggleLike(track) }
                             if (canComment(track)) SmallIcon(Icons.Rounded.ChatBubbleOutline, t("Comments"), cs.onSurfaceVariant) { overlays.comments = true }
                             if (wide) SmallIcon(Icons.Rounded.ThumbDownOffAlt, t("Not interested"), cs.onSurfaceVariant) { graph.notInterested(track) }
-                            SmallIcon(Icons.Rounded.GraphicEq, t("Equalizer and speed"), if (settings.eqEnabled) TGreen else cs.onSurfaceVariant) { overlays.audio = true }
+                            EqButton(state.isPlaying, if (settings.eqEnabled) TGreen else cs.onSurfaceVariant) { overlays.audio = true }
                         }
                     }
                 }
@@ -599,7 +603,13 @@ private fun TerminalPlayer(onCollapse: () -> Unit) {
                 TermBox("²cava", TPink, Modifier.weight(1.25f).fillMaxHeight()) { Cava(state.isPlaying, Modifier.fillMaxSize()) }
                 TermBox(
                     "³" + t("stream"), TSky, Modifier.weight(1f).fillMaxHeight(),
-                    header = { Text("[e] " + t("equalizer"), color = cs.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, modifier = Modifier.clickable { overlays.audio = true }) },
+                    header = {
+                        Row(Modifier.clickable { overlays.audio = true }, verticalAlignment = Alignment.CenterVertically) {
+                            Text("[", color = cs.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                            EqBars(state.isPlaying, Modifier.size(14.dp), if (settings.eqEnabled) TGreen else cs.onSurfaceVariant)
+                            Text("] " + t("equalizer"), color = cs.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                        }
+                    },
                 ) { TermStream() }
             }
             if (wide) Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -694,5 +704,13 @@ private fun TermQueue() {
                 Text(clock(q.durationMs), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
             }
         }
+    }
+}
+
+/** Equalizer opener drawn as the moving bars, like in the classic designs. */
+@Composable
+private fun EqButton(playing: Boolean, tint: Color, onClick: () -> Unit) {
+    Box(Modifier.clip(CircleShape).clickable(onClick = onClick).padding(8.dp), contentAlignment = Alignment.Center) {
+        EqBars(playing, Modifier.size(22.dp), tint)
     }
 }
