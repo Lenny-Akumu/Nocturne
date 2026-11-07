@@ -66,7 +66,7 @@ private suspend fun radioFor(): List<RadioStation> {
 }
 
 /** Shows about the artists you play most, plus whatever you already follow. */
-private suspend fun podcastsFor(): List<PodcastSub> {
+internal suspend fun podcastsFor(): List<PodcastSub> {
     val graph = AppGraph.instance
     val subs = graph.settings.value.podcasts
     val artists = graph.library.mostPlayed(40).flatMap { it.artistNames.split(",").map { a -> a.trim() } }

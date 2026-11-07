@@ -947,6 +947,7 @@ internal object Uk {
         "Live text, made on this device" to "Живий текст, зроблений на цьому пристрої",
         "Smart shuffle" to "Розумне перемішування",
         "equalizer" to "еквалайзер",
+        "Popular now" to "Популярне зараз",
         "smart shuffle" to "розумне перемішування",
         "top" to "топ",
         "Choose your language" to "Обери мову",

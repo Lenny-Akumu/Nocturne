@@ -44,6 +44,32 @@ object Podcasts {
         }
     }.getOrDefault(emptyList())
 
+    private val topCache = mutableMapOf<String, List<PodcastSub>>()
+
+    /** The most popular shows in [country] right now (Apple Podcasts charts). */
+    suspend fun top(country: String): List<PodcastSub> {
+        val cc = country.lowercase().ifBlank { "us" }
+        topCache[cc]?.let { return it }
+        val list = runCatching {
+            val http = AppGraph.instance.http
+            val chart = json.parseToJsonElement(http.get("https://itunes.apple.com/$cc/rss/toppodcasts/limit=40/json").bodyAsText()).jsonObject
+            val ids = chart["feed"]!!.jsonObject["entry"]!!.jsonArray.mapNotNull { e ->
+                e.jsonObject["id"]?.jsonObject?.get("attributes")?.jsonObject?.get("im:id")?.jsonPrimitive?.contentOrNull
+            }
+            if (ids.isEmpty()) return@runCatching emptyList()
+            val found = json.parseToJsonElement(http.get("https://itunes.apple.com/lookup") { parameter("id", ids.joinToString(",")); parameter("entity", "podcast") }.bodyAsText())
+                .jsonObject["results"]!!.jsonArray.mapNotNull { e ->
+                    val o = e as? JsonObject ?: return@mapNotNull null
+                    fun s(k: String) = o[k]?.jsonPrimitive?.contentOrNull
+                    val feed = s("feedUrl") ?: return@mapNotNull null
+                    (s("collectionId") ?: s("trackId")) to PodcastSub(feed, s("collectionName") ?: feed, s("artistName").orEmpty(), s("artworkUrl600") ?: s("artworkUrl100"))
+                }.toMap()
+            ids.mapNotNull { found[it] } // keep chart order
+        }.getOrDefault(emptyList())
+        if (list.isNotEmpty()) topCache[cc] = list
+        return list
+    }
+
     suspend fun episodes(sub: PodcastSub, refresh: Boolean = false): List<Episode> {
         if (!refresh) feeds[sub.feedUrl]?.let { return it }
         val xml = runCatching { AppGraph.instance.http.get(sub.feedUrl).bodyAsText() }.getOrNull() ?: return feeds[sub.feedUrl].orEmpty()

@@ -66,6 +66,12 @@ fun PodcastsView(padding: PaddingValues) {
     var results by remember { mutableStateOf<List<PodcastSub>?>(null) }
     var searching by remember { mutableStateOf(false) }
 
+    // taste-based picks (artists you play most) and the country's chart, loaded in parallel
+    var forYou by remember { mutableStateOf<List<PodcastSub>?>(null) }
+    var top by remember { mutableStateOf<List<PodcastSub>?>(null) }
+    LaunchedEffect(Unit) { forYou = runCatching { app.nocturne.ui.components.podcastsFor() }.getOrDefault(emptyList()) }
+    LaunchedEffect(settings.contentCountry) { top = Podcasts.top(settings.contentCountry) }
+
     open?.let { sub -> PodcastPage(sub, padding) { open = null }; return }
 
     val jumpState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -104,6 +110,16 @@ fun PodcastsView(padding: PaddingValues) {
         item { Text(t("Subscriptions"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 16.dp, bottom = 4.dp)) }
         if (settings.podcasts.isEmpty()) item { MessageBox(Icons.Rounded.Podcasts, "No podcasts yet", "Search for a show and subscribe to it.") }
         items(settings.podcasts, key = { "s" + it.feedUrl }) { p -> ShowRow(p, true) { open = p } }
+        val subscribed = settings.podcasts.map { it.feedUrl }.toSet()
+        val mine = forYou.orEmpty().filter { it.feedUrl !in subscribed }
+        if (mine.isNotEmpty()) {
+            item { Text(t("Podcasts for you"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 4.dp)) }
+            items(mine.take(12), key = { "y" + it.feedUrl }) { p -> ShowRow(p, false) { open = p } }
+        }
+        item { Text(t("Popular now"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 18.dp, bottom = 4.dp)) }
+        val popular = top
+        if (popular == null) item { LoadingBox() }
+        else items(popular.filter { it.feedUrl !in subscribed && mine.none { m -> m.feedUrl == it.feedUrl } }, key = { "t" + it.feedUrl }) { p -> ShowRow(p, false) { open = p } }
     }
     }
 }
