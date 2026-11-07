@@ -439,7 +439,7 @@ private fun ArchPlayer(onCollapse: () -> Unit) {
                 Text("⌄ ", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.clickable(onClick = onCollapse))
                 Text("nocturne", color = GGreen, style = MaterialTheme.typography.bodyMedium)
                 Text(" :: player  ", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-                Text(if (state.isPlaying) "▶ playing" else "‖ paused", color = GOrange, style = MaterialTheme.typography.bodyMedium)
+                Text(if (state.isBuffering) app.nocturne.ui.spinnerFrame() + " " + t("loading…") else if (state.isPlaying) "▶ playing" else "‖ paused", color = GOrange, style = MaterialTheme.typography.bodyMedium)
                 if (wide) Text("   src ", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 if (wide) Text(track.source.label.lowercase(), color = GOrange, style = MaterialTheme.typography.bodyMedium)
                 Text("   " + t("from") + " ", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
@@ -472,7 +472,7 @@ private fun ArchPlayer(onCollapse: () -> Unit) {
                             }
                             Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 ArchKey("⏮") { p.previous() }
-                                ArchKey(if (state.isBuffering) "⋯" else if (state.isPlaying) "⏸" else "▶", GGreen) { p.toggle() }
+                                ArchKey(if (state.isBuffering) app.nocturne.ui.spinnerFrame() else if (state.isPlaying) "⏸" else "▶", GGreen) { p.toggle() }
                                 ArchKey("⏭") { p.next() }
                                 Spacer(Modifier.width(14.dp))
                                 Text("vol ", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
@@ -581,7 +581,7 @@ private fun TerminalPlayer(onCollapse: () -> Unit) {
                         Text(track.title, color = TPink, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = if (wide) 30.sp else 20.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(listOfNotNull(track.artistNames, track.source.label.lowercase()).joinToString(" · "), color = TBlue, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.weight(1f))
-                        app.nocturne.ui.BlockBar(state.positionMs, state.durationMs, state.isPlaying, onToggle = { p.toggle() }) { p.seekTo(it) }
+                        app.nocturne.ui.BlockBar(state.positionMs, state.durationMs, state.isPlaying, onToggle = { p.toggle() }, buffering = state.isBuffering) { p.seekTo(it) }
                         val liked = library.liked.any { it.key == track.key }
                         Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             ShuffleButton(state, { p.toggleShuffle() })

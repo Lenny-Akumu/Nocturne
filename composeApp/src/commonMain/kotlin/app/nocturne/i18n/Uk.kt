@@ -948,6 +948,7 @@ internal object Uk {
         "Smart shuffle" to "Розумне перемішування",
         "equalizer" to "еквалайзер",
         "Popular now" to "Популярне зараз",
+        "loading…" to "завантаження…",
         "smart shuffle" to "розумне перемішування",
         "top" to "топ",
         "Choose your language" to "Обери мову",

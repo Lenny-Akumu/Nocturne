@@ -82,7 +82,7 @@ private fun ArchBar(onExpand: () -> Unit) {
     Column(Modifier.fillMaxWidth().background(cs.background).border(1.dp, cs.outline, RectangleShape).padding(horizontal = 10.dp, vertical = 6.dp)) {
         player.current?.let { track ->
             Row(Modifier.fillMaxWidth().clickable(onClick = onExpand), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (player.isPlaying) "⏸ " else "▶ ", color = Color(0xFFB8BB26), modifier = Modifier.clickable { p.toggle() })
+                Text((if (player.isBuffering) spinnerFrame() else if (player.isPlaying) "⏸" else "▶") + " ", color = Color(0xFFB8BB26), modifier = Modifier.clickable { p.toggle() })
                 Text(track.title, color = cs.primary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Text(" ⏭", color = cs.onSurface, modifier = Modifier.clickable { p.next() })
             }
@@ -107,7 +107,7 @@ private fun TerminalBar(onExpand: () -> Unit) {
                     Cava(player.isPlaying, Modifier.fillMaxWidth().height(18.dp))
                 }
             }
-            BlockBar(player.positionMs, player.durationMs, player.isPlaying, onToggle = { p.toggle() }) { p.seekTo(it) }
+            BlockBar(player.positionMs, player.durationMs, player.isPlaying, onToggle = { p.toggle() }, buffering = player.isBuffering) { p.seekTo(it) }
         }
         TextTabs(cs.primary, cs.onSurfaceVariant, bracket = false)
     }
@@ -139,7 +139,10 @@ internal fun LinuxBar(onExpand: () -> Unit, showTabs: Boolean = true) {
             Box(
                 Modifier.size(42.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF33CCFF), Color(0xFFEE66FF)))).clickable { p.toggle() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null, Modifier.size(24.dp), tint = Color.White) }
+            ) {
+                if (player.isBuffering) androidx.compose.material3.CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.5.dp)
+                else Icon(if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null, Modifier.size(24.dp), tint = Color.White)
+            }
             Icon(Icons.Rounded.SkipNext, null, Modifier.padding(start = 6.dp).size(28.dp).clickable { p.next() }, tint = Color.White)
         }
     }

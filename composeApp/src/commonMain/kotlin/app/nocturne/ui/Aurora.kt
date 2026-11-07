@@ -194,15 +194,16 @@ private fun Glyph(icon: ImageVector, desc: String, tint: Color, size: Dp = 20.dp
 }
 
 @Composable
-private fun BigPlay(playing: Boolean, size: Dp, onClick: () -> Unit) {
+private fun BigPlay(playing: Boolean, size: Dp, buffering: Boolean = false, onClick: () -> Unit) {
     val glow = MaterialTheme.colorScheme.primary
     Box(
         Modifier.size(size).shadow(16.dp, CircleShape, ambientColor = glow, spotColor = glow).clip(CircleShape)
             .background(if (LocalDarkTheme.current) Color.White else Color(0xFF15131C)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play", Modifier.size(size * 0.52f),
-            tint = if (LocalDarkTheme.current) Color(0xFF111111) else Color.White)
+        val ink = if (LocalDarkTheme.current) Color(0xFF111111) else Color.White
+        if (buffering) androidx.compose.material3.CircularProgressIndicator(Modifier.size(size * 0.5f), color = ink, strokeWidth = 2.5.dp)
+        else Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause" else "Play", Modifier.size(size * 0.52f), tint = ink)
     }
 }
 
@@ -263,7 +264,7 @@ internal fun AuroraIsland(onExpand: () -> Unit, modifier: Modifier = Modifier) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Glyph(Icons.Rounded.Shuffle, "Shuffle", if (state.shuffle) cs.primary else cs.onSurfaceVariant, 18.dp) { graph.player.toggleShuffle() }
                     Glyph(Icons.Rounded.SkipPrevious, "Previous", cs.onSurface, 24.dp) { graph.player.previous() }
-                    BigPlay(state.isPlaying, 44.dp) { graph.player.toggle() }
+                    BigPlay(state.isPlaying, 44.dp, state.isBuffering) { graph.player.toggle() }
                     Glyph(Icons.Rounded.SkipNext, "Next", cs.onSurface, 24.dp) { graph.player.next() }
                     Glyph(if (state.repeat == Repeat.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, "Repeat",
                         if (state.repeat != Repeat.OFF) cs.primary else cs.onSurfaceVariant, 18.dp) { graph.player.cycleRepeat() }
@@ -316,7 +317,7 @@ internal fun AuroraPhoneBar(nav: Navigator, onExpand: () -> Unit, modifier: Modi
                     val liked = library.liked.any { it.key == track.key }
                     Glyph(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", if (liked) cs.primary else cs.onSurfaceVariant) { graph.toggleLike(track) }
                     Spacer(Modifier.width(4.dp))
-                    BigPlay(state.isPlaying, 40.dp) { graph.player.toggle() }
+                    BigPlay(state.isPlaying, 40.dp, state.isBuffering) { graph.player.toggle() }
                 }
                 Box(Modifier.padding(horizontal = 10.dp).fillMaxWidth().height(2.dp).clip(CircleShape).background(cs.onSurface.copy(alpha = 0.12f))) {
                     Box(Modifier.fillMaxWidth(state.progress).fillMaxHeight().background(cs.primary))
