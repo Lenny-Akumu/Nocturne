@@ -155,6 +155,7 @@ private fun Hero(onExpand: () -> Unit, art: Dp) {
             Text(track?.title ?: "nocturne", color = cs.primary, style = MaterialTheme.typography.displaySmall.copy(fontSize = if (art < 150.dp) 24.sp else 34.sp, fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(track?.let { listOfNotNull(it.artistNames, it.album).joinToString(" — ") }.orEmpty(), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Cava(player.isPlaying, Modifier.fillMaxWidth().height(if (art < 150.dp) 24.dp else 64.dp).padding(top = 6.dp))
+            if (player.isBuffering) Text("● " + t("loading…"), color = PeachC, style = MaterialTheme.typography.bodyMedium)
             BlockBar(player.positionMs, player.durationMs, player.isPlaying, onToggle = { p.toggle() }) { p.seekTo(it) }
         }
     }

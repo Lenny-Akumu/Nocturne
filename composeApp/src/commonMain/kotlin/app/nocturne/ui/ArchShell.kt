@@ -210,7 +210,7 @@ private fun ArchPlayback() {
     TuiBox("[${t("playback")}]") {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (player.isPlaying) "⏸" else "▶", color = Color(0xFFB8BB26), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clickable { p.toggle() }.padding(end = 6.dp))
+                Text(if (player.isBuffering) "⋯" else if (player.isPlaying) "⏸" else "▶", color = Color(0xFFB8BB26), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clickable { p.toggle() }.padding(end = 6.dp))
                 Text("⏮", color = cs.onSurface, modifier = Modifier.clickable { p.previous() }.padding(horizontal = 4.dp))
                 Text("⏭", color = cs.onSurface, modifier = Modifier.clickable { p.next() }.padding(horizontal = 4.dp))
                 Text(" " + mmss(player.positionMs) + " ", style = MaterialTheme.typography.bodyMedium)

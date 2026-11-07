@@ -607,7 +607,31 @@ class PlayerController(
 
     private class CachedStream(val stream: ResolvedStream, val at: Long)
 
-    private val streamCache = mutableMapOf<String, CachedStream>()
+    @kotlinx.serialization.Serializable
+    private class StreamEntry(val k: String, val u: String, val m: String? = null, val h: Boolean = false, val b: Int = 0, val c: String? = null, val at: Long)
+
+    // resolved stream URLs survive restarts (they stay valid for hours), so the first song after launch skips extraction
+    private val streamCache: MutableMap<String, CachedStream> by lazy {
+        val now = nowMillis()
+        runCatching {
+            json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(StreamEntry.serializer()), FileStore.read(STREAM_FILE) ?: "[]")
+                .filter { now - it.at < STREAM_TTL }
+                .associateTo(mutableMapOf()) { it.k to CachedStream(ResolvedStream(it.u, it.m, it.h, it.b, it.c), it.at) }
+        }.getOrDefault(mutableMapOf())
+    }
+    private var streamSave: Job? = null
+
+    private fun saveStreams() {
+        streamSave?.cancel()
+        streamSave = scope.launch(Dispatchers.Default) {
+            delay(1500)
+            val now = nowMillis()
+            val list = runCatching { streamCache.entries.toList() }.getOrNull()?.filter { now - it.value.at < STREAM_TTL && !it.value.stream.url.startsWith("file") && !it.value.stream.url.startsWith("/") }
+                .sortedByDescending { it.value.at }.take(150)
+                .map { (k, v) -> StreamEntry(k, v.stream.url, v.stream.mimeType, v.stream.isHls, v.stream.bitrate, v.stream.codec, v.at) } ?: return@launch
+            runCatching { FileStore.write(STREAM_FILE, json.encodeToString(kotlinx.serialization.builtins.ListSerializer(StreamEntry.serializer()), list)) }
+        }
+    }
     private val inFlight = mutableMapOf<String, kotlinx.coroutines.Deferred<ResolvedStream>>()
     private var prefetchJob: Job? = null
 
@@ -632,7 +656,7 @@ class PlayerController(
                 }
             }.also { inFlight[key] = it }
         return try {
-            pending.await().also { streamCache[key] = CachedStream(it, nowMillis()) }
+            pending.await().also { streamCache[key] = CachedStream(it, nowMillis()); saveStreams() }
         } finally {
             if (inFlight[key] === pending && !pending.isActive) inFlight.remove(key)
         }
@@ -818,7 +842,7 @@ class PlayerController(
     private fun warmUp() {
         if (engine.fake) return
         scope.launch(Dispatchers.Default) {
-            delay(1200)
+            delay(400)
             if (loadingKey != null || loadedKey != null) return@launch
             val lib = library.state.value
             val pick = (listOfNotNull(_state.value.current) + lib.history.map { it.track } + lib.liked)
@@ -835,14 +859,15 @@ class PlayerController(
         _state.update { it.copy(queue = saved.queue, index = saved.index.coerceIn(0, saved.queue.lastIndex), positionMs = saved.positionMs, queueTitle = saved.title) }
         originalOrder = saved.queue
         if (settings.value.resumeOnStart) loadCurrent(saved.positionMs, true)
-        else scope.launch {
-            delay(2500)
+        // resolve the song that's up first right away, in the background, so pressing play is instant
+        else scope.launch(Dispatchers.Default) {
             _state.value.current?.let { runCatching { resolve(it) } }
         }
     }
 
     companion object {
         private const val QUEUE_FILE = "queue.json"
+        private const val STREAM_FILE = "streams.json"
         private const val STREAM_TTL = 3 * 60 * 60 * 1000L
         private const val HEDGE_MS = 4500L
         private const val SLEEP_FADE_MS = 30_000L

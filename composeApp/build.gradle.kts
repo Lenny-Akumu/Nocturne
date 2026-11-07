@@ -182,7 +182,7 @@ compose.desktop {
         // lean heap: G1 hands unused memory back to the OS while idle
         jvmArgs += listOf(
             "-Dfile.encoding=UTF-8",
-            "-Xms48m", "-Xmx1024m",
+            "-Xms256m", "-Xmx1024m",
             "-XX:+UseG1GC", "-XX:G1PeriodicGCInterval=20000", "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=25",
             "-XX:+UseStringDeduplication", "-XX:ReservedCodeCacheSize=96m",
         )

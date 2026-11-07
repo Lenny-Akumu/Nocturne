@@ -401,7 +401,10 @@ private fun LinuxControls(track: Track) {
             Box(
                 Modifier.size(66.dp).clip(CircleShape).background(Brush.linearGradient(listOf(LPink, LViolet))).clickable { p.toggle() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t("Play"), Modifier.size(34.dp), tint = Color.White) }
+            ) {
+                if (state.isBuffering) androidx.compose.material3.CircularProgressIndicator(Modifier.size(30.dp), color = Color.White, strokeWidth = 3.dp)
+                else Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t("Play"), Modifier.size(34.dp), tint = Color.White)
+            }
             Spacer(Modifier.width(26.dp))
             SmallIcon(Icons.Rounded.SkipNext, t("Next"), Color.White, size = 32.dp) { p.next() }
             Spacer(Modifier.width(26.dp))
@@ -469,7 +472,7 @@ private fun ArchPlayer(onCollapse: () -> Unit) {
                             }
                             Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 ArchKey("⏮") { p.previous() }
-                                ArchKey(if (state.isPlaying) "⏸" else "▶", GGreen) { p.toggle() }
+                                ArchKey(if (state.isBuffering) "⋯" else if (state.isPlaying) "⏸" else "▶", GGreen) { p.toggle() }
                                 ArchKey("⏭") { p.next() }
                                 Spacer(Modifier.width(14.dp))
                                 Text("vol ", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
@@ -579,7 +582,8 @@ private fun TerminalPlayer(onCollapse: () -> Unit) {
                         Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             ShuffleButton(state, { p.toggleShuffle() })
                             SmallIcon(Icons.Rounded.SkipPrevious, t("Previous"), cs.onSurface) { p.previous() }
-                            SmallIcon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t("Play"), TGreen) { p.toggle() }
+                            if (state.isBuffering) androidx.compose.material3.CircularProgressIndicator(Modifier.padding(8.dp).size(22.dp), color = TGreen, strokeWidth = 2.dp)
+                            else SmallIcon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t("Play"), TGreen) { p.toggle() }
                             SmallIcon(Icons.Rounded.SkipNext, t("Next"), cs.onSurface) { p.next() }
                             SmallIcon(if (state.repeat == RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, t("Repeat"), if (state.repeat != RepeatMode.OFF) TGreen else cs.onSurfaceVariant) { p.cycleRepeat() }
                             Spacer(Modifier.width(10.dp))

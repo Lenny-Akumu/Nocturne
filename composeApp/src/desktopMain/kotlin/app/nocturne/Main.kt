@@ -91,6 +91,11 @@ fun main(args: Array<String>) {
     app.nocturne.ui.PanelSupport.available = PanelWidget.supported
     Runtime.getRuntime().addShutdownHook(Thread { runCatching { PanelWidget.exit() }; app.nocturne.data.Persist.flushAll() })
     Thread.setDefaultUncaughtExceptionHandler { _, e ->
+        // a coroutine cancelled while the UI tore it down is not a crash: note it and keep going
+        if (generateSequence(e) { it.cause }.any { it is kotlinx.coroutines.CancellationException }) {
+            runCatching { File(AppDirs.root, "crash.log").appendText("${java.time.LocalDateTime.now()} ignored cancellation: $e\n") }
+            return@setDefaultUncaughtExceptionHandler
+        }
         reportCrash(e)
         exitProcess(1)
     }

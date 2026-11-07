@@ -194,7 +194,10 @@ private fun NowColumn(onExpand: () -> Unit) {
             Box(
                 Modifier.size(58.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Cyan, Pink))).clickable { p.toggle() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t("Play"), Modifier.size(30.dp), tint = Color.White) }
+            ) {
+                if (player.isBuffering) androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = Color.White, strokeWidth = 3.dp)
+                else Icon(if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, t("Play"), Modifier.size(30.dp), tint = Color.White)
+            }
             Icon(Icons.Rounded.SkipNext, t("Next"), Modifier.size(28.dp).clickable { p.next() }, tint = cs.onSurface)
             Icon(if (player.repeat == RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, t("Repeat"), Modifier.size(22.dp).clickable { p.cycleRepeat() }, tint = if (player.repeat != RepeatMode.OFF) Cyan else cs.onSurfaceVariant)
             val liked = library.liked.any { it.key == track.key }
