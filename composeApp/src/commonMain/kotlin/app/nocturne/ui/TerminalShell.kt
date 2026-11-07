@@ -272,6 +272,7 @@ private fun LyricLines() {
                     synced[i].text, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (i == at) FontWeight.Bold else FontWeight.Normal),
                     color = if (i == at) PinkC else cs.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().clickable { graph.player.seekTo(synced[i].timeMs) },
                 )
             }
         } else (lyrics?.plain?.lines()?.take(12) ?: listOf(if (track == null) "" else t("No lyrics"))).forEach {

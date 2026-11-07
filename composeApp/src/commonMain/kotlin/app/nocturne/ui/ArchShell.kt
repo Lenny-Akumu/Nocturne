@@ -181,19 +181,21 @@ private fun ArchLyrics(modifier: Modifier) {
     LaunchedEffect(track?.key) { lyrics = track?.let { runCatching { graph.lyrics.lyrics(it) }.getOrNull() } }
     TuiBox("[5] ${t("lyrics")}", modifier) {
         val synced = lyrics?.synced?.takeIf { it.isNotEmpty() }
-        val lines: List<Pair<String, Boolean>> = when {
+        // (text, is current, time to seek to)
+        val lines: List<Triple<String, Boolean, Long?>> = when {
             synced != null -> {
                 val at = synced.indexOfLast { it.timeMs <= player.positionMs }.coerceAtLeast(0)
-                (maxOf(0, at - 3)..minOf(synced.lastIndex, at + 6)).map { synced[it].text to (it == at) }
+                (maxOf(0, at - 3)..minOf(synced.lastIndex, at + 6)).map { Triple(synced[it].text, it == at, synced[it].timeMs) }
             }
-            !lyrics?.plain.isNullOrBlank() -> lyrics!!.plain!!.lines().take(14).map { it to false }
-            else -> listOf((if (track == null) "" else t("No lyrics")) to false)
+            !lyrics?.plain.isNullOrBlank() -> lyrics!!.plain!!.lines().take(14).map { Triple(it, false, null) }
+            else -> listOf(Triple(if (track == null) "" else t("No lyrics"), false, null))
         }
         Column {
-            lines.forEach { (text, now) ->
+            lines.forEach { (text, now, at) ->
                 Text(
                     if (now) "» $text «" else text, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium, color = if (now) cs.primary else cs.onSurfaceVariant,
+                    modifier = if (at != null) Modifier.fillMaxWidth().clickable { graph.player.seekTo(at) } else Modifier,
                 )
             }
         }

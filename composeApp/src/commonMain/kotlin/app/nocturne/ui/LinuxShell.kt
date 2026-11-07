@@ -250,7 +250,7 @@ private fun LyricsLines(key: String, pos: Long) {
         if (synced != null) {
             val at = synced.indexOfLast { it.timeMs <= pos }.coerceAtLeast(0)
             (maxOf(0, at - 2)..minOf(synced.lastIndex, at + 4)).forEach { i ->
-                Text(synced[i].text, style = style, color = if (i == at) Color.White else Color(0xFF6F6B88), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(vertical = 2.dp))
+                Text(synced[i].text, style = style, color = if (i == at) Color.White else Color(0xFF6F6B88), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable { graph.player.seekTo(synced[i].timeMs) }.padding(vertical = 2.dp))
             }
         } else lyrics?.plain?.lines()?.take(7)?.forEach {
             Text(it, style = style, color = Color(0xFF6F6B88), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(vertical = 2.dp))

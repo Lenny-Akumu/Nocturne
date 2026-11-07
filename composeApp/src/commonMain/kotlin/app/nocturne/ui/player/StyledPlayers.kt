@@ -213,7 +213,7 @@ private fun rememberMore(track: Track): () -> Unit {
     }
 }
 
-private class LyricState(val lines: List<String>, val translated: List<String>?, val current: Int, val synced: Boolean)
+private class LyricState(val lines: List<String>, val translated: List<String>?, val current: Int, val synced: Boolean, val times: List<Long> = emptyList())
 
 @Composable
 private fun rememberLyricState(track: Track, pos: Long): LyricState? {
@@ -233,7 +233,7 @@ private fun rememberLyricState(track: Track, pos: Long): LyricState? {
     val l = lyrics ?: return null
     val synced = l.synced?.takeIf { it.isNotEmpty() }
     return when {
-        synced != null -> LyricState(synced.map { it.text }, translated, synced.indexOfLast { it.timeMs <= pos + 300 }.coerceAtLeast(0), true)
+        synced != null -> LyricState(synced.map { it.text }, translated, synced.indexOfLast { it.timeMs <= pos + 300 }.coerceAtLeast(0), true, synced.map { it.timeMs })
         !l.plain.isNullOrBlank() -> LyricState(l.plain.lines(), translated, -1, false)
         else -> null
     }
@@ -253,7 +253,7 @@ private fun LyricList(track: Track, pos: Long, now: Color, idle: Color, sub: Col
     LazyColumn(modifier, state = list) {
         items(st.lines.size) { i ->
             val on = i == st.current
-            Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+            Column(Modifier.fillMaxWidth().then(st.times.getOrNull(i)?.let { tm -> Modifier.clickable { AppGraph.instance.player.seekTo(tm) } } ?: Modifier).padding(vertical = 3.dp)) {
                 Text(
                     (if (on) marker else " ".repeat(marker.length)) + st.lines[i],
                     color = if (on) now else idle, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (on) FontWeight.Bold else FontWeight.Normal),
