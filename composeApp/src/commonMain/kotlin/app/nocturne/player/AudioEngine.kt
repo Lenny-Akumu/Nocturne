@@ -36,6 +36,8 @@ interface AudioEngine {
     fun onQueueChanged(hasPrevious: Boolean, hasNext: Boolean) {}
     /** Live 5-band levels (0..1, low→high) of what is audible now; null when the engine has no PCM access. */
     fun levels(): FloatArray? = null
+    /** cava-style spectrum of what's heard now, [bands] bars 0..1; null when the engine can't see the audio. */
+    fun spectrum(bands: Int): FloatArray? = null
     /** Receives what's playing as 16 kHz mono, for live transcription; null stops it. */
     fun setPcmTap(tap: ((FloatArray, Int) -> Unit)?) {}
     fun release()

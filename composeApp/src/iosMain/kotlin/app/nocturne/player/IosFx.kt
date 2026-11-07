@@ -70,6 +70,7 @@ internal object IosFx {
     }
 
     fun levels(): FloatArray? = if (active) dsp?.analyzer?.levels() else null
+    fun spectrum(bands: Int): FloatArray? = if (active) dsp?.analyzer?.spectrum(bands) else null
 
     fun prepare(rate: Int, nonInterleaved: Boolean, float: Boolean) {
         if (!float) { active = false; return }

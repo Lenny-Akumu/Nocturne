@@ -435,6 +435,7 @@ class PlayerController(
 
     /** Spectrum for the EQ icon, polled per frame; null → the UI animates a synthetic one. */
     fun levels(): FloatArray? = engine.levels()
+    fun spectrum(bands: Int): FloatArray? = engine.spectrum(bands)
 
     /** Live EQ while dragging, without persisting settings. */
     fun previewEqualizer(gains: List<Float>) { if (partyAudio == null) engine.setEqualizer(true, gains) }

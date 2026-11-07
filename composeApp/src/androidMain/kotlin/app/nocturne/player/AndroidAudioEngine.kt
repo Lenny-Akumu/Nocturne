@@ -62,6 +62,7 @@ class AndroidAudioEngine(context: Context, cacheMb: Int) : AudioEngine {
     override val fx = AudioFx.entries.toSet()
 
     override fun levels(): FloatArray? = fxProcessor.levels()
+    override fun spectrum(bands: Int): FloatArray? = fxProcessor.spectrum(bands)
 
     val exo: ExoPlayer = ExoPlayer.Builder(context)
         .setRenderersFactory(object : DefaultRenderersFactory(context) {

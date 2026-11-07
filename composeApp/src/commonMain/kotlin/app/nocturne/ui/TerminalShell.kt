@@ -171,14 +171,18 @@ internal fun Cava(playing: Boolean, modifier: Modifier) {
         val smooth = FloatArray(bands) { 0.1f }
         while (true) {
             withFrameMillis { ms ->
-                val lv = if (playing) p.levels() else null
+                // the real spectrum when the engine sees the audio (like cava); coarse band levels, then a soft fake otherwise
+                val sp = if (playing) p.spectrum(bands) else null
+                val lv = if (playing && sp == null) p.levels() else null
                 for (i in 0 until bands) {
                     val target = when {
                         !playing -> 0.06f
+                        sp != null -> sp[i]
                         lv != null && lv.isNotEmpty() -> lv[(i * lv.size / bands).coerceIn(0, lv.lastIndex)].coerceIn(0f, 1f)
                         else -> (0.35f + 0.3f * sin(ms / 260.0 + i * 0.7).toFloat() + 0.25f * sin(ms / 170.0 + i * 1.9).toFloat()).coerceIn(0.05f, 1f)
                     }
-                    smooth[i] += (target - smooth[i]) * 0.25f
+                    // fast rise, gravity-like fall
+                    smooth[i] = if (target > smooth[i]) smooth[i] + (target - smooth[i]) * 0.6f else smooth[i] + (target - smooth[i]) * 0.18f
                 }
                 heights = smooth.copyOf()
             }

@@ -39,6 +39,7 @@ class FxAudioProcessor : BaseAudioProcessor() {
     }
 
     fun levels(): FloatArray? = dsp?.analyzer?.levels()
+    fun spectrum(bands: Int): FloatArray? = dsp?.analyzer?.spectrum(bands)
 
     override fun onReset() {
         dsp = null

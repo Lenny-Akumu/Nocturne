@@ -283,7 +283,87 @@ class Analyzer(private val rate: Int) {
 
     fun reset() { f.forEach { it.clear() }; f2.forEach { it.clear() }; acc.fill(0f); count = 0 }
 
+    // last samples for the cava-style spectrum
+    private val wave = FloatArray(WAVE)
+    @Volatile private var wavePos = 0
+    private val fftRe = FloatArray(FFT)
+    private val fftIm = FloatArray(FFT)
+    private val window = FloatArray(FFT) { (0.5 - 0.5 * cos(2 * PI * it / (FFT - 1))).toFloat() }
+    private var bandPeak = FloatArray(0)
+
+    /**
+     * cava-like spectrum: [bands] log-spaced bars from 40 Hz to 16 kHz, 0..1, auto-sensitive.
+     * Reads the samples that are being heard now (the output buffer's delay is skipped).
+     */
+    fun spectrum(bands: Int): FloatArray? {
+        if (head < 0) return null
+        val delay = latencyMs * rate / 1000
+        val end = wavePos - delay
+        for (i in 0 until FFT) {
+            fftRe[i] = wave[(end - FFT + i) and (WAVE - 1)] * window[i]
+            fftIm[i] = 0f
+        }
+        fft(fftRe, fftIm)
+        if (bandPeak.size != bands) bandPeak = FloatArray(bands) { 1e-6f }
+        val out = FloatArray(bands)
+        val lo = 40.0
+        val hi = minOf(16_000.0, rate / 2.0)
+        val binHz = rate.toDouble() / FFT
+        for (b in 0 until bands) {
+            val f0 = lo * (hi / lo).pow(b.toDouble() / bands)
+            val f1 = lo * (hi / lo).pow((b + 1).toDouble() / bands)
+            val k0 = (f0 / binHz).toInt().coerceIn(1, FFT / 2 - 1)
+            val k1 = (f1 / binHz).toInt().coerceIn(k0, FFT / 2 - 1)
+            var m = 0f
+            for (k in k0..k1) m = max(m, fftRe[k] * fftRe[k] + fftIm[k] * fftIm[k])
+            // treble carries less energy: tilt it up like cava's eq
+            val v = sqrt(m) * (1f + b.toFloat() / bands * 2.5f)
+            bandPeak[b] = max(v, bandPeak[b] * 0.996f)
+            out[b] = v
+        }
+        val top = bandPeak.maxOrNull()?.coerceAtLeast(1e-4f) ?: 1f
+        for (b in 0 until bands) out[b] = (out[b] / top).coerceIn(0f, 1f).pow(0.8f)
+        return out
+    }
+
+    private fun fft(re: FloatArray, im: FloatArray) {
+        val n = re.size
+        var j = 0
+        for (i in 1 until n) {
+            var bit = n shr 1
+            while (j and bit != 0) { j = j xor bit; bit = bit shr 1 }
+            j = j xor bit
+            if (i < j) { var t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t }
+        }
+        var len = 2
+        while (len <= n) {
+            val ang = -2 * PI / len
+            val wr = cos(ang).toFloat()
+            val wi = sin(ang).toFloat()
+            var i = 0
+            while (i < n) {
+                var cr = 1f
+                var ci = 0f
+                for (k in 0 until len / 2) {
+                    val ar = re[i + k + len / 2] * cr - im[i + k + len / 2] * ci
+                    val ai = re[i + k + len / 2] * ci + im[i + k + len / 2] * cr
+                    re[i + k + len / 2] = re[i + k] - ar
+                    im[i + k + len / 2] = im[i + k] - ai
+                    re[i + k] += ar
+                    im[i + k] += ai
+                    val nr = cr * wr - ci * wi
+                    ci = cr * wi + ci * wr
+                    cr = nr
+                }
+                i += len
+            }
+            len = len shl 1
+        }
+    }
+
     fun feed(x: Float) {
+        wave[wavePos and (WAVE - 1)] = x
+        wavePos++
         for (b in f.indices) { val y = f2[b].left(f[b].left(x)); acc[b] += y * y }
         frame++
         if (++count < hop) return
@@ -323,6 +403,8 @@ class Analyzer(private val rate: Int) {
         val FREQS = doubleArrayOf(60.0, 250.0, 1000.0, 4000.0, 10000.0)
         private const val RANGE = 26f
         private const val RING = 32
+        private const val FFT = 4096
+        private const val WAVE = 16384
         private val SILENT = FloatArray(5)
     }
 }

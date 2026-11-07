@@ -52,6 +52,7 @@ class VlcAudioEngine : AudioEngine {
     override val fx: Set<AudioFx> get() = if (dspActive) AudioFx.entries.toSet() else emptySet()
 
     override fun levels(): FloatArray? = if (dspActive) dsp.analyzer.levels() else null
+    override fun spectrum(bands: Int): FloatArray? = if (dspActive && playing) dsp.analyzer.spectrum(bands) else null
 
     @Volatile private var pcmTap: ((FloatArray, Int) -> Unit)? = null
     override fun setPcmTap(tap: ((FloatArray, Int) -> Unit)?) { pcmTap = tap }

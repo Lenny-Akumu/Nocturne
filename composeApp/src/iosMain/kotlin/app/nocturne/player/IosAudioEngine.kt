@@ -280,6 +280,7 @@ class IosAudioEngine : AudioEngine {
         IosFx.setEffects(normalize, spatial, eightD, vocalRemover)
 
     override fun levels(): FloatArray? = IosFx.levels()
+    override fun spectrum(bands: Int): FloatArray? = IosFx.spectrum(bands)
 
     override fun setVolume(volume: Float) {
         player.volume = volume.coerceIn(0f, 1f)
