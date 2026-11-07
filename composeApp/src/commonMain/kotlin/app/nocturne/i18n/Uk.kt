@@ -946,6 +946,7 @@ internal object Uk {
         "Text will appear in a few seconds" to "Текст з'явиться за кілька секунд",
         "Live text, made on this device" to "Живий текст, зроблений на цьому пристрої",
         "Smart shuffle" to "Розумне перемішування",
+        "equalizer" to "еквалайзер",
         "smart shuffle" to "розумне перемішування",
         "top" to "топ",
         "Choose your language" to "Обери мову",

@@ -1,5 +1,7 @@
 package app.nocturne.ui.player
 
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -636,5 +638,90 @@ private fun TermMeter(label: String, value: Float, text: String, color: Color, o
         Text(label, color = Color(0xFFCDD6F4), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(64.dp))
         BlockMeter(value, onChange, color, TSurface, Modifier.weight(1f), cells = 22)
         Text(text, color = Color(0xFFCDD6F4), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(56.dp).padding(start = 8.dp))
+    }
+}
+
+// ---------- track menu ----------
+
+/** The track menu as a popup in the look of the Linux, Arch and Terminal designs. */
+@Composable
+internal fun StyledMenuFrame(style: DesignStyle, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Popup(onDismiss) {
+        val scroll = Modifier.heightIn(max = 620.dp).verticalScroll(rememberScrollState())
+        when (style) {
+            DesignStyle.LINUX -> LinuxCard(400.dp) { Column(scroll, content = content) }
+            DesignStyle.ARCH -> ArchFrame("track", 440.dp) { Column(scroll, content = content) }
+            else -> TermWindow("nocturne · track", 440.dp) { Column(scroll, content = content) }
+        }
+    }
+}
+
+@Composable
+internal fun StyledMenuHeader(style: DesignStyle, track: app.nocturne.model.Track) {
+    val cs = MaterialTheme.colorScheme
+    val (accent, sub) = when (style) {
+        DesignStyle.LINUX -> Color.White to Color.White.copy(alpha = 0.6f)
+        DesignStyle.ARCH -> GYellow to GAqua
+        else -> TPink to TBlue
+    }
+    Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        val shape = when (style) { DesignStyle.LINUX -> RoundedCornerShape(12.dp); DesignStyle.ARCH -> androidx.compose.ui.graphics.RectangleShape; else -> RoundedCornerShape(6.dp) }
+        app.nocturne.ui.components.Artwork(track.artworkUrl, Modifier.size(52.dp), shape)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(track.title, color = accent, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(track.artistNames + " · " + track.source.label.lowercase(), color = sub, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+    when (style) {
+        DesignStyle.LINUX -> Box(Modifier.fillMaxWidth().padding(bottom = 6.dp).height(1.dp).background(Color.White.copy(alpha = 0.1f)))
+        DesignStyle.ARCH -> Text("─".repeat(48), color = cs.onSurfaceVariant, maxLines = 1, style = MaterialTheme.typography.bodySmall)
+        else -> Box(Modifier.fillMaxWidth().padding(bottom = 4.dp).height(1.dp).background(TSurface))
+    }
+}
+
+@Composable
+internal fun StyledMenuRow(style: DesignStyle, icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, destructive: Boolean, onClick: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val hover = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val hovered by hover.collectIsHoveredAsState()
+    when (style) {
+        DesignStyle.LINUX -> Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (hovered) Color.White.copy(alpha = 0.08f) else Color.Transparent)
+                .hoverable(hover).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(if (destructive) LPink.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f)), contentAlignment = Alignment.Center) {
+                app.nocturne.ui.kit.Icon(icon, null, Modifier.size(18.dp), tint = if (destructive) LPink else Color.White)
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(label, color = if (destructive) LPink else Color.White, style = MaterialTheme.typography.bodyMedium)
+        }
+        DesignStyle.ARCH -> Row(Modifier.fillMaxWidth().background(if (hovered) GBg1 else Color.Transparent).hoverable(hover).clickable(onClick = onClick).padding(vertical = 3.dp)) {
+            Text(if (hovered) "> " else "  ", color = GYellow, style = MaterialTheme.typography.bodyMedium)
+            Text(label.lowercase(), color = if (destructive) GRed else if (hovered) GYellow else cs.onSurface, style = MaterialTheme.typography.bodyMedium)
+        }
+        else -> Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(if (hovered) TSurface else Color.Transparent).hoverable(hover).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(if (hovered) "▸ " else "  ", color = TPink, style = MaterialTheme.typography.bodyMedium)
+            app.nocturne.ui.kit.Icon(icon, null, Modifier.size(16.dp), tint = if (destructive) TPink else TMuted)
+            Spacer(Modifier.width(10.dp))
+            Text(label.lowercase(), color = if (destructive) TPink else if (hovered) TPink else Color(0xFFCDD6F4), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** A larger popup (comments and the like) framed per design. */
+@Composable
+internal fun StyledPanel(style: DesignStyle, title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Popup(onDismiss) {
+        val body = Modifier.height(620.dp)
+        when (style) {
+            DesignStyle.LINUX -> LinuxCard(600.dp) { Column(body, content = content) }
+            DesignStyle.ARCH -> ArchFrame(title, 640.dp) { Column(body, content = content) }
+            else -> TermWindow("nocturne · $title", 640.dp) { Column(body, content = content) }
+        }
     }
 }

@@ -590,13 +590,17 @@ private fun TerminalPlayer(onCollapse: () -> Unit) {
                             SmallIcon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, t("Like"), if (liked) TRed else cs.onSurfaceVariant) { graph.toggleLike(track) }
                             if (canComment(track)) SmallIcon(Icons.Rounded.ChatBubbleOutline, t("Comments"), cs.onSurfaceVariant) { overlays.comments = true }
                             if (wide) SmallIcon(Icons.Rounded.ThumbDownOffAlt, t("Not interested"), cs.onSurfaceVariant) { graph.notInterested(track) }
+                            SmallIcon(Icons.Rounded.GraphicEq, t("Equalizer and speed"), if (settings.eqEnabled) TGreen else cs.onSurfaceVariant) { overlays.audio = true }
                         }
                     }
                 }
             }
             Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 TermBox("²cava", TPink, Modifier.weight(1.25f).fillMaxHeight()) { Cava(state.isPlaying, Modifier.fillMaxSize()) }
-                TermBox("³" + t("stream"), TSky, Modifier.weight(1f).fillMaxHeight()) { TermStream() }
+                TermBox(
+                    "³" + t("stream"), TSky, Modifier.weight(1f).fillMaxHeight(),
+                    header = { Text("[e] " + t("equalizer"), color = cs.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, modifier = Modifier.clickable { overlays.audio = true }) },
+                ) { TermStream() }
             }
             if (wide) Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 TermBox("⁴" + t("queue"), TMauve, Modifier.weight(1.25f).fillMaxHeight()) { TermQueue() }
@@ -629,7 +633,7 @@ private fun TermStream() {
         while (true) {
             kotlinx.coroutines.delay(120)
             val lv = if (state.isPlaying) p.levels() else null
-            val v = lv?.takeIf { it.isNotEmpty() }?.let { it.average().toFloat() } ?: 0f
+            val v = lv?.takeIf { it.isNotEmpty() }?.let { (it.maxOrNull() ?: 0f) * 0.6f + it.average().toFloat() * 0.4f } ?: 0f
             history = (history + v.coerceIn(0f, 1f)).takeLast(60)
         }
     }

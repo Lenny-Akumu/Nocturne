@@ -145,8 +145,8 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.8f).navigationBarsPadding()) {
+    val style = app.nocturne.ui.kit.LocalDesignStyle.current
+    val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
             Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(t("Comments"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 count?.let { Text("  $it", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -191,7 +191,10 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
                     }
                 }
             }
-        }
+    }
+    if (style.hasOwnPlayer()) StyledPanel(style, t("Comments").lowercase(), onDismiss) { body() }
+    else ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.8f).navigationBarsPadding(), content = body)
     }
 }
 

@@ -1,5 +1,6 @@
 package app.nocturne.ui.components
 
+import app.nocturne.ui.player.hasOwnPlayer
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import app.nocturne.i18n.t
@@ -110,6 +111,8 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
 
     // Liquid Glass: iOS context menu growing out of the touch point instead of a bottom sheet.
     val glass = LocalDesignStyle.current == DesignStyle.GLASS
+    val menuStyle = LocalDesignStyle.current
+    val own = menuStyle.hasOwnPlayer()
     var closing by remember { mutableStateOf(false) }
     CompositionLocalProvider(LocalTrackMenu provides { t, c -> target = t to c; closing = false }) {
         Box(Modifier.glassTouchTracker()) { content() }
@@ -121,8 +124,9 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
         val close: () -> Unit = { if (glass) { closing = true } else { target = null } }
         val anchor = remember(track, ctx) { GlassTouch.last }
         val body: @Composable () -> Unit = {
-            Column(if (glass) Modifier else Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
-                Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(if (glass || own) Modifier else Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
+                if (own) app.nocturne.ui.player.StyledMenuHeader(menuStyle, track)
+                else Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Artwork(track.artworkUrl, Modifier.size(56.dp), RoundedCornerShape(10.dp))
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
@@ -134,7 +138,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                         }
                     }
                 }
-                if (glass) GlassMenuGap() else HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                if (glass) GlassMenuGap() else if (!own) HorizontalDivider(Modifier.padding(vertical = 6.dp))
                 val liked = library.liked.any { it.key == track.key }
                 MenuItem(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (liked) "Remove from liked" else "Like") {
                     graph.toggleLike(track); close()
@@ -186,6 +190,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
             }
         }
         if (glass) GlassMenuOverlay(visible = !closing, anchor = anchor, onDismiss = close, onGone = { target = null; closing = false }) { body() }
+        else if (own) app.nocturne.ui.player.StyledMenuFrame(menuStyle, close) { body() }
         else ModalBottomSheet(onDismissRequest = close, sheetState = sheet) { body() }
     }
 
@@ -197,6 +202,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
 @Composable
 private fun MenuItem(icon: ImageVector, label: String, destructive: Boolean = false, onClick: () -> Unit) {
     if (LocalDesignStyle.current == DesignStyle.GLASS) return GlassMenuRow(icon, t(label), destructive, onClick = onClick)
+    LocalDesignStyle.current.takeIf { it.hasOwnPlayer() }?.let { return app.nocturne.ui.player.StyledMenuRow(it, icon, t(label), destructive, onClick) }
     ListItem(
         headlineContent = { Text(t(label)) },
         leadingContent = { Icon(icon, null) },
