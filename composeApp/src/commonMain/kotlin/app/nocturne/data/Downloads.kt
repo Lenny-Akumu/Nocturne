@@ -27,6 +27,16 @@ expect fun fileExists(path: String): Boolean
 expect fun moveFile(from: String, to: String): Boolean
 expect suspend fun downloadToFile(url: String, path: String, onProgress: (Float) -> Unit): Long
 
+/**
+ * Puts a copy of [file] (the song's audio, extension [ext]) where the user keeps files:
+ * desktop asks where and converts to MP3, Android saves into Music/Nocturne, iOS opens the share sheet.
+ * Returns where it went, or null when the user cancelled.
+ */
+expect suspend fun exportAudio(track: Track, file: String, ext: String): String?
+
+/** What the export menu item says on this platform. */
+expect val exportLabel: String
+
 class Downloads(private val scope: CoroutineScope, private val resolve: suspend (Track) -> ResolvedStream) {
     private val json = Json { ignoreUnknownKeys = true }
     private val _items = MutableStateFlow(load())
@@ -89,6 +99,34 @@ class Downloads(private val scope: CoroutineScope, private val resolve: suspend 
         }
         save()
         moved
+    }
+
+    /** A copy of the song as a regular file outside the app, for other players and devices. */
+    fun export(track: Track, toast: (String) -> Unit) {
+        scope.launch(Dispatchers.Default) {
+            runCatching {
+                toast(app.nocturne.i18n.t("Saving “%s”…", track.title))
+                val have = _items.value[track.key]
+                val (file, ext, temp) = if (have != null) Triple(have.path, have.path.substringAfterLast('.', "m4a"), false) else {
+                    val stream = resolve(track)
+                    if (stream.isHls) error(app.nocturne.i18n.t("This song can only be streamed"))
+                    val ext = extFor(stream.mimeType)
+                    val tmp = "${downloadsDir()}/export-${track.key.hashCode().toUInt()}.$ext"
+                    downloadToFile(stream.url, tmp) { }
+                    Triple(tmp, ext, true)
+                }
+                val where = try { exportAudio(track, file, ext) } finally { if (temp && ext != "keep") runCatching { deleteFile(file) } }
+                if (where != null) toast(app.nocturne.i18n.t("Saved: %s", where))
+            }.onFailure { e -> toast(app.nocturne.i18n.t("Couldn't save the file") + ": " + (e.message ?: "")) }
+        }
+    }
+
+    private fun extFor(mime: String?) = when {
+        mime?.contains("webm") == true -> "webm"
+        mime?.contains("mp4") == true || mime?.contains("m4a") == true -> "m4a"
+        mime?.contains("mpeg") == true -> "mp3"
+        mime?.contains("ogg") == true -> "ogg"
+        else -> "m4a"
     }
 
     fun remove(track: Track) {

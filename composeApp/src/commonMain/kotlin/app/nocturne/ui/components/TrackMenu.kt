@@ -1,5 +1,7 @@
 package app.nocturne.ui.components
 
+import androidx.compose.material.icons.rounded.SaveAlt
+import app.nocturne.data.isPodcast
 import app.nocturne.ui.player.hasOwnPlayer
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
@@ -176,6 +178,9 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                     val downloads by graph.downloads.items.collectAsState()
                     if (downloads.containsKey(track.key)) MenuItem(Icons.Rounded.DeleteOutline, "Remove download", destructive = true) { close(); graph.downloads.remove(track) }
                     else MenuItem(Icons.Rounded.Download, "Download") { close(); graph.downloads.enqueue(listOf(track)); graph.toast(t("Downloading “%s”", track.title)) }
+                }
+                if (track.source != app.nocturne.model.Source.LOCAL || track.isPodcast) {
+                    MenuItem(Icons.Rounded.SaveAlt, app.nocturne.data.exportLabel) { close(); graph.downloads.export(track) { msg -> graph.toast(msg) } }
                 }
                 MenuItem(Icons.Rounded.ContentCopy, "Copy link") { clipboard.setText(AnnotatedString(track.shareUrl())); close(); graph.toast(t("Link copied")) }
                 ctx.playlistId?.let { pid ->
