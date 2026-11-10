@@ -1,5 +1,7 @@
 package app.nocturne.ui.player
 
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.animation.core.Animatable
@@ -172,8 +174,9 @@ fun PartyChatSheet(onDismiss: () -> Unit) {
     var text by remember { mutableStateOf("") }
     val list = rememberLazyListState()
     LaunchedEffect(chat.size) { if (chat.isNotEmpty()) list.animateScrollToItem(chat.lastIndex) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.7f).padding(horizontal = 16.dp)) {
+    // opened all the way: half-open on a PC hides the message field below the window edge
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.8f).navigationBarsPadding().imePadding().padding(horizontal = 16.dp)) {
             Text(t("Chat"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
             PartyMembers(Modifier.padding(bottom = 10.dp))
             PartyInviteLink(Modifier.fillMaxWidth().padding(bottom = 10.dp))

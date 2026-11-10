@@ -171,7 +171,7 @@ class AppGraph(val engine: AudioEngine) {
             }
         }
         scope.launch {
-            settings.state.distinctUntilChangedBy { listOf(it.playbackSpeed, it.eqEnabled, it.eqGains, it.skipSilence, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover) }.drop(1).collect {
+            settings.state.distinctUntilChangedBy { listOf(it.playbackSpeed, it.podcastSpeed, it.eqEnabled, it.eqGains, it.skipSilence, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover) }.drop(1).collect {
                 player.applyAudioSettings()
             }
         }

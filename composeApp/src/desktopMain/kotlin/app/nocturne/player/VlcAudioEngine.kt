@@ -49,7 +49,8 @@ class VlcAudioEngine : AudioEngine {
     val available: Boolean get() { ready.await(); return player != null }
     val mediaFactory: MediaPlayerFactory? get() = factory
 
-    override val fx: Set<AudioFx> get() = if (dspActive) AudioFx.entries.toSet() else emptySet()
+    // without our own audio path (VLC plays to the system itself) only VLC's equalizer is left
+    override val fx: Set<AudioFx> get() = if (dspActive) AudioFx.entries.toSet() else if (player != null) setOf(AudioFx.EQUALIZER) else emptySet()
 
     override fun levels(): FloatArray? = if (dspActive) dsp.analyzer.levels() else null
     override fun spectrum(bands: Int): FloatArray? = if (dspActive && playing) dsp.analyzer.spectrum(bands) else null
@@ -318,7 +319,18 @@ class VlcAudioEngine : AudioEngine {
         }
     }
 
-    override fun setEqualizer(enabled: Boolean, gains: List<Float>) = dsp.setEq(enabled, gains)
+    override fun setEqualizer(enabled: Boolean, gains: List<Float>) {
+        if (dspActive) return dsp.setEq(enabled, gains)
+        val f = factory ?: return
+        async {
+            if (!enabled) { audio().setEqualizer(null); return@async }
+            // VLC's 10 bands follow our 6-band curve
+            val eq = f.equalizer().newEqualizer()
+            val freqs = floatArrayOf(31f, 62f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f)
+            freqs.forEachIndexed { i, hz -> eq.setAmp(i, app.nocturne.player.Eq.gainAt(hz, gains).coerceIn(-20f, 20f)) }
+            audio().setEqualizer(eq)
+        }
+    }
 
     override fun setEffects(normalize: Boolean, spatial: Boolean, eightD: Boolean, vocalRemover: Boolean) {
         dsp.normalize = normalize

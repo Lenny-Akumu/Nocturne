@@ -454,7 +454,7 @@ class PlayerController(
         engine.setSkipSilence(s.skipSilence)
         val podcast = _state.value.current?.isPodcast == true
         rampSpeed(a?.speed ?: if (podcast) s.podcastSpeed else s.playbackSpeed)
-        if (a != null) engine.setEqualizer(a.eq, a.gains.takeIf { it.size == s.eqGains.size } ?: s.eqGains)
+        if (a != null) engine.setEqualizer(a.eq, a.gains.takeIf { it.size == Eq.bands.size } ?: List(Eq.bands.size) { 0f })
         else engine.setEqualizer(s.eqEnabled, s.eqGains)
         applyEffects()
         val want = vocalWanted()
@@ -510,9 +510,11 @@ class PlayerController(
             return
         }
         speedJob = scope.launch {
-            val steps = 30
+            // the music glides to the new speed: longer for bigger jumps
+            val span = (900 + kotlin.math.abs(target - from) * 1600).toLong().coerceAtMost(2500)
+            val steps = (span / 40).toInt().coerceAtLeast(10)
             for (i in 1..steps) {
-                delay(1300L / steps)
+                delay(span / steps)
                 val t = i / steps.toFloat()
                 appliedSpeed = if (i == steps) target else from + (target - from) * t * t * (3 - 2 * t)
                 engine.setPlaybackSpeed(appliedSpeed)

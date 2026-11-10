@@ -355,7 +355,11 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
 
     private fun snapshot(): PartyState {
         val p = graph.player.state.value
-        val a = graph.settings.value.let { PartyAudio(it.playbackSpeed, it.eqEnabled, it.eqGains, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover) }
+        val podcast = p.current?.let { it.source == app.nocturne.model.Source.LOCAL && it.id.startsWith("http") && it.albumId?.startsWith("radio:") != true } == true
+        val a = graph.settings.value.let {
+            val gains = it.eqGains.takeIf { g -> g.size == app.nocturne.player.Eq.bands.size } ?: List(app.nocturne.player.Eq.bands.size) { 0f }
+            PartyAudio(if (podcast) it.podcastSpeed else it.playbackSpeed, it.eqEnabled, gains, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover)
+        }
         return PartyState(p.current, p.positionMs, p.isPlaying, nowMillis(), seq, a)
     }
 

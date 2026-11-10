@@ -5,6 +5,11 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.11.3",
+        en = listOf("Save songs as files", "Visualizer follows the music", "Listen together fixes", "Equalizer fixes", "Smooth speed changes", "Performance updates and optimisations", "Bug fixes"),
+        uk = listOf("Збереження пісень файлом", "Візуалізатор рухається під музику", "Виправлення «Слухати разом»", "Виправлення еквалайзера", "Плавна зміна швидкості", "Оновлення та оптимізація швидкодії", "Виправлення помилок"),
+    ),
+    ChangelogEntry(
         "1.11.2",
         en = listOf("Songs start faster", "Menus, comments and loading animations in the new designs", "Podcast recommendations", "Keyboard shortcuts fixes", "Performance updates and optimisations", "Bug fixes"),
         uk = listOf("Пісні запускаються швидше", "Меню, коментарі та анімації завантаження в нових дизайнах", "Рекомендації подкастів", "Виправлення гарячих клавіш", "Оновлення та оптимізація швидкодії", "Виправлення помилок"),
