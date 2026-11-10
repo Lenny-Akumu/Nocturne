@@ -1,5 +1,7 @@
 package app.nocturne.ui
 
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -282,7 +284,7 @@ fun FloatingPlayerWindow() {
                             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(when (anchor) { 0 -> 0f; 2 -> 1f; else -> 0.5f }, 0f)
                         }) {
                             SideBubble(settings.floatingVertical, anchor) { Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                HideHandle {
+                                HideHandle(window) {
                                     scope.launch {
                                         edge = nearestEdge(window.bounds, bounds)
                                         slide.animateTo(1f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing))
@@ -787,17 +789,44 @@ private fun tabRect(edge: Edge, r: java.awt.Rectangle, screen: java.awt.Rectangl
     Edge.RIGHT -> java.awt.Rectangle(screen.x + screen.width - TAB_SHORT, r.y + r.height / 2 - TAB_LONG / 2, TAB_SHORT, TAB_LONG)
 }
 
-// Grab bar above the pill: click to tuck the player away.
+// Grab bar above the pill: click to tuck the player away, hold and drag to move it.
 @Composable
-private fun HideHandle(onHide: () -> Unit) {
+private fun HideHandle(w: java.awt.Window, onHide: () -> Unit) {
     val hover = remember { MutableInteractionSource() }
     val hovered by hover.collectIsHoveredAsState()
-    val a by animateFloatAsState(if (hovered) 0.95f else 0.45f, tween(180), label = "handle")
+    var moving by remember { mutableStateOf(false) }
+    val a by animateFloatAsState(if (hovered || moving) 0.95f else 0.45f, tween(180), label = "handle")
     Box(
-        Modifier.padding(bottom = 3.dp).size(56.dp, 12.dp).clip(RoundedCornerShape(6.dp)).hoverable(hover).clickable(onClick = onHide),
+        Modifier.padding(bottom = 3.dp).size(56.dp, 12.dp).clip(RoundedCornerShape(6.dp)).hoverable(hover)
+            .pointerHoverIcon(androidx.compose.ui.input.pointer.PointerIcon(java.awt.Cursor(if (moving) java.awt.Cursor.MOVE_CURSOR else java.awt.Cursor.HAND_CURSOR)))
+            .pointerInput(w) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    val start = java.awt.MouseInfo.getPointerInfo()?.location ?: return@awaitEachGesture
+                    val origin = w.location
+                    var dragged = false
+                    while (true) {
+                        val e = awaitPointerEvent()
+                        val p = java.awt.MouseInfo.getPointerInfo()?.location
+                        if (p != null && (dragged || kotlin.math.abs(p.x - start.x) + kotlin.math.abs(p.y - start.y) > 4)) {
+                            dragged = true
+                            moving = true
+                            w.setLocation(origin.x + p.x - start.x, origin.y + p.y - start.y)
+                        }
+                        e.changes.forEach { it.consume() }
+                        if (e.changes.none { it.pressed }) break
+                    }
+                    moving = false
+                    if (!dragged) { onHide(); return@awaitEachGesture }
+                    val r = w.bounds
+                    val anchorNow = AppGraph.instance.settings.value.floatingAnchor
+                    val nx = when (anchorNow) { 0 -> r.x + 4; 2 -> r.x + r.width - 4; else -> r.x + r.width / 2 }
+                    AppGraph.instance.settings.update { it.copy(floatingX = nx, floatingY = r.y) }
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(if (hovered) 40.dp else 32.dp, 5.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = a)))
+        Box(Modifier.size(if (hovered || moving) 40.dp else 32.dp, 5.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = a)))
     }
 }
 
