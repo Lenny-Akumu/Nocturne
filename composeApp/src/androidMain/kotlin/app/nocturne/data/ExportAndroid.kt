@@ -29,12 +29,22 @@ actual suspend fun exportAudio(track: Track, file: String, ext: String): String?
             put(MediaStore.Audio.Media.IS_PENDING, 1)
         }
         val resolver = ctx.contentResolver
-        val uri = resolver.insert(MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values) ?: error("Couldn't create the file")
+        // the Music collection refuses WebM (YouTube's Opus); Downloads takes any file
+        val webm = ext == "webm"
+        if (webm) {
+            values.clear()
+            values.put(MediaStore.Downloads.DISPLAY_NAME, name)
+            values.put(MediaStore.Downloads.MIME_TYPE, mime)
+            values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Nocturne")
+            values.put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val collection = if (webm) MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) else MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val uri = resolver.insert(collection, values) ?: error("Couldn't create the file")
         resolver.openOutputStream(uri)!!.use { out -> File(file).inputStream().use { it.copyTo(out) } }
         values.clear()
-        values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+        values.put(MediaStore.MediaColumns.IS_PENDING, 0)
         resolver.update(uri, values, null, null)
-        "Music/Nocturne/$name"
+        (if (webm) "Download/Nocturne/" else "Music/Nocturne/") + name
     } else {
         // older Android: the app's own Music folder needs no storage permission
         val dir = File(ctx.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "Nocturne").apply { mkdirs() }
