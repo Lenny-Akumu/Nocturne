@@ -9,10 +9,12 @@ import platform.Foundation.NSURL
 import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIApplication
 import platform.UIKit.UIViewController
+import platform.UIKit.popoverPresentationController
 
 // iOS has no MP3 encoder either: the original audio goes to the share sheet (Save to Files, AirDrop, …).
 actual val exportLabel: String = "Save to device"
 
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 actual suspend fun exportAudio(track: Track, file: String, ext: String): String? {
     val name = listOfNotNull(track.artistNames.takeIf { it.isNotBlank() }, track.title).joinToString(" - ")
         .replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().take(150).ifBlank { "track" } + "." + ext
