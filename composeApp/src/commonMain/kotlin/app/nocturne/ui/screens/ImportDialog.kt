@@ -113,7 +113,18 @@ fun ImportDialog(source: Source, onDismiss: () -> Unit) {
     }
 
     fun importLink() = work(t("Fetching playlist…")) {
-        graph.spotify.importCollection(link, onProgress).let { (name, tracks) -> savePlaylist(name, tracks) }
+        if (spotify) graph.spotify.importCollection(link, onProgress).let { (name, tracks) -> savePlaylist(name, tracks) }
+        else {
+            // YouTube Music / SoundCloud: open the link like search does, then read the whole playlist
+            val entry = graph.openUrl(link) as? app.nocturne.model.MediaEntry.Collection ?: throw SourceUnavailableException(t("This link isn't a playlist or album"))
+            graph.provider(entry.ref.source).collection(entry.ref).let { savePlaylist(it.ref.title.ifBlank { entry.ref.title }, it.tracks) }
+        }
+    }
+    val linkOk = when (source) {
+        Source.SPOTIFY -> Regex("(album|playlist)[/:][A-Za-z0-9]{22}").containsMatchIn(link)
+        Source.YOUTUBE_MUSIC -> ("youtube.com" in link || "youtu.be" in link) && ("list=" in link || "/browse/" in link || "/playlist" in link)
+        Source.SOUNDCLOUD -> "soundcloud.com/" in link && link.substringAfter("soundcloud.com/").count { it == '/' } >= 1
+        else -> false
     }
 
     LaunchedEffect(step) {
@@ -143,13 +154,16 @@ fun ImportDialog(source: Source, onDismiss: () -> Unit) {
                         ImportOption(Icons.AutoMirrored.Rounded.QueueMusic, t("A playlist"), t("Saved as a playlist in your library")) { error = null; step = ImportStep.PICK }
                     }
                     ImportStep.PICK -> {
-                        if (spotify) {
-                            Text(
-                                t(if (signedIn) "Pick a playlist or paste a link to any playlist or album." else "Paste a link to a public playlist or album. It's saved to your library as a playlist — no Spotify account needed."),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            OutlinedTextField(link, { link = it.trim() }, singleLine = true, placeholder = { Text("https://open.spotify.com/playlist/…") }, modifier = Modifier.fillMaxWidth())
+                        Text(
+                            t(if (signedIn) "Pick a playlist or paste a link to any playlist or album." else "Paste a link to a public playlist or album. It's saved to your library as a playlist — no account needed."),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        val hint = when (source) {
+                            Source.SPOTIFY -> "https://open.spotify.com/playlist/…"
+                            Source.SOUNDCLOUD -> "https://soundcloud.com/…/sets/…"
+                            else -> "https://music.youtube.com/playlist?list=…"
                         }
+                        OutlinedTextField(link, { link = it.trim() }, singleLine = true, placeholder = { Text(hint) }, modifier = Modifier.fillMaxWidth())
                         if (signedIn) {
                             val list = playlists
                             when {
@@ -195,7 +209,7 @@ fun ImportDialog(source: Source, onDismiss: () -> Unit) {
             when {
                 step == ImportStep.DONE -> TextButton(onClick = onDismiss) { Text(t("Done")) }
                 step == ImportStep.WORKING && error != null -> TextButton(onClick = { retry?.invoke() }) { Text(t("Retry")) }
-                step == ImportStep.PICK && spotify -> TextButton(onClick = { importLink() }, enabled = Regex("(album|playlist)[/:][A-Za-z0-9]{22}").containsMatchIn(link)) { Text(t("Import")) }
+                step == ImportStep.PICK -> TextButton(onClick = { importLink() }, enabled = linkOk) { Text(t("Import")) }
                 else -> Unit
             }
         },

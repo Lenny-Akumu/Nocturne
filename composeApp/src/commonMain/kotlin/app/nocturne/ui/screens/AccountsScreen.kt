@@ -127,6 +127,9 @@ fun AccountsSettings() {
                 if (supportsWebLogin) web = WebLogin.YOUTUBE else paste = Source.YOUTUBE_MUSIC
             }
         }
+        if (!acc.youtubeSignedIn) app.nocturne.ui.kit.OutlinedButton(onClick = { importFor = Source.YOUTUBE_MUSIC }, modifier = Modifier.fillMaxWidth()) {
+            Text(t("Import a YouTube Music playlist or album by link"))
+        }
 
         val spotifyClientId = settings.spotifyClientId.ifBlank { BuildInfo.SPOTIFY_CLIENT_ID }
         AccountCard(
@@ -165,6 +168,9 @@ fun AccountsSettings() {
                 if (app.nocturne.platformKind == app.nocturne.PlatformKind.DESKTOP) scHelp = true
                 else if (supportsWebLogin) web = WebLogin.SOUNDCLOUD else paste = Source.SOUNDCLOUD
             }
+        }
+        if (!acc.soundcloudSignedIn) app.nocturne.ui.kit.OutlinedButton(onClick = { importFor = Source.SOUNDCLOUD }, modifier = Modifier.fillMaxWidth()) {
+            Text(t("Import a SoundCloud playlist or album by link"))
         }
         LastFmCard()
         Spacer(Modifier.height(16.dp))
