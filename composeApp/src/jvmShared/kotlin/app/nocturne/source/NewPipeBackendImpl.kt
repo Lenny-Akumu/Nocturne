@@ -242,7 +242,8 @@ class NewPipeBackendImpl : NewPipeBackend {
             }.getOrNull().orEmpty()
             if (entries.isEmpty()) null else Section(title, entries, source = source)
         }
-        CollectionPage(resolved, tracks, description = info.description?.takeIf { it.isNotBlank() }, sections = sections)
+        val stats = listOfNotNull(info.subscriberCount.takeIf { it > 0 }?.let { app.nocturne.i18n.t(if (source == Source.SOUNDCLOUD) "%s followers" else "%s subscribers", compact(it)) })
+        CollectionPage(resolved, tracks, description = info.description?.takeIf { it.isNotBlank() }, sections = sections, stats = stats)
     }
 
     override suspend fun related(source: Source, url: String): List<Track> = io {

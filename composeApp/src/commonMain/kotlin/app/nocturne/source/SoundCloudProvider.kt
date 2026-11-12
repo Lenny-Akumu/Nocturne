@@ -42,13 +42,19 @@ class SoundCloudProvider(
 
     override val isSignedIn: Boolean get() = accounts.value.soundcloudSignedIn
 
-    private suspend fun api(path: String): JsonElement {
+    private suspend fun api(path: String, signed: Boolean = true): JsonElement {
         val clientId = newPipe.soundcloudClientId()
         val sep = if (path.contains('?')) '&' else '?'
+        val token = accounts.value.soundcloudToken.takeIf { signed && it.isNotBlank() }
         val response = http.get("https://api-v2.soundcloud.com/$path${sep}client_id=$clientId") {
-            accounts.value.soundcloudToken.takeIf { it.isNotBlank() }?.let { header("Authorization", "OAuth $it") }
+            header("Origin", "https://soundcloud.com")
+            header("Referer", "https://soundcloud.com/")
+            token?.let { header("Authorization", "OAuth $it") }
         }
-        if (response.status.value == 401) throw SourceUnavailableException("SoundCloud session expired, sign in again")
+        // a stale login shouldn't break public reads
+        if (response.status.value == 401 && token != null) return runCatching { api(path, signed = false) }
+            .getOrElse { throw SourceUnavailableException("SoundCloud session expired, sign in again") }
+        if (response.status.value == 401) throw SourceUnavailableException("SoundCloud: access refused (401)")
         if (!response.status.isSuccess()) throw SourceUnavailableException("SoundCloud: ${response.status}")
         return json.parseToJsonElement(response.bodyAsText())
     }
@@ -178,16 +184,37 @@ class SoundCloudProvider(
 
     private val trackIds = mutableMapOf<String, Long>()
 
+    private suspend fun trackIdOf(track: Track): Long {
+        trackIds[track.key]?.let { return it }
+        val direct = Regex("(?:tracks[:/])(\\d+)").find(track.id + " " + track.url.orEmpty())?.groupValues?.get(1)?.toLongOrNull()
+        val id = direct ?: run {
+            val url = (track.url ?: track.id).let { if (it.startsWith("http")) it else "https://soundcloud.com/$it" }
+            runCatching { resolveId(url) }.getOrNull()
+                ?: runCatching { resolveId(url.substringBefore('?').replace("://m.", "://")) }.getOrNull()
+                ?: throw SourceUnavailableException("SoundCloud: couldn't find this track")
+        }
+        trackIds[track.key] = id
+        return id
+    }
+
     /** Timed comments, newest first; [next] continues a previous page. */
     suspend fun comments(track: Track, next: String? = null): CommentsPage {
         val page = if (next != null) api(next) else {
-            val id = trackIds[track.key] ?: resolveId(track.url ?: track.id).also { trackIds[track.key] = it }
-            api("tracks/$id/comments?threaded=0&filter_replies=0&limit=20&offset=0&linked_partitioning=1")
+            val id = trackIdOf(track)
+            // the web player's own query first, the older ones as a fallback
+            val queries = listOf(
+                "tracks/$id/comments?sort=newest&threaded=1&limit=20&offset=0&linked_partitioning=1",
+                "tracks/$id/comments?threaded=0&filter_replies=0&limit=20&offset=0&linked_partitioning=1",
+                "tracks/soundcloud:tracks:$id/comments?sort=newest&threaded=1&limit=20&offset=0&linked_partitioning=1",
+            )
+            var last: Throwable? = null
+            queries.firstNotNullOfOrNull { q -> runCatching { api(q) }.onFailure { last = it }.getOrNull()?.takeIf { it.path("collection") != null } }
+                ?: throw last ?: SourceUnavailableException("SoundCloud: no comments")
         }
         val items = page.path("collection").arr.orEmpty().mapNotNull { c ->
             val body = c.path("body").str?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             YtComment(
-                id = (c.path("id").num ?: return@mapNotNull null).toString(),
+                id = (c.path("id").num?.toString() ?: c.path("urn").str ?: return@mapNotNull null),
                 author = c.path("user").path("username").str ?: "SoundCloud",
                 avatar = c.path("user").path("avatar_url").str,
                 text = body,
@@ -198,6 +225,7 @@ class SoundCloudProvider(
             )
         }
         val nextPath = page.path("next_href").str?.substringAfter("api-v2.soundcloud.com/")?.replace(Regex("[&?]client_id=[^&]*"), "")
+            ?.let { if (!it.contains('?') && it.contains('&')) it.replaceFirst('&', '?') else it }
         return CommentsPage(items, nextPath?.takeIf { items.isNotEmpty() })
     }
 

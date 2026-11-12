@@ -114,7 +114,10 @@ fun LyricsView() {
     val l = lyrics
     when {
         loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        (l == null || l.isEmpty) && wantsLiveText(track) -> LiveTranscriptView(track)
+        (l == null || l.isEmpty) && wantsLiveText(track) -> Box(Modifier.fillMaxSize()) {
+            LiveTranscriptView(track)
+            Row(Modifier.align(Alignment.TopEnd)) { toolButtons() }
+        }
         l == null || l.isEmpty -> Box(Modifier.fillMaxSize()) {
             MessageBox(Icons.Rounded.Lyrics, "No lyrics found", "We couldn't find lyrics for this song.")
             Row(Modifier.align(Alignment.TopEnd)) { toolButtons() }

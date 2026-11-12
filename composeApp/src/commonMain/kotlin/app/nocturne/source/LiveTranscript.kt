@@ -2,6 +2,8 @@ package app.nocturne.source
 
 import app.nocturne.AppGraph
 import app.nocturne.model.Track
+import app.nocturne.data.isPodcast
+import app.nocturne.data.isRadio
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -40,13 +42,28 @@ object LiveTranscript {
 
     private var job: Job? = null
     private var trackKey: String? = null
+    private var current: Track? = null
+
+    private val Track.isSong get() = !isRadio && !isPodcast
+
+    // a song's recognized words become its lyrics
+    private fun flush() {
+        val t = current ?: return
+        val l = _lines.value
+        if (t.isSong && l.size >= 2) runCatching { AppGraph.instance.lyrics.saveHeard(t, l) }
+    }
 
     suspend fun download(progress: (Float) -> Unit) = engine?.download(progress) ?: false
 
     fun start(track: Track) {
         val e = engine ?: return
         if (!e.modelReady) return
-        if (trackKey != track.key) { _lines.value = emptyList(); trackKey = track.key }
+        if (trackKey != track.key) {
+            flush()
+            current = track
+            trackKey = track.key
+            _lines.value = if (track.isSong) AppGraph.instance.lyrics.heardLines(track) else emptyList()
+        }
         if (job?.isActive == true) return
         val graph = AppGraph.instance
         val queue = Channel<FloatArray>(64, BufferOverflow.DROP_OLDEST)
@@ -69,13 +86,15 @@ object LiveTranscript {
                 // skip what piled up while we were busy, so the text stays close to the sound
                 while (queue.tryReceive().isSuccess) Unit
                 val add = segs.map { (off, text) -> LyricLine(at + off, text.trim()) }
-                    .filter { it.text.isNotEmpty() && !it.text.startsWith("[") && !it.text.startsWith("(") }
-                if (add.isNotEmpty()) _lines.value = (_lines.value + add).takeLast(400)
+                    .filter { it.text.isNotEmpty() && !it.text.startsWith("[") && !it.text.startsWith("(") && !it.text.startsWith("♪") && !it.text.startsWith("*") }
+                if (add.isNotEmpty()) _lines.value = (_lines.value.filter { o -> add.none { kotlin.math.abs(it.timeMs - o.timeMs) < 1500 } } + add)
+                    .sortedBy { it.timeMs }.takeLast(400)
             }
         }
     }
 
     fun stop() {
+        flush()
         job?.cancel()
         job = null
         _busy.value = false

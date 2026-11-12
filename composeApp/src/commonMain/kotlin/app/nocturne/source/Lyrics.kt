@@ -25,6 +25,7 @@ data class LyricLine(val timeMs: Long, val text: String)
 internal data class OwnLine(val t: Long, val s: String)
 
 private const val OWN_FILE = "lyrics_own.json"
+private const val HEARD_FILE = "lyrics_heard.json"
 
 data class Lyrics(val synced: List<LyricLine>?, val plain: String?, val source: String? = null) {
     val isEmpty get() = synced.isNullOrEmpty() && plain.isNullOrBlank()
@@ -48,6 +49,30 @@ class LyricsProvider(private val http: HttpClient, private val innerTube: InnerT
         if (lines.isNullOrEmpty()) overrides.remove(track.key) else overrides[track.key] = lines.map { OwnLine(it.timeMs, it.text) }
         runCatching { app.nocturne.FileStore.write(OWN_FILE, json.encodeToString(overrides.toMap())) }
         cache.remove(track.key)
+    }
+
+    private val heard: MutableMap<String, List<OwnLine>> by lazy {
+        runCatching { json.decodeFromString<Map<String, List<OwnLine>>>(app.nocturne.FileStore.read(HEARD_FILE) ?: "{}") }
+            .getOrDefault(emptyMap()).toMutableMap()
+    }
+
+    fun heardLines(track: Track): List<LyricLine> = heard[track.key].orEmpty().map { LyricLine(it.t, it.s) }
+
+    /** Words recognized while the song played; merged with earlier listens, kept for next time. */
+    fun saveHeard(track: Track, lines: List<LyricLine>) {
+        val merged = (heardLines(track) + lines).sortedBy { it.timeMs }
+            .fold(mutableListOf<LyricLine>()) { acc, l -> if (acc.none { kotlin.math.abs(it.timeMs - l.timeMs) < 1500 }) acc += l; acc }
+        heard[track.key] = merged.map { OwnLine(it.timeMs, it.text) }
+        while (heard.size > 300) heard.remove(heard.keys.first())
+        runCatching { app.nocturne.FileStore.write(HEARD_FILE, json.encodeToString(heard.toMap())) }
+        cache.remove(track.key)
+    }
+
+    /** Enough of the song was heard to show it as its lyrics. */
+    fun heardEnough(track: Track): Boolean {
+        val l = heard[track.key] ?: return false
+        if (l.size < 4) return false
+        return track.durationMs <= 0 || l.last().t > track.durationMs * 0.6
     }
 
     suspend fun lyrics(track: Track): Lyrics {
@@ -74,7 +99,7 @@ class LyricsProvider(private val http: HttpClient, private val innerTube: InnerT
         val result = synced ?: plainFallback
             ?: runCatching { youtube(track) }.getOrNull()?.takeIf { !it.isEmpty }
             ?: runCatching { genius(title, artist) }.getOrNull()?.takeIf { !it.isEmpty }
-            ?: Lyrics(null, null)
+            ?: if (heardEnough(track)) Lyrics(heardLines(track), null, "Recognized") else Lyrics(null, null)
         cache[track.key] = result
         return result
     }
@@ -121,10 +146,16 @@ class LyricsProvider(private val http: HttpClient, private val innerTube: InnerT
     }
 
     private suspend fun lrclibSearch(title: String, artist: String, durationSec: Long): Lyrics? {
-        val queries = listOf("track_name=${title.encodeURLParameter()}&artist_name=${artist.encodeURLParameter()}", "q=${"$title $artist".encodeURLParameter()}")
-        for (q in queries) {
+        // last try: the title alone, but then the length has to match almost exactly
+        val queries = listOf(
+            "track_name=${title.encodeURLParameter()}&artist_name=${artist.encodeURLParameter()}" to 6L,
+            "q=${"$title $artist".encodeURLParameter()}" to 6L,
+            "track_name=${title.encodeURLParameter()}" to 2L,
+        )
+        for ((q, slack) in queries) {
+            if (slack < 6 && durationSec <= 0) continue
             val items = fetchJson("https://lrclib.net/api/search?$q")?.arr.orEmpty()
-            val fitting = items.filter { durationSec <= 0 || abs((it.path("duration").num ?: durationSec) - durationSec) <= 6 }
+            val fitting = items.filter { durationSec <= 0 || abs((it.path("duration").num ?: durationSec) - durationSec) <= slack }
             val best = fitting.firstOrNull { it.path("syncedLyrics").str != null } ?: fitting.firstOrNull()
             if (best != null) return parseLrclib(best)
         }

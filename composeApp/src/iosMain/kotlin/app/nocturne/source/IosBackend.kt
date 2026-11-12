@@ -542,7 +542,12 @@ class IosBackend : NewPipeBackend {
             val entries = list(path).mapNotNull { e -> scPlaylistRef(e)?.let { MediaEntry.Collection(it) } }
             if (entries.isEmpty()) null else Section(title, entries, source = Source.SOUNDCLOUD)
         }
-        return CollectionPage(resolved, tracks, description = u.path("description").str?.takeIf { it.isNotBlank() }, sections = sections)
+        val stats = listOfNotNull(
+            u.path("followers_count").num?.takeIf { it > 0 }?.let { app.nocturne.i18n.t("%s followers", app.nocturne.model.compactCount(it)) },
+            u.path("track_count").num?.takeIf { it > 0 }?.let { app.nocturne.i18n.t("%s tracks", it) },
+            listOfNotNull(u.path("city").str?.takeIf { it.isNotBlank() }, u.path("country_code").str?.takeIf { it.isNotBlank() }).joinToString(", ").takeIf { it.isNotBlank() },
+        )
+        return CollectionPage(resolved, tracks, description = u.path("description").str?.takeIf { it.isNotBlank() }, sections = sections, stats = stats)
     }
 
     private fun scTrack(e: JsonElement?): Track? {

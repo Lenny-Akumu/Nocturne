@@ -77,7 +77,14 @@ class InnerTube(
         json.parseToJsonElement(call(endpoint) { body })
 
     // youtube.com WEB client `next`: the only one that carries the comments section.
-    suspend fun webNext(body: Map<String, JsonElement>): JsonElement {
+    suspend fun webNext(body: Map<String, JsonElement>): JsonElement = web("next", body)
+
+    /** Plain YouTube video search, ids in result order. */
+    suspend fun webVideoSearch(query: String): List<String> =
+        web("search", mapOf("query" to kotlinx.serialization.json.JsonPrimitive(query), "params" to kotlinx.serialization.json.JsonPrimitive("EgIQAQ==")))
+            .findAll("videoRenderer").mapNotNull { it.path("videoId").str }.distinct()
+
+    private suspend fun web(endpoint: String, body: Map<String, JsonElement>): JsonElement {
         val (hl, gl) = locale()
         val ctx = buildJsonObject {
             putJsonObject("context") {
@@ -89,7 +96,7 @@ class InnerTube(
                 }
             }
         }
-        val raw = http.post("https://www.youtube.com/youtubei/v1/next?prettyPrint=false") {
+        val raw = http.post("https://www.youtube.com/youtubei/v1/$endpoint?prettyPrint=false") {
             contentType(ContentType.Application.Json)
             header("Origin", "https://www.youtube.com")
             header("Referer", "https://www.youtube.com/")
@@ -239,7 +246,11 @@ class InnerTube(
             runCatching { playlistTracks(allSongs).second }.getOrNull()?.takeIf { it.size > songs.size }?.let { songs = it }
         }
         val ref = CollectionRef(fallback.id, Source.YOUTUBE_MUSIC, CollectionType.ARTIST, name, fallback.subtitle?.takeIf { it != "Artist" } ?: "Artist", art)
-        return CollectionPage(ref, songs.distinctBy { it.id }, description = description, sections = carousels(root))
+        val stats = listOfNotNull(
+            header.path("monthlyListenerCount").runsText(),
+            header.path("subscriptionButton", "subscribeButtonRenderer", "subscriberCountText").runsText()?.let { app.nocturne.i18n.t("%s subscribers", it) },
+        )
+        return CollectionPage(ref, songs.distinctBy { it.id }, description = description, sections = carousels(root), stats = stats)
     }
 
     suspend fun radio(videoId: String): List<Track> {

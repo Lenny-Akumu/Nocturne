@@ -5,6 +5,11 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.12.0",
+        en = listOf("Slowed + Reverb and Nightcore versions", "DJ transitions between songs", "Song suggestions and voting in Listen together", "Playlists you edit together with friends", "Playlist covers made in the app", "Lyrics cards for stories", "Sync lyrics yourself", "Lyrics recognized from the song when none are found (PC)", "Fuller artist pages", "Each artist in the player opens their own page", "Import playlists from YouTube Music and SoundCloud links", "Comments fixes", "Performance updates and optimisations", "Bug fixes"),
+        uk = listOf("Версії Slowed + Reverb і Nightcore", "DJ-переходи між піснями", "Пропозиції пісень і голосування в «Слухати разом»", "Плейлисти, які редагуєте разом із друзями", "Обкладинки плейлистів, створені в застосунку", "Картки з текстом для сторіс", "Власна синхронізація тексту", "Текст розпізнається з пісні, якщо його не знайдено (ПК)", "Повніші сторінки виконавців", "Кожен виконавець у плеєрі відкриває свою сторінку", "Імпорт плейлистів за посиланням з YouTube Music і SoundCloud", "Виправлення коментарів", "Оновлення та оптимізація швидкодії", "Виправлення помилок"),
+    ),
+    ChangelogEntry(
         "1.11.3",
         en = listOf("Save songs as files", "Visualizer follows the music", "Listen together fixes", "Equalizer fixes", "Smooth speed changes", "Performance updates and optimisations", "Bug fixes"),
         uk = listOf("Збереження пісень файлом", "Візуалізатор рухається під музику", "Виправлення «Слухати разом»", "Виправлення еквалайзера", "Плавна зміна швидкості", "Оновлення та оптимізація швидкодії", "Виправлення помилок"),

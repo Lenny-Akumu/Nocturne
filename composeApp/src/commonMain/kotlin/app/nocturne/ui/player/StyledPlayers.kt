@@ -357,7 +357,7 @@ private fun LinuxArt(track: Track, onTap: () -> Unit = {}) {
                 }
                 Spacer(Modifier.height(18.dp))
                 Text(track.title, color = Color.White, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(track.artistNames + " · " + track.source.label, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row { app.nocturne.ui.components.ArtistLinks(track, Modifier.weight(1f, fill = false), MaterialTheme.typography.titleMedium, Color.White.copy(alpha = 0.7f)); Text(" · " + track.source.label, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.titleMedium, maxLines = 1) }
             }
         }
     }
@@ -462,7 +462,7 @@ private fun ArchPlayer(onCollapse: () -> Unit) {
                                 if (!wide) { Artwork(track.artworkUrl, Modifier.size(84.dp), RectangleShape); Spacer(Modifier.width(12.dp)) }
                                 Column(Modifier.weight(1f)) {
                                     Text(track.title, color = GYellow, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                    Text(listOfNotNull(track.artistNames, track.album, track.source.label).joinToString(" · "), color = GAqua, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Row { app.nocturne.ui.components.ArtistLinks(track, Modifier.weight(1f, fill = false), MaterialTheme.typography.bodyMedium, GAqua); Text(listOfNotNull("", track.album, track.source.label).joinToString(" · "), color = GAqua, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                                 }
                             }
                             Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -579,7 +579,7 @@ private fun TerminalPlayer(onCollapse: () -> Unit) {
                     Spacer(Modifier.width(20.dp))
                     Column(Modifier.weight(1f).height(art)) {
                         Text(track.title, color = TPink, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = if (wide) 30.sp else 20.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(listOfNotNull(track.artistNames, track.source.label.lowercase()).joinToString(" · "), color = TBlue, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Row { app.nocturne.ui.components.ArtistLinks(track, Modifier.weight(1f, fill = false), MaterialTheme.typography.bodyMedium, TBlue); Text(" · " + track.source.label.lowercase(), color = TBlue, style = MaterialTheme.typography.bodyMedium, maxLines = 1) }
                         Spacer(Modifier.weight(1f))
                         app.nocturne.ui.BlockBar(state.positionMs, state.durationMs, state.isPlaying, onToggle = { p.toggle() }, buffering = state.isBuffering) { p.seekTo(it) }
                         val liked = library.liked.any { it.key == track.key }

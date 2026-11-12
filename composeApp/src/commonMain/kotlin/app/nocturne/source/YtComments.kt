@@ -34,6 +34,16 @@ suspend fun InnerTube.comments(videoId: String): CommentsPage {
 // Next page, or a re-sorted first page for a [CommentSort.token].
 suspend fun InnerTube.commentsPage(token: String): CommentsPage = parseComments(webNext(mapOf("continuation" to JsonPrimitive(token))))
 
+/** Comments from the most watched upload of the song when the track itself has them off. */
+suspend fun InnerTube.commentsBySearch(query: String, skip: Set<String>): CommentsPage {
+    for (id in webVideoSearch(query).filter { it !in skip }.take(4)) {
+        val token = runCatching { commentsToken(id) }.getOrNull() ?: continue
+        val page = runCatching { commentsPage(token) }.getOrNull() ?: continue
+        if (page.comments.isNotEmpty()) return page
+    }
+    throw CommentsDisabledException()
+}
+
 private suspend fun InnerTube.commentsToken(videoId: String): String? {
     val root = webNext(mapOf("videoId" to JsonPrimitive(videoId)))
     fun JsonElement?.token() = this?.findAll("continuationCommand")?.firstNotNullOfOrNull { it.path("token").str }

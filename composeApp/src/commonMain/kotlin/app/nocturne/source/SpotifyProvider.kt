@@ -495,8 +495,13 @@ class SpotifyProvider(
                 api("artists/${ref.id}/albums?include_groups=album,single&limit=20&market=${market()}")
                     .path("items").arr.orEmpty().mapNotNull { parseAlbumRef(it) }
             }.getOrDefault(emptyList())
+            val stats = listOfNotNull(
+                artist.path("followers", "total").num?.takeIf { it > 0 }?.let { app.nocturne.i18n.t("%s followers", app.nocturne.model.compactCount(it)) },
+                artist.path("genres").arr?.mapNotNull { it.str }?.take(3)?.takeIf { it.isNotEmpty() }?.joinToString(", "),
+            )
             CollectionPage(
                 fullRef, top,
+                stats = stats,
                 sections = if (albums.isEmpty()) emptyList()
                 else listOf(Section("Albums & singles", albums.map { MediaEntry.Collection(it) }, source = source)),
             )

@@ -122,7 +122,7 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
     }
 
     suspend fun page(token: String?): CommentsPage =
-        if (soundcloud) graph.soundcloud.comments(track, token) else graph.comments(videoId, token)
+        if (soundcloud) graph.soundcloud.comments(track, token) else graph.comments(videoId, token, "${track.artistNames} ${track.title}".trim())
 
     LaunchedEffect(attempt) { load(true) { page(null) } }
     LaunchedEffect(list) {

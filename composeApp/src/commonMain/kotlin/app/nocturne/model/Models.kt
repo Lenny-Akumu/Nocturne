@@ -66,6 +66,8 @@ data class CollectionPage(
     val tracks: List<Track>,
     val description: String? = null,
     val sections: List<Section> = emptyList(),
+    /** Artist facts: monthly listeners, followers, genres… */
+    val stats: List<String> = emptyList(),
 )
 
 enum class SearchFilter(val label: String) {
@@ -85,6 +87,13 @@ data class ResolvedStream(
     val bitrate: Int = 0,
     val codec: String? = null,
 )
+
+fun compactCount(n: Long): String = when {
+    n >= 1_000_000_000 -> ((n / 100_000_000) / 10.0).toString().removeSuffix(".0") + "B"
+    n >= 1_000_000 -> ((n / 100_000) / 10.0).toString().removeSuffix(".0") + "M"
+    n >= 1_000 -> ((n / 100) / 10.0).toString().removeSuffix(".0") + "K"
+    else -> n.toString()
+}
 
 fun Long.formatDuration(): String {
     if (this <= 0) return "--:--"

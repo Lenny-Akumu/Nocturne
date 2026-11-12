@@ -290,9 +290,9 @@ class AppGraph(val engine: AudioEngine) {
     }
 
     /** Fills the cache while the song plays, so opening comments is instant. */
-    fun prefetchComments(videoId: String) {
+    fun prefetchComments(videoId: String, query: String? = null) {
         if (videoId in commentsCache) return
-        scope.launch(Dispatchers.Default) { runCatching { comments(videoId) } }
+        scope.launch(Dispatchers.Default) { runCatching { comments(videoId, null, query) } }
     }
 
     // Runs off the caller so a stuck blocking call can't hold the UI past the timeout.
@@ -302,15 +302,16 @@ class AppGraph(val engine: AudioEngine) {
     }
 
     // Our WEB `next` parser and NewPipe race each other; the first page with comments wins and is cached.
-    suspend fun comments(videoId: String, token: String? = null): app.nocturne.source.CommentsPage {
+    suspend fun comments(videoId: String, token: String? = null, query: String? = null): app.nocturne.source.CommentsPage {
         if (token != null) return detached(15_000) {
             if (token.startsWith("pp:") || token.startsWith("iv:")) altComments.page(token, videoId) ?: app.nocturne.source.CommentsPage(emptyList(), null)
             else if (token.startsWith("np:")) newPipe.comments(videoId, token) ?: app.nocturne.source.CommentsPage(emptyList(), null)
             else innerTube.commentsPage(token)
         }
         commentsCache[videoId]?.let { return it }
-        val attempts = listOf<suspend () -> app.nocturne.source.CommentsPage>(
+        val attempts = listOfNotNull<suspend () -> app.nocturne.source.CommentsPage>(
             { innerTube.comments(videoId) },
+            query?.takeIf { it.isNotBlank() }?.let { q -> suspend { kotlinx.coroutines.delay(1500); innerTube.commentsBySearch(q, setOf(videoId)) } },
             { newPipe.comments(videoId, null) ?: app.nocturne.source.CommentsPage(emptyList(), null) },
             {
                 val mv = musicVideoOf(videoId) ?: throw app.nocturne.source.CommentsDisabledException()
@@ -338,6 +339,26 @@ class AppGraph(val engine: AudioEngine) {
             throw failure ?: Exception(app.nocturne.i18n.t("YouTube didn't answer in time"))
         } finally {
             jobs.forEach { it.cancel() }
+        }
+    }
+
+    /** An artist page by id, or by name through the source's own search (then YouTube Music). */
+    fun openArtist(name: String, id: String?, source: Source) {
+        val type = app.nocturne.model.CollectionType.ARTIST
+        if (id != null && source != Source.LOCAL) {
+            navigator.push(app.nocturne.ui.Screen.Collection(app.nocturne.model.CollectionRef(id, source, type, name)))
+            return
+        }
+        scope.launch {
+            val clean = name.trim()
+            val sources = listOf(source, Source.YOUTUBE_MUSIC).distinct().filter { it != Source.LOCAL && it in settings.value.enabledSources }
+            val ref = sources.firstNotNullOfOrNull { src ->
+                runCatching { provider(src).search(clean, app.nocturne.model.SearchFilter.ARTISTS) }.getOrNull()
+                    ?.mapNotNull { (it as? MediaEntry.Collection)?.ref?.takeIf { r -> r.type == type } }
+                    ?.let { list -> list.firstOrNull { it.title.equals(clean, true) } ?: list.firstOrNull() }
+            }
+            if (ref != null) navigator.push(app.nocturne.ui.Screen.Collection(ref))
+            else toast(app.nocturne.i18n.t("Couldn't find this artist"))
         }
     }
 

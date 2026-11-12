@@ -304,7 +304,7 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     LaunchedEffect(track.key) {
         if (track.source != app.nocturne.model.Source.YOUTUBE_MUSIC) return@LaunchedEffect
         kotlinx.coroutines.delay(2500)
-        AppGraph.instance.prefetchComments(track.id)
+        AppGraph.instance.prefetchComments(track.id, "${track.artistNames} ${track.title}".trim())
     }
 }
 
@@ -416,7 +416,7 @@ private fun Controls(compact: Boolean = false, cards: Boolean = false) {
                 ArtistLinks(track, style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
             }
         }
-        if (track.source == app.nocturne.model.Source.YOUTUBE_MUSIC) {
+        if (track.source == app.nocturne.model.Source.YOUTUBE_MUSIC || track.source == app.nocturne.model.Source.SOUNDCLOUD) {
             val overlays = LocalOverlays.current
             TransportButton(Icons.Rounded.ChatBubbleOutline, "Comments", { overlays.comments = true }, iconSize = 24.dp, tint = cs.onSurfaceVariant, circle = true)
             Box(Modifier.padding(horizontal = 4.dp).size(1.dp, 24.dp).background(cs.onSurface.copy(alpha = 0.2f)))

@@ -64,6 +64,7 @@ import app.nocturne.model.MediaEntry
 import app.nocturne.model.Section
 import app.nocturne.model.SectionLayout
 import app.nocturne.model.Track
+import app.nocturne.model.ArtistRef
 import app.nocturne.model.formatDuration
 import app.nocturne.ui.Screen
 import androidx.compose.material3.LocalTextStyle
@@ -176,19 +177,28 @@ fun ArtistLinks(track: Track, modifier: Modifier = Modifier, style: TextStyle = 
     val graph = AppGraph.instance
     val text = remember(track.source, track.artists, enabled) {
         val hover = TextLinkStyles(hoveredStyle = SpanStyle(textDecoration = TextDecoration.Underline))
+        val people = splitArtists(track)
         buildAnnotatedString {
-            track.artists.forEachIndexed { i, a ->
-                if (i > 0) append(if (i == track.artists.lastIndex) " & " else ", ")
-                val id = a.id
-                if (!enabled || id == null) append(a.name)
-                else withLink(LinkAnnotation.Clickable("artist:$id", hover) {
-                    graph.navigator.push(Screen.Collection(CollectionRef(id, track.source, app.nocturne.model.CollectionType.ARTIST, a.name)))
-                }) { append(a.name) }
+            people.forEachIndexed { i, a ->
+                if (i > 0) append(if (i == people.lastIndex) " & " else ", ")
+                if (!enabled) append(a.name)
+                else withLink(LinkAnnotation.Clickable("artist:$i:${a.name}", hover) { graph.openArtist(a.name, a.id, track.source) }) { append(a.name) }
             }
         }
     }
     Text(text, modifier, color = color, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
+
+private val joiners = Regex("\\s*(?:,|&|\\bfeat\\.?|\\bft\\.?|\\bx\\b|\\bvs\\.?|\\band\\b|\\bwith\\b|×)\\s*", RegexOption.IGNORE_CASE)
+
+/** One entry per person, even when a source packs them into a single "A, B & C" credit. */
+fun splitArtists(track: Track): List<ArtistRef> = track.artists.flatMap { a ->
+    if (a.id != null) listOf(a)
+    else {
+        val parts = a.name.split(joiners).map { it.trim() }.filter { it.isNotEmpty() }
+        if (parts.size <= 1) listOf(a) else parts.mapIndexed { i, n -> ArtistRef(n, if (i == 0) a.id else null) }
+    }
+}.ifEmpty { track.artistNames.takeIf { it.isNotBlank() }?.let { listOf(ArtistRef(it)) } ?: emptyList() }
 
 private val builtInCollectionIds = setOf("liked", "me:liked", "me:likes", "LM")
 

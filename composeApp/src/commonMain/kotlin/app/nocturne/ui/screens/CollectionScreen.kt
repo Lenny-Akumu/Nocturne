@@ -3,6 +3,11 @@ package app.nocturne.ui.screens
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -90,6 +95,8 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     var addAll by remember { mutableStateOf(false) }
     var sharing by remember { mutableStateOf(false) }
     var covering by remember { mutableStateOf(false) }
+    var showAll by remember(ref.key) { mutableStateOf(false) }
+    val foldScope = rememberCoroutineScope()
 
     val local = ref.type == CollectionType.LOCAL
     val localPage = if (!local) null
@@ -144,9 +151,15 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                p?.stats?.takeIf { it.isNotEmpty() }?.let { st ->
+                    Text(st.joinToString("  •  "), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+                }
                 p?.description?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3,
-                        overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp).widthIn(max = 520.dp))
+                    var open by remember(header.key) { mutableStateOf(false) }
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (open) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp).widthIn(max = 520.dp).clip(MaterialTheme.shapes.small).clickable { open = !open }.animateContentSize())
                 }
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -199,7 +212,8 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                     item { Text(t("Popular"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 18.dp, top = 12.dp, bottom = 4.dp)) }
                 }
                 val keys = app.nocturne.ui.components.occurrenceKeys(p.tracks)
-                items(p.tracks.size, key = { keys[it] }) { i ->
+                val folds = header.type == CollectionType.ARTIST && p.tracks.size > ARTIST_PREVIEW
+                items(if (folds && !showAll) ARTIST_PREVIEW else p.tracks.size, key = { keys[it] }) { i ->
                     Box(rowMotion().padding(horizontal = 4.dp)) {
                         TrackRow(
                             p.tracks[i],
@@ -207,6 +221,18 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                             index = if (header.type == CollectionType.ALBUM) i + 1 else null,
                             menuContext = TrackMenuContext(playlistId = if (local && ref.id != LikedRef.id) ref.id else null, remotePlaylist = if (editable) ref.copy(title = header.title) else null),
                         )
+                    }
+                }
+                if (folds) item(key = "fold") {
+                    TextButton(
+                        onClick = {
+                            showAll = !showAll
+                            if (!showAll) foldScope.launch { listState.animateScrollToItem(2) }
+                        },
+                        modifier = Modifier.padding(start = 10.dp),
+                    ) {
+                        Text(if (showAll) t("Collapse") else t("Show all") + " (${p.tracks.size})")
+                        Icon(if (showAll) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
                     }
                 }
                 p.sections.forEach { section ->
@@ -374,3 +400,5 @@ private fun CoEditDialog(playlistId: String, onDismiss: () -> Unit) {
         },
     )
 }
+
+private const val ARTIST_PREVIEW = 5
