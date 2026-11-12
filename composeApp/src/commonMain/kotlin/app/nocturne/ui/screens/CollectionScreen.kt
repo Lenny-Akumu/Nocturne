@@ -1,6 +1,7 @@
 package app.nocturne.ui.screens
 
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
@@ -121,7 +122,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                 IconButton(onClick = { graph.navigator.back() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                 Spacer(Modifier.weight(1f))
                 if (local && ref.id != LikedRef.id) {
-                    IconButton(onClick = { covering = true }) { Icon(androidx.compose.material.icons.Icons.Rounded.Palette, t("Cover")) }
+                    IconButton(onClick = { covering = true }) { Icon(Icons.Rounded.Palette, t("Cover")) }
                     IconButton(onClick = { sharing = true }) { Icon(androidx.compose.material.icons.Icons.Rounded.Groups, t("Edit together")) }
                     IconButton(onClick = { renaming = true }) { Icon(Icons.Rounded.Edit, "Rename") }
                     IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.Delete, "Delete") }
@@ -309,7 +310,7 @@ private fun CoverDialog(playlistId: String, onDismiss: () -> Unit) {
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(androidx.compose.material.icons.Icons.Rounded.Palette, null) },
+        icon = { Icon(Icons.Rounded.Palette, null) },
         title = { Text(t("Playlist cover")) },
         text = {
             androidx.compose.foundation.layout.FlowRow(

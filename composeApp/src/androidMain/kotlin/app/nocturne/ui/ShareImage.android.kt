@@ -10,8 +10,11 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 
-actual fun ImageBitmap.encodePng(): ByteArray =
-    ByteArrayOutputStream().also { asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+actual fun ImageBitmap.encodePng(): ByteArray {
+    var bmp = asAndroidBitmap()
+    if (android.os.Build.VERSION.SDK_INT >= 26 && bmp.config == android.graphics.Bitmap.Config.HARDWARE) bmp = bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+    return ByteArrayOutputStream().also { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+}
 
 actual suspend fun shareImage(png: ByteArray, name: String): String? = withContext(Dispatchers.IO) {
     val ctx = AndroidContext.app
