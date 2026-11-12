@@ -20,6 +20,7 @@ import app.nocturne.source.SourceUnavailableException
 import app.nocturne.source.SpotifyProvider
 import app.nocturne.source.comments
 import app.nocturne.source.commentsPage
+import app.nocturne.source.commentsBySearch
 import app.nocturne.source.YouTubeMusicProvider
 import app.nocturne.source.createNewPipeBackend
 import app.nocturne.ui.Navigator
