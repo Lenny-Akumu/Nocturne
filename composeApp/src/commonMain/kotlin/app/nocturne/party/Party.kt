@@ -158,7 +158,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private var publishJob: Job? = null
     private var relayJob: Job? = null
     private var hostOut: MutableStateFlow<PartyState?>? = null
-    private val wsHttp by lazy { graph.http.config { install(WebSockets) } }
+    internal val wsHttp by lazy { graph.http.config { install(WebSockets) } }
 
     // Relay health for the current session; [relayGen] fences off late callbacks from a previous one.
     private var relayGen = 0
@@ -196,14 +196,15 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
 
     private fun ntfyTopic(code: String) = "https://ntfy.sh/nocturne-party-${code.lowercase()}"
     private fun mqttTopic(code: String) = "nocturne/party/${code.lowercase()}"
-    private val brokers get() = Relay.entries.filter { it != Relay.NTFY }
+    internal val brokers get() = Relay.entries.filter { it != Relay.NTFY }
 
     // ---- chat & reactions: every broker at once (both sides may reach different ones), deduped by id ----
     private val _chat = MutableStateFlow<List<ChatMsg>>(emptyList())
     val chat: StateFlow<List<ChatMsg>> = _chat.asStateFlow()
     private var chatJob: Job? = null
     private var chatCode: String? = null
-    private val chatOut = MutableStateFlow<ChatMsg?>(null)
+    // every message reaches each broker in order; a StateFlow would drop back-to-back ones (votes)
+    private val chatOut = kotlinx.coroutines.flow.MutableSharedFlow<ChatMsg>(extraBufferCapacity = 64)
     private fun chatTopic(code: String) = "nocturne/party/${code.lowercase()}/chat"
     private val myName get() = graph.settings.value.nickname.trim().ifBlank { graph.settings.value.deviceName.ifBlank { app.nocturne.deviceName() } }
     private val sid = Random.nextLong().toString(36)
@@ -229,7 +230,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
                 while (isActive) {
                     val hello = ChatMsg(sid + nowMillis().toString(36), myName, "", nowMillis(), presence = true, sid = sid, host = _code.value != null)
                     receiveChat(json.encodeToString(ChatMsg.serializer(), hello))
-                    chatOut.value = hello
+                    chatOut.tryEmit(hello)
                     delay(20_000)
                     refreshMembers()
                 }
@@ -244,7 +245,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
                                 fails = 0
                                 var sent: String? = null
                                 chatOut.collect { m ->
-                                    if (m != null && m.id != sent) {
+                                    if (m.id != sent) {
                                         sent = m.id
                                         publish(chatTopic(code), json.encodeToString(ChatMsg.serializer(), m).encodeToByteArray(), retain = false)
                                     }
@@ -303,7 +304,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
     private fun send(m: ChatMsg) {
         if (chatCode == null) return
         receiveChat(json.encodeToString(ChatMsg.serializer(), m))
-        chatOut.value = m
+        chatOut.tryEmit(m)
     }
 
     private fun newId() = Random.nextLong().toString(36) + nowMillis().toString(36)
@@ -336,7 +337,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         if (t.isEmpty() || chatCode == null) return
         val m = ChatMsg(Random.nextLong().toString(36) + nowMillis().toString(36), myName, t, nowMillis(), reaction)
         receiveChat(json.encodeToString(ChatMsg.serializer(), m))
-        chatOut.value = m
+        chatOut.tryEmit(m)
     }
 
     private fun resetRelays(): Int {

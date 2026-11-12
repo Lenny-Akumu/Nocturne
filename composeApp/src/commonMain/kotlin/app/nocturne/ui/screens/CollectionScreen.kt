@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -83,6 +84,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     var renaming by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var addAll by remember { mutableStateOf(false) }
+    var sharing by remember { mutableStateOf(false) }
 
     val local = ref.type == CollectionType.LOCAL
     val localPage = if (!local) null
@@ -115,6 +117,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                 IconButton(onClick = { graph.navigator.back() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                 Spacer(Modifier.weight(1f))
                 if (local && ref.id != LikedRef.id) {
+                    IconButton(onClick = { sharing = true }) { Icon(androidx.compose.material.icons.Icons.Rounded.Groups, t("Edit together")) }
                     IconButton(onClick = { renaming = true }) { Icon(Icons.Rounded.Edit, "Rename") }
                     IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.Delete, "Delete") }
                 }
@@ -210,6 +213,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     }
     }
 
+    if (sharing) CoEditDialog(ref.id) { sharing = false }
     if (renaming) {
         var name by remember { mutableStateOf(header.title) }
         AlertDialog(
@@ -282,4 +286,39 @@ private fun SplitCollection(
             }
         }
     }
+}
+
+/** Share a playlist for editing together: the code, and a way to stop. */
+@Composable
+private fun CoEditDialog(playlistId: String, onDismiss: () -> Unit) {
+    val graph = AppGraph.instance
+    val library by graph.library.state.collectAsState()
+    val code = library.playlists.firstOrNull { it.id == playlistId }?.shareCode
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(androidx.compose.material.icons.Icons.Rounded.Groups, null) },
+        title = { Text(t("Edit together")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (code == null) Text(t("Friends with the code see this playlist and can add or remove songs. Changes show up for everyone right away."))
+                else {
+                    Text(t("Share this code. Whoever joins with it edits the same playlist."))
+                    Text(
+                        code.chunked(4).joinToString("-"), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        modifier = Modifier.clickable { clipboard.setText(androidx.compose.ui.text.AnnotatedString(code)); graph.toast(t("Code copied")) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (code == null) TextButton(onClick = { graph.coPlaylists.share(playlistId) }) { Text(t("Share")) }
+            else TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(code)); graph.toast(t("Code copied")) }) { Text(t("Copy code")) }
+        },
+        dismissButton = {
+            if (code != null) TextButton(onClick = { graph.coPlaylists.stopSharing(playlistId); onDismiss() }) { Text(t("Stop sharing")) }
+            else TextButton(onClick = onDismiss) { Text(t("Close")) }
+        },
+    )
 }

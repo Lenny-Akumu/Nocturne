@@ -104,6 +104,7 @@ class AppGraph(val engine: AudioEngine) {
     }
     val cast = app.nocturne.cast.CastSession(this, scope)
     val party = app.nocturne.party.Party(this, scope)
+    val coPlaylists = app.nocturne.party.CoPlaylists(this, scope)
     val sync = app.nocturne.sync.DeviceSync(this, scope)
     val dailyMixes = app.nocturne.data.DailyMixes(this)
     val downloads = app.nocturne.data.Downloads(scope) { t -> provider(t.source).stream(t, settings.value.downloadQuality) }.also { d ->
@@ -122,6 +123,7 @@ class AppGraph(val engine: AudioEngine) {
         app.nocturne.data.Podcasts.start(this)
         app.nocturne.data.LastFm.start(this)
         app.nocturne.data.AutoDownloads.start(this)
+        coPlaylists.start()
         // wake-up alarm while the app runs (minute resolution, once per day)
         scope.launch {
             var firedOn = -1L

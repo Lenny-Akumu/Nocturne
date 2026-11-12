@@ -1,5 +1,6 @@
 package app.nocturne.ui.screens
 
+import androidx.compose.material.icons.rounded.Groups
 import app.nocturne.ui.components.rowMotion
 import androidx.compose.foundation.layout.Box
 import kotlinx.coroutines.launch
@@ -75,11 +76,13 @@ fun LibraryScreen(contentPadding: PaddingValues) {
     val library by graph.library.state.collectAsState()
     var tab by rememberSaveable { mutableStateOf(LibraryTab.ONLINE) }
     var creating by remember { mutableStateOf(false) }
+    var joining by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { graph.syncLikes() } }
 
     Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(t("Library"), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            IconButton(onClick = { joining = true }) { Icon(Icons.Rounded.Groups, t("Join a shared playlist")) }
             IconButton(onClick = { creating = true }) { Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, "New playlist") }
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -118,6 +121,23 @@ fun LibraryScreen(contentPadding: PaddingValues) {
         }
     }
 
+    if (joining) {
+        var code by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { joining = false },
+            icon = { Icon(Icons.Rounded.Groups, null) },
+            title = { Text(t("Join a shared playlist")) },
+            text = { OutlinedTextField(code, { code = it }, singleLine = true, placeholder = { Text("ABCD-1234") }) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val p = graph.coPlaylists.join(code)
+                    joining = false
+                    graph.navigator.push(Screen.Collection(p.ref))
+                }, enabled = code.count { it.isLetterOrDigit() } >= 8) { Text(t("Join")) }
+            },
+            dismissButton = { TextButton(onClick = { joining = false }) { Text(t("Cancel")) } },
+        )
+    }
     if (creating) {
         var name by remember { mutableStateOf("") }
         AlertDialog(

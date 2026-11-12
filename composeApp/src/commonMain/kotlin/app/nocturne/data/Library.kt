@@ -18,9 +18,15 @@ data class LocalPlaylist(
     val name: String,
     val tracks: List<Track> = emptyList(),
     val createdAt: Long = 0,
+    /** Shared for co-editing: everyone with this code edits the same list. */
+    val shareCode: String? = null,
+    /** Time of the edit this copy reflects (newest wins between devices). */
+    val version: Long = 0,
+    /** Generated cover image (file URI), when one was made. */
+    val cover: String? = null,
 ) {
     val ref: CollectionRef
-        get() = CollectionRef(id, Source.YOUTUBE_MUSIC, CollectionType.LOCAL, name, app.nocturne.i18n.t("%s songs", tracks.size), tracks.firstOrNull()?.artworkUrl)
+        get() = CollectionRef(id, Source.YOUTUBE_MUSIC, CollectionType.LOCAL, name, app.nocturne.i18n.t("%s songs", tracks.size), cover ?: tracks.firstOrNull()?.artworkUrl)
 }
 
 @Serializable
@@ -149,6 +155,26 @@ class Library(private val settings: SettingsStore) {
     }
 
     fun playlist(id: String) = _state.value.playlists.firstOrNull { it.id == id }
+
+    fun setPlaylistShare(id: String, code: String?, version: Long) = mutate { d ->
+        d.copy(playlists = d.playlists.map { if (it.id == id) it.copy(shareCode = code, version = version) else it })
+    }
+
+    fun setPlaylistCover(id: String, cover: String?) = mutate { d ->
+        d.copy(playlists = d.playlists.map { if (it.id == id) it.copy(cover = cover) else it })
+    }
+
+    /** A newer copy of a shared playlist arrived from someone else. */
+    fun applySharedPlaylist(code: String, name: String, tracks: List<Track>, version: Long) = mutate { d ->
+        d.copy(playlists = d.playlists.map { if (it.shareCode == code && version > it.version) it.copy(name = name, tracks = tracks, version = version) else it })
+    }
+
+    fun joinSharedPlaylist(code: String): LocalPlaylist {
+        _state.value.playlists.firstOrNull { it.shareCode == code }?.let { return it }
+        val p = LocalPlaylist("local-${nowMillis()}", app.nocturne.i18n.t("Shared playlist"), emptyList(), nowMillis(), shareCode = code, version = 0)
+        mutate { it.copy(playlists = listOf(p) + it.playlists) }
+        return p
+    }
 
     fun recordPlay(track: Track) {
         if (settings.value.pauseHistory) return
