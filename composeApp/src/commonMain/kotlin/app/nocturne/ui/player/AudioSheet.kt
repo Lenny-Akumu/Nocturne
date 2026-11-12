@@ -100,10 +100,10 @@ fun AudioSheet(onDismiss: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TrackVersion.entries.forEach { v ->
-                    val selected = abs(settings.playbackSpeed - v.speed) < 0.01f
+                    val selected = abs(settings.playbackSpeed - v.speed) < 0.01f && abs(settings.reverb - v.reverb) < 0.01f
                     OutlinedButton(
-                        onClick = { graph.settings.update { it.copy(playbackSpeed = v.speed) } },
-                        modifier = Modifier.demo("ver_" + v.name) { graph.settings.update { it.copy(playbackSpeed = v.speed) } },
+                        onClick = { graph.settings.update { it.copy(playbackSpeed = v.speed, reverb = v.reverb) } },
+                        modifier = Modifier.demo("ver_" + v.name) { graph.settings.update { it.copy(playbackSpeed = v.speed, reverb = v.reverb) } },
                         border = if (selected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface)
                         else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     ) { Text(v.label, maxLines = 1, softWrap = false) }
@@ -144,9 +144,20 @@ fun AudioSheet(onDismiss: () -> Unit) {
                         if (AudioFx.VOCAL_REMOVER in fx) "Karaoke: plays the instrumental version, or cuts the centered vocals" else "Karaoke: plays the instrumental version when there is one",
                         settings.vocalRemover,
                     ) { v -> graph.settings.update { it.copy(vocalRemover = v) } }
+                    if (AudioFx.EQUALIZER in fx && AudioFx.SPATIAL in fx) {
+                        var rev by remember(settings.reverb) { mutableFloatStateOf(settings.reverb) }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                            Text(t("Reverb"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            Text(if (rev < 0.01f) t("Off") else "${(rev * 100).roundToInt()}%", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Slider(value = rev, onValueChange = { rev = it }, onValueChangeFinished = { graph.settings.update { it.copy(reverb = rev) } }, valueRange = 0f..1f)
+                    }
                     var fade by remember(settings.crossfadeSec) { mutableFloatStateOf(settings.crossfadeSec.toFloat()) }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                        Text(t("Crossfade"), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Column(Modifier.weight(1f)) {
+                            Text(t("DJ transitions"), style = MaterialTheme.typography.bodyLarge)
+                            Text(t("Songs mix on the beat, the bass swaps over"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         Text(if (fade < 1f) t("Off") else t("%s s", fade.roundToInt()), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
                     Slider(

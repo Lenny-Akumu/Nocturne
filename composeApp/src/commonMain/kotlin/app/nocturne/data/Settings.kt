@@ -87,6 +87,8 @@ data class Settings(
     val eqEnabled: Boolean = false,
     val eqPreset: String = "Default",
     val eqGains: List<Float> = List(6) { 0f },
+    /** Room reverb 0..1 (slowed + reverb). */
+    val reverb: Float = 0f,
     val customEqPresets: Map<String, List<Float>> = emptyMap(),
     val startupIntro: Boolean = true,
     val startupSound: Boolean = true,

@@ -56,6 +56,7 @@ data class PartyMember(val name: String, val host: Boolean, val me: Boolean)
 data class PartyAudio(
     val speed: Float = 1f, val eq: Boolean = false, val gains: List<Float> = emptyList(),
     val normalize: Boolean = false, val spatial: Boolean = false, val eightD: Boolean = false, val vocal: Boolean = false,
+    val reverb: Float = 0f,
 )
 
 /** Host playback snapshot. [seq] grows on every real change so guests can drop stale / out-of-order states. */
@@ -358,7 +359,7 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         val podcast = p.current?.let { it.source == app.nocturne.model.Source.LOCAL && it.id.startsWith("http") && it.albumId?.startsWith("radio:") != true } == true
         val a = graph.settings.value.let {
             val gains = it.eqGains.takeIf { g -> g.size == app.nocturne.player.Eq.bands.size } ?: List(app.nocturne.player.Eq.bands.size) { 0f }
-            PartyAudio(if (podcast) it.podcastSpeed else it.playbackSpeed, it.eqEnabled, gains, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover)
+            PartyAudio(if (podcast) it.podcastSpeed else it.playbackSpeed, it.eqEnabled, gains, it.normalizeVolume, it.spatialAudio, it.eightD, it.vocalRemover, it.reverb)
         }
         return PartyState(p.current, p.positionMs, p.isPlaying, nowMillis(), seq, a)
     }

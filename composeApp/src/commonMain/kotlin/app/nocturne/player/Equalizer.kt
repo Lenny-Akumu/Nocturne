@@ -35,8 +35,10 @@ object Eq {
     }
 }
 
-enum class TrackVersion(val label: String, val speed: Float) {
+enum class TrackVersion(val label: String, val speed: Float, val reverb: Float = 0f) {
     ORIGINAL("Original", 1f),
     SPEED_UP("Speed Up", 1.25f),
     SLOWED("Slowed", 0.8f),
+    SLOWED_REVERB("Slowed + Reverb", 0.85f, 0.45f),
+    NIGHTCORE("Nightcore", 1.3f),
 }

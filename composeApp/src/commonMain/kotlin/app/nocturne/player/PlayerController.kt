@@ -100,18 +100,31 @@ class PlayerController(
         scope.launch {
             var applied = -1f
             var advancedFor: String? = null
+            var djFor: String? = null
+            var djFrom = -1L
             while (isActive) {
                 delay(50)
                 val s = settings.value
                 val st = _state.value
                 val cf = s.crossfadeSec * 1000L
+                if (cf <= 0 || !st.isPlaying || remote != null) DspControl.sweep = 0f
                 val target = if (muted) 0f else if (cf <= 0 || !st.isPlaying || remote != null) s.volume else {
                     // some streams report no length until late: fall back to the track's own
                     val d = engine.durationMs.takeIf { it > 0 } ?: st.current?.durationMs ?: 0L
                     val p = engine.positionMs
                     val left = d - p
-                    val out = if (d > cf * 2 && st.repeat != RepeatMode.ONE) (left.toFloat() / cf).coerceIn(0f, 1f) else 1f
+                    // DJ transition: wait for a bass hit near the mix point so the fade starts on the beat
+                    val key0 = st.current?.key
+                    if (djFor != key0) { djFor = key0; djFrom = -1L }
+                    if (djFrom < 0 && d > cf * 2 && st.repeat != RepeatMode.ONE && left <= cf) {
+                        val beat = DspControl.msSinceBeat()
+                        if ((beat != null && beat < 90) || left <= cf - 700) djFrom = left
+                    }
+                    val span = if (djFrom > 0) djFrom.toFloat() else cf.toFloat()
+                    val out = if (djFrom > 0) (left.toFloat() / span).coerceIn(0f, 1f) else 1f
                     val inn = (p.toFloat() / (cf / 2f)).coerceIn(0f, 1f)
+                    // bass swap: the outgoing song loses its low end first, the next one gets it back
+                    DspControl.sweep = (maxOf(1f - out, 1f - inn) * 1.15f).coerceIn(0f, 0.92f)
                     // faded out: skip the silent tail and bring the next song in
                     val key = st.current?.key
                     if (d > cf * 2 && left in 1..250 && key != null && advancedFor != key && !synced && loadingKey == null) {
@@ -457,6 +470,7 @@ class PlayerController(
         if (a != null) engine.setEqualizer(a.eq, a.gains.takeIf { it.size == Eq.bands.size } ?: List(Eq.bands.size) { 0f })
         else engine.setEqualizer(s.eqEnabled, s.eqGains)
         applyEffects()
+        DspControl.reverb = a?.reverb ?: s.reverb
         val want = vocalWanted()
         if (want != lastVocal) { lastVocal = want; swapVocal(want) }
     }

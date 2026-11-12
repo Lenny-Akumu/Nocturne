@@ -12,6 +12,17 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.time.TimeSource
 
+/** Shared by every engine's DSP: set from the player, read per audio block. */
+object DspControl {
+    /** Room reverb wet level 0..1 (slowed + reverb). */
+    @Volatile var reverb = 0f
+    /** DJ transition low-cut 0..1: 0 off, 1 cuts everything below ~900 Hz. */
+    @Volatile var sweep = 0f
+    /** When the last bass hit is heard ([dspNanos] clock), for beat-aligned transitions. */
+    @Volatile var beatAt = 0L
+    fun msSinceBeat(): Long? = beatAt.takeIf { it > 0 }?.let { (dspNanos() - it) / 1_000_000 }
+}
+
 /** Stereo float DSP chain (interleaved L/R, -1..1): EQ → vocal remover → spatial → 8D → normalize → limiter → volume. */
 class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
     @Volatile var eqEnabled = false
@@ -65,6 +76,18 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
     private val agcDown = coef(10.0)
     private val agcUp = coef(300.0)
 
+    // Freeverb-style room: 4 combs + 2 allpasses per side, right slightly detuned for width
+    private val scale = rate / 44100.0
+    private val combsL = intArrayOf(1116, 1188, 1277, 1356).map { Comb((it * scale).toInt() + 1) }
+    private val combsR = intArrayOf(1139, 1211, 1300, 1379).map { Comb((it * scale).toInt() + 1) }
+    private val apL = intArrayOf(556, 441).map { Allpass((it * scale).toInt() + 1) }
+    private val apR = intArrayOf(579, 464).map { Allpass((it * scale).toInt() + 1) }
+    private var revMix = 0f
+
+    private val hp = Biquad()
+    private var sweepNow = 0f
+    private var sweepSet = -1f
+
     private var lim = 1f
     private val limRelease = coef(80.0)
     private var vol = 1f
@@ -75,7 +98,8 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
     fun reset() {
         analyzer.reset()
         eqF.forEach { it.clear() }
-        bassA.clear(); bassB.clear(); haas.clear(); dl.clear(); dr.clear()
+        bassA.clear(); bassB.clear(); haas.clear(); dl.clear(); dr.clear(); hp.clear()
+        combsL.forEach { it.clear() }; combsR.forEach { it.clear() }; apL.forEach { it.clear() }; apR.forEach { it.clear() }
         lim = 1f
     }
 
@@ -87,6 +111,8 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
         val want8d = if (eightD) 1f else 0f
         val wantNorm = if (normalize) 1f else 0f
         val wantVol = volume.coerceIn(0f, 2f)
+        val wantRev = DspControl.reverb.coerceIn(0f, 1f)
+        val wantSweep = DspControl.sweep.coerceIn(0f, 1f)
         analyzer.begin(dspNanos())
         var i = 0
         for (n in 0 until frames) {
@@ -137,6 +163,29 @@ class Dsp(val rate: Int, val bands: List<Float> = Eq.bands) {
                 l += (ol - l) * eightMix
                 r += (orr - r) * eightMix
             }
+
+            // reverb fades in and out slowly so switching versions doesn't click
+            revMix += (wantRev - revMix) * 0.0005f
+            if (revMix > 0.002f) {
+                val inp = (l + r) * 0.015f
+                var wl = 0f; var wr = 0f
+                for (c in combsL) wl += c.process(inp)
+                for (c in combsR) wr += c.process(inp)
+                for (a in apL) wl = a.process(wl)
+                for (a in apR) wr = a.process(wr)
+                l = l * (1f - revMix * 0.35f) + wl * revMix * 2.2f
+                r = r * (1f - revMix * 0.35f) + wr * revMix * 2.2f
+            }
+
+            // DJ transition: a smooth high-pass sweep pulls the bass out of the outgoing / incoming song
+            sweepNow += (wantSweep - sweepNow) * 0.0004f
+            if (sweepNow > 0.003f) {
+                if (eqBlock == 0 && kotlin.math.abs(sweepNow - sweepSet) > 0.002f) {
+                    sweepSet = sweepNow
+                    hp.highPass(30.0 * (900.0 / 30.0).pow(sweepNow.toDouble()), rate)
+                }
+                l = hp.left(l); r = hp.right(r)
+            } else if (sweepSet >= 0f) { hp.clear(); sweepSet = -1f }
 
             normMix = ramp(normMix, wantNorm)
             val ms = (l * l + r * r) * 0.5f
@@ -213,6 +262,14 @@ internal class Biquad {
         a1 = -2 * cos(w) / a0; a2 = (1 - alpha) / a0
     }
 
+    fun highPass(f: Double, rate: Int, q: Double = 0.7071) {
+        val w = 2 * PI * f / rate
+        val alpha = sin(w) / (2 * q)
+        val a0 = 1 + alpha
+        b0 = (1 + cos(w)) / 2 / a0; b1 = -(1 + cos(w)) / a0; b2 = b0
+        a1 = -2 * cos(w) / a0; a2 = (1 - alpha) / a0
+    }
+
     fun lowPass(f: Double, rate: Int, q: Double = 0.7071) {
         val w = 2 * PI * f / rate
         val alpha = sin(w) / (2 * q)
@@ -237,6 +294,32 @@ internal class Biquad {
     }
 
     fun clear() { l1 = 0.0; l2 = 0.0; r1 = 0.0; r2 = 0.0 }
+}
+
+internal class Comb(size: Int) {
+    private val buf = FloatArray(size)
+    private var i = 0
+    private var store = 0f
+    fun process(x: Float): Float {
+        val y = buf[i]
+        store = y * 0.8f + store * 0.2f // damping
+        buf[i] = x + store * 0.84f // room size
+        if (++i >= buf.size) i = 0
+        return y
+    }
+    fun clear() { buf.fill(0f); store = 0f }
+}
+
+internal class Allpass(size: Int) {
+    private val buf = FloatArray(size)
+    private var i = 0
+    fun process(x: Float): Float {
+        val b = buf[i]
+        buf[i] = x + b * 0.5f
+        if (++i >= buf.size) i = 0
+        return b - x
+    }
+    fun clear() = buf.fill(0f)
 }
 
 /** Ring buffer with fractional (linear) taps. */
@@ -361,6 +444,11 @@ class Analyzer(private val rate: Int) {
         }
     }
 
+    private var bassAvg = -40f
+    private var lastBass = -40f
+    private var lastHit = 0L
+    private fun dueNow() = base + frame * 1_000_000_000L / rate + latencyMs * 1_000_000L
+
     fun feed(x: Float) {
         wave[wavePos and (WAVE - 1)] = x
         wavePos++
@@ -378,6 +466,14 @@ class Analyzer(private val rate: Int) {
             acc[b] = 0f
         }
         // quiet bands get up to 15 dB of lift, not more, so filter leakage doesn't read as full scale
+        // bass hit: the low band jumps well over its recent average
+        val bass = out[0]
+        if (bass - bassAvg > 4f && bass > lastBass && dueNow() - lastHit > 250_000_000L) {
+            lastHit = dueNow()
+            DspControl.beatAt = lastHit
+        }
+        lastBass = bass
+        bassAvg += (bass - bassAvg) * 0.08f
         for (b in f.indices) out[b] = ((out[b] - max(peak[b], top - 15f) + RANGE) / RANGE).coerceIn(0f, 1f)
         count = 0
         val i = (head + 1) and (RING - 1)
