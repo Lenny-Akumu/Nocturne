@@ -948,6 +948,8 @@ internal object Uk {
         "Smart shuffle" to "Розумне перемішування",
         "equalizer" to "еквалайзер",
         "Popular now" to "Популярне зараз",
+        "Sign in to YouTube Music to see your liked music" to "Увійди в YouTube Music, щоб побачити вподобану музику",
+        "YouTube Music didn't answer. Sign in again in Accounts if this keeps happening" to "YouTube Music не відповів. Якщо так повторюється, увійди заново в розділі Акаунти",
         "Import a YouTube Music playlist or album by link" to "Імпортувати плейлист чи альбом YouTube Music за посиланням",
         "Import a SoundCloud playlist or album by link" to "Імпортувати плейлист чи альбом SoundCloud за посиланням",
         "Paste a link to a public playlist or album. It's saved to your library as a playlist — no account needed." to "Встав посилання на відкритий плейлист чи альбом. Він збережеться в бібліотеці як плейлист — без входу в акаунт.",

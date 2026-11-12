@@ -95,11 +95,21 @@ class YouTubeMusicProvider(
         }
         CollectionType.PLAYLIST -> {
             val id = ref.id.removePrefix("VL")
-            val viaAccount = if (isSignedIn || id == "LM") runCatching { innerTube.playlistTracks(id) }.getOrNull() else null
+            val account = if (isSignedIn || id == "LM") runCatching { innerTube.playlistTracks(id) } else null
+            val viaAccount = account?.getOrNull()
             if (viaAccount != null && viaAccount.second.isNotEmpty()) {
                 CollectionPage(
                     ref.copy(title = viaAccount.first ?: ref.title, artworkUrl = ref.artworkUrl ?: viaAccount.second.first().artworkUrl),
                     viaAccount.second,
+                )
+            } else if (id == "LM") {
+                // "Liked music" exists only behind the account; the public extractor rejects it
+                val synced = app.nocturne.AppGraph.instance.library.state.value.liked.filter { it.source == source }
+                if (synced.isNotEmpty()) CollectionPage(ref, synced)
+                else throw SourceUnavailableException(
+                    if (!isSignedIn) app.nocturne.i18n.t("Sign in to YouTube Music to see your liked music")
+                    else app.nocturne.i18n.t("YouTube Music didn't answer. Sign in again in Accounts if this keeps happening") +
+                        (account?.exceptionOrNull()?.message?.let { " ($it)" } ?: ""),
                 )
             } else newPipe.playlist(source, playlistUrl(id), ref)
         }
