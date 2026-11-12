@@ -8,6 +8,8 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.contentOrNull
@@ -19,6 +21,11 @@ import kotlin.math.abs
 
 data class LyricLine(val timeMs: Long, val text: String)
 
+@kotlinx.serialization.Serializable
+internal data class OwnLine(val t: Long, val s: String)
+
+private const val OWN_FILE = "lyrics_own.json"
+
 data class Lyrics(val synced: List<LyricLine>?, val plain: String?, val source: String? = null) {
     val isEmpty get() = synced.isNullOrEmpty() && plain.isNullOrBlank()
 }
@@ -29,7 +36,22 @@ class LyricsProvider(private val http: HttpClient, private val innerTube: InnerT
 
     fun clearCache() = cache.clear()
 
+    private val overrides: MutableMap<String, List<OwnLine>> by lazy {
+        runCatching { json.decodeFromString<Map<String, List<OwnLine>>>(app.nocturne.FileStore.read(OWN_FILE) ?: "{}") }
+            .getOrDefault(emptyMap()).toMutableMap()
+    }
+
+    fun hasOwnTiming(track: Track) = track.key in overrides
+
+    /** Timings the user stamped by hand win over every source. */
+    fun saveOwnTiming(track: Track, lines: List<LyricLine>?) {
+        if (lines.isNullOrEmpty()) overrides.remove(track.key) else overrides[track.key] = lines.map { OwnLine(it.timeMs, it.text) }
+        runCatching { app.nocturne.FileStore.write(OWN_FILE, json.encodeToString(overrides.toMap())) }
+        cache.remove(track.key)
+    }
+
     suspend fun lyrics(track: Track): Lyrics {
+        overrides[track.key]?.let { own -> return Lyrics(own.map { LyricLine(it.t, it.s) }, null, "Your timing") }
         cache[track.key]?.let { return it }
         app.nocturne.data.Podcasts.transcripts[track.id]?.let { url ->
             val l = runCatching { transcript(http.get(url).bodyAsText()) }.getOrNull()

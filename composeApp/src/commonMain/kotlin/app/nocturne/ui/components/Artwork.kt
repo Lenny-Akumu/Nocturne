@@ -36,7 +36,8 @@ fun Artwork(
     fallback: ImageVector = Icons.Rounded.MusicNote,
 ) {
     Box(modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
-        if (url != null) {
+        if (isGeneratedCover(url)) GeneratedCover(url!!, Modifier.fillMaxSize())
+        else if (url != null) {
             val candidates = remember(url) { listOf(upscaleArtwork(url)) + artworkFallbacks(url) }
             var attempt by remember(url) { mutableIntStateOf(0) }
             SubcomposeAsyncImage(

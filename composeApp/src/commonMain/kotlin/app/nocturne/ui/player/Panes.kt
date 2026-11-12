@@ -7,6 +7,10 @@ import app.nocturne.i18n.t
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.rounded.AvTimer
+import androidx.compose.material.icons.rounded.IosShare
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -79,9 +83,30 @@ fun LyricsView() {
         translated = graph.translator.lines(src, target)
         if (translated != null) app.nocturne.data.Achievements.unlock("translated")
     }
+    var timing by remember { mutableStateOf(false) }
+    var card by remember { mutableStateOf<Int?>(null) }
+    if (timing) LyricsTimingDialog(track, lyrics) {
+        timing = false
+        lyrics = null
+        loading = true
+        graph.scope.launch { lyrics = runCatching { graph.lyrics.lyrics(track) }.getOrNull(); loading = false }
+    }
+    val cardLines = remember(lyrics) {
+        lyrics?.synced?.takeIf { it.isNotEmpty() }?.map { it.text }?.filter { it.isNotBlank() }
+            ?: lyrics?.plain?.lines()?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+    }
+    card?.let { i -> LyricCardDialog(track, cardLines, i) { card = null } }
     val translateButton: @Composable () -> Unit = {
         IconButton(onClick = { graph.settings.update { it.copy(lyricsTranslate = !it.lyricsTranslate) } }) {
             Icon(Icons.Rounded.Translate, t("Translate lyrics"), tint = if (settings.lyricsTranslate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    val toolButtons: @Composable () -> Unit = {
+        if (cardLines.isNotEmpty()) IconButton(onClick = { card = -1 }) {
+            Icon(Icons.Rounded.IosShare, t("Lyrics card"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = { timing = true }) {
+            Icon(Icons.Rounded.AvTimer, t("Sync lyrics"), tint = if (graph.lyrics.hasOwnTiming(track)) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 
@@ -90,7 +115,10 @@ fun LyricsView() {
     when {
         loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         (l == null || l.isEmpty) && wantsLiveText(track) -> LiveTranscriptView(track)
-        l == null || l.isEmpty -> MessageBox(Icons.Rounded.Lyrics, "No lyrics found", "We couldn't find lyrics for this song.")
+        l == null || l.isEmpty -> Box(Modifier.fillMaxSize()) {
+            MessageBox(Icons.Rounded.Lyrics, "No lyrics found", "We couldn't find lyrics for this song.")
+            Row(Modifier.align(Alignment.TopEnd)) { toolButtons() }
+        }
         !l.synced.isNullOrEmpty() -> {
             val lines = l.synced
             val listState = rememberLazyListState()
@@ -107,6 +135,7 @@ fun LyricsView() {
             BoxWithConstraints(Modifier.fillMaxSize()) {
             val edge = maxHeight / 2
             Row(Modifier.align(Alignment.TopEnd).zIndex(1f)) {
+                toolButtons()
                 translateButton()
                 IconButton(onClick = { karaoke = true }) {
                     Icon(Icons.Rounded.Fullscreen, "Karaoke", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -120,7 +149,10 @@ fun LyricsView() {
                     Column(
                         Modifier.fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .clickable { graph.player.seekTo(line.timeMs) }
+                            .combinedClickable(
+                                onClick = { graph.player.seekTo(line.timeMs) },
+                                onLongClick = { card = cardLines.indexOf(line.text) },
+                            )
                             .alpha(alpha)
                             .padding(horizontal = 8.dp, vertical = 10.dp),
                     ) {
@@ -161,7 +193,7 @@ fun LyricsView() {
                     }
                 }
             }
-            Box(Modifier.align(Alignment.TopEnd)) { translateButton() }
+            Row(Modifier.align(Alignment.TopEnd)) { toolButtons(); translateButton() }
         }
     }
 }

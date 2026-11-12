@@ -22,7 +22,7 @@ data class LocalPlaylist(
     val shareCode: String? = null,
     /** Time of the edit this copy reflects (newest wins between devices). */
     val version: Long = 0,
-    /** Generated cover image (file URI), when one was made. */
+    /** Cover made in the app (a recipe, see GeneratedCover). */
     val cover: String? = null,
 ) {
     val ref: CollectionRef
@@ -165,8 +165,8 @@ class Library(private val settings: SettingsStore) {
     }
 
     /** A newer copy of a shared playlist arrived from someone else. */
-    fun applySharedPlaylist(code: String, name: String, tracks: List<Track>, version: Long) = mutate { d ->
-        d.copy(playlists = d.playlists.map { if (it.shareCode == code && version > it.version) it.copy(name = name, tracks = tracks, version = version) else it })
+    fun applySharedPlaylist(code: String, name: String, tracks: List<Track>, version: Long, cover: String? = null) = mutate { d ->
+        d.copy(playlists = d.playlists.map { if (it.shareCode == code && version > it.version) it.copy(name = name, tracks = tracks, version = version, cover = cover) else it })
     }
 
     fun joinSharedPlaylist(code: String): LocalPlaylist {

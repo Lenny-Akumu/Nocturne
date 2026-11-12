@@ -1,6 +1,9 @@
 package app.nocturne.ui.screens
 
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -85,6 +88,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     var confirmDelete by remember { mutableStateOf(false) }
     var addAll by remember { mutableStateOf(false) }
     var sharing by remember { mutableStateOf(false) }
+    var covering by remember { mutableStateOf(false) }
 
     val local = ref.type == CollectionType.LOCAL
     val localPage = if (!local) null
@@ -117,6 +121,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                 IconButton(onClick = { graph.navigator.back() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                 Spacer(Modifier.weight(1f))
                 if (local && ref.id != LikedRef.id) {
+                    IconButton(onClick = { covering = true }) { Icon(androidx.compose.material.icons.Icons.Rounded.Palette, t("Cover")) }
                     IconButton(onClick = { sharing = true }) { Icon(androidx.compose.material.icons.Icons.Rounded.Groups, t("Edit together")) }
                     IconButton(onClick = { renaming = true }) { Icon(Icons.Rounded.Edit, "Rename") }
                     IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Rounded.Delete, "Delete") }
@@ -214,6 +219,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
     }
 
     if (sharing) CoEditDialog(ref.id) { sharing = false }
+    if (covering) CoverDialog(ref.id) { covering = false }
     if (renaming) {
         var name by remember { mutableStateOf(header.title) }
         AlertDialog(
@@ -286,6 +292,51 @@ private fun SplitCollection(
             }
         }
     }
+}
+
+/** Makes a cover from the songs or a gradient with the playlist's name. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun CoverDialog(playlistId: String, onDismiss: () -> Unit) {
+    val graph = AppGraph.instance
+    val library by graph.library.state.collectAsState()
+    val p = library.playlists.firstOrNull { it.id == playlistId } ?: return
+    var seed by remember { mutableStateOf(kotlin.random.Random.nextInt(0, 1000)) }
+    val options = remember(p.name, p.tracks.size, seed) {
+        val r = kotlin.random.Random(seed)
+        listOfNotNull(app.nocturne.ui.components.mosaicCover(p.tracks.map { it.artworkUrl })) +
+            (0 until 24).shuffled(r).take(5).map { app.nocturne.ui.components.gradientCover(it, p.name) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(androidx.compose.material.icons.Icons.Rounded.Palette, null) },
+        title = { Text(t("Playlist cover")) },
+        text = {
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                options.forEach { spec ->
+                    val on = p.cover == spec
+                    app.nocturne.ui.components.Artwork(
+                        spec,
+                        Modifier.size(96.dp)
+                            .then(if (on) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium) else Modifier)
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { graph.library.setPlaylistCover(playlistId, spec) },
+                        MaterialTheme.shapes.medium,
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(t("Done")) } },
+        dismissButton = {
+            Row {
+                if (p.cover != null) TextButton(onClick = { graph.library.setPlaylistCover(playlistId, null) }) { Text(t("First song")) }
+                TextButton(onClick = { seed++ }) { Text(t("More")) }
+            }
+        },
+    )
 }
 
 /** Share a playlist for editing together: the code, and a way to stop. */

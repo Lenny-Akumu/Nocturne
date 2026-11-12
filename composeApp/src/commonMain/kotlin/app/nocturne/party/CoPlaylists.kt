@@ -18,7 +18,7 @@ import kotlin.random.Random
 
 /** One shared playlist as it travels: the newest edit wins. */
 @Serializable
-private data class CoSnapshot(val v: Long, val n: String, val t: List<Track>)
+private data class CoSnapshot(val v: Long, val n: String, val t: List<Track>, val c: String? = null)
 
 /**
  * Playlists edited together: every copy with the same code listens on a retained relay topic and
@@ -70,13 +70,13 @@ class CoPlaylists(private val graph: AppGraph, private val scope: CoroutineScope
             graph.library.state.map { s -> s.playlists.filter { it.shareCode != null } }.distinctUntilChanged().collect { list ->
                 list.forEach { p ->
                     val code = p.shareCode ?: return@forEach
-                    val fp = fingerprint(p.name, p.tracks)
+                    val fp = fingerprint(p.name, p.tracks) + "|" + p.cover
                     if (known[code] == fp) return@forEach
                     if (p.version == 0L && p.tracks.isEmpty()) return@forEach // just joined: wait for the real list
                     known[code] = fp
                     val v = maxOf(nowMillis(), p.version + 1)
                     graph.library.setPlaylistShare(p.id, code, v)
-                    val snap = CoSnapshot(v, p.name, p.tracks.take(MAX))
+                    val snap = CoSnapshot(v, p.name, p.tracks.take(MAX), p.cover?.takeIf { app.nocturne.ui.components.isGeneratedCover(it) })
                     mine[code] = snap
                     outgoing.tryEmit(code to snap)
                 }
@@ -90,9 +90,9 @@ class CoPlaylists(private val graph: AppGraph, private val scope: CoroutineScope
         val snap = runCatching { json.decodeFromString(CoSnapshot.serializer(), payload.decodeToString()) }.getOrNull() ?: return
         val local = graph.library.state.value.playlists.firstOrNull { it.shareCode == code } ?: return
         if (snap.v <= local.version) return
-        known[code] = fingerprint(snap.n, snap.t)
+        known[code] = fingerprint(snap.n, snap.t) + "|" + snap.c
         mine.remove(code)
-        graph.library.applySharedPlaylist(code, snap.n, snap.t, snap.v)
+        graph.library.applySharedPlaylist(code, snap.n, snap.t, snap.v, snap.c)
     }
 
     /** Starts co-editing [playlistId]; returns the code to give friends. */
