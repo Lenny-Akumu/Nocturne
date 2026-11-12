@@ -1,5 +1,6 @@
 package app.nocturne.ui.components
 
+import androidx.compose.material.icons.rounded.HowToVote
 import androidx.compose.material.icons.rounded.SaveAlt
 import app.nocturne.data.isPodcast
 import app.nocturne.ui.player.hasOwnPlayer
@@ -160,6 +161,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                     else graph.toast(t("Already playing"))
                 }
                 MenuItem(Icons.Rounded.Radio, "Start radio") { close(); graph.player.startRadio(track) }
+                if (graph.party.chatAvailable) MenuItem(Icons.Rounded.HowToVote, "Suggest to the session") { close(); graph.party.suggest(track); graph.toast(t("Suggested to the session")) }
                 MenuItem(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to playlist") { playlistPicker = listOf(track); close() }
                 ctx.extras.forEach { e -> MenuItem(e.icon, e.label) { close(); e.onClick() } }
                 track.artists.filter { it.id != null }.take(4).forEach { artist ->

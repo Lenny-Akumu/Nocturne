@@ -1,5 +1,10 @@
 package app.nocturne.ui.player
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.rounded.Link
@@ -180,6 +185,7 @@ fun PartyChatSheet(onDismiss: () -> Unit) {
             Text(t("Chat"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
             PartyMembers(Modifier.padding(bottom = 10.dp))
             PartyInviteLink(Modifier.fillMaxWidth().padding(bottom = 10.dp))
+            Suggestions()
             LazyColumn(Modifier.weight(1f), state = list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(chat, key = { it.id }) { m ->
                     Column(Modifier.clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -194,6 +200,40 @@ fun PartyChatSheet(onDismiss: () -> Unit) {
             Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(text, { text = it }, placeholder = { Text(t("Message")) }, singleLine = true, modifier = Modifier.weight(1f))
                 TextButton(onClick = { party.say(text); text = "" }, enabled = text.isNotBlank()) { Text(t("Send")) }
+            }
+        }
+    }
+}
+
+/** Songs people want next: vote with the thumb, the host queues them (or the majority does). */
+@Composable
+private fun Suggestions() {
+    val party = AppGraph.instance.party
+    val list by party.suggestions.collectAsState()
+    val hosting by party.hosting.collectAsState()
+    val open = list.filter { !it.added }.sortedByDescending { it.voters.size }
+    if (open.isEmpty()) return
+    val cs = MaterialTheme.colorScheme
+    Text(t("Suggested songs"), style = MaterialTheme.typography.titleSmall, color = cs.primary, modifier = Modifier.padding(bottom = 4.dp))
+    Column(Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState()).padding(bottom = 8.dp)) {
+        open.forEach { s ->
+            val mine = party.myVoteName in s.voters
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                app.nocturne.ui.components.Artwork(s.track.artworkUrl, Modifier.size(40.dp), RoundedCornerShape(8.dp))
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(s.track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(s.track.artistNames + " · " + s.from, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                Text(
+                    "👍 ${s.voters.size}", style = MaterialTheme.typography.labelLarge,
+                    color = if (mine) cs.onPrimary else cs.onSurface,
+                    modifier = Modifier.clip(CircleShape).background(if (mine) cs.primary else cs.surfaceContainerHigh).clickable { party.vote(s.id, !mine) }.padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+                if (hosting.isNotEmpty()) {
+                    Spacer(Modifier.width(6.dp))
+                    TextButton(onClick = { party.acceptSuggestion(s.id) }) { Text(t("Play next")) }
+                }
             }
         }
     }

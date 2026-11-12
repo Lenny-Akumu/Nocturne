@@ -47,7 +47,14 @@ data class ChatMsg(
     val presence: Boolean = false,
     val sid: String = "",
     val host: Boolean = false,
+    // queue voting: a suggested song, a vote for suggestion [ref], or the host saying [ref] was queued
+    val track: Track? = null,
+    val vote: String? = null,
+    val done: String? = null,
 )
+
+/** A song someone in the session wants to hear next. */
+data class Suggestion(val id: String, val track: Track, val from: String, val voters: Set<String>, val added: Boolean)
 
 data class PartyMember(val name: String, val host: Boolean, val me: Boolean)
 
@@ -258,9 +265,13 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
         chatJob = null
         chatCode = null
         _chat.value = emptyList()
+        _suggestions.value = emptyList()
         seen.clear()
         _members.value = emptyList()
     }
+
+    private val _suggestions = MutableStateFlow<List<Suggestion>>(emptyList())
+    val suggestions: StateFlow<List<Suggestion>> = _suggestions.asStateFlow()
 
     private fun receiveChat(text: String) {
         val m = runCatching { json.decodeFromString(ChatMsg.serializer(), text) }.getOrNull() ?: return
@@ -269,11 +280,55 @@ class Party(private val graph: AppGraph, private val scope: CoroutineScope) {
             refreshMembers()
             return
         }
+        m.track?.let { tr ->
+            if (_suggestions.value.none { it.id == m.id }) _suggestions.value = (_suggestions.value + Suggestion(m.id, tr, m.from, setOf(m.from), false)).takeLast(40)
+            autoQueue()
+            return
+        }
+        m.vote?.let { ref ->
+            _suggestions.value = _suggestions.value.map { s -> if (s.id == ref) s.copy(voters = if (m.text == "-") s.voters - m.from else s.voters + m.from) else s }
+            autoQueue()
+            return
+        }
+        m.done?.let { ref ->
+            _suggestions.value = _suggestions.value.map { s -> if (s.id == ref) s.copy(added = true) else s }
+            return
+        }
         if (_chat.value.any { it.id == m.id }) return
         _chat.value = (_chat.value + m).takeLast(80)
     }
 
     val chatAvailable: Boolean get() = chatCode != null
+
+    private fun send(m: ChatMsg) {
+        if (chatCode == null) return
+        receiveChat(json.encodeToString(ChatMsg.serializer(), m))
+        chatOut.value = m
+    }
+
+    private fun newId() = Random.nextLong().toString(36) + nowMillis().toString(36)
+
+    /** Puts a song up for the session to vote on. */
+    fun suggest(track: Track) = send(ChatMsg(newId(), myName, "", nowMillis(), track = track))
+
+    /** Votes for (or takes back a vote on) a suggestion. */
+    fun vote(id: String, on: Boolean) = send(ChatMsg(newId(), myName, if (on) "+" else "-", nowMillis(), vote = id))
+
+    val myVoteName: String get() = myName
+
+    /** Host: queue a suggestion next and tell everyone. */
+    fun acceptSuggestion(id: String) {
+        val s = _suggestions.value.firstOrNull { it.id == id && !it.added } ?: return
+        graph.player.playNext(listOf(s.track))
+        send(ChatMsg(newId(), myName, "", nowMillis(), done = id))
+    }
+
+    // host only: a suggestion most of the room voted for goes in by itself
+    private fun autoQueue() {
+        if (_hosting.value.isEmpty()) return
+        val people = _members.value.size.coerceAtLeast(2)
+        _suggestions.value.filter { !it.added && it.voters.size * 2 > people }.forEach { acceptSuggestion(it.id) }
+    }
 
     /** Sends a message (or an emoji reaction) to everyone in the session. */
     fun say(text: String, reaction: Boolean = false) {
