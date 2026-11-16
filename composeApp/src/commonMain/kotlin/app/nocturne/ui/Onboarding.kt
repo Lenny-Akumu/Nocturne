@@ -104,6 +104,7 @@ private object Flow {
     var step: Step? by mutableStateOf(null)
     var ready by mutableStateOf(false)
     var flipped by mutableStateOf(false)
+    var lastNext = 0L
 }
 
 private fun DesignStyle.icon(): ImageVector = when (this) {
@@ -144,6 +145,9 @@ fun Onboarding() {
 
     val steps = remember { Step.entries.filter { it != Step.DONE && (it != Step.FLOATING || desktop) } }
     fun next() {
+        val now = app.nocturne.nowMillis()
+        if (now - Flow.lastNext < 450) return
+        Flow.lastNext = now
         val cur = Flow.step ?: Step.LANGUAGE
         val i = steps.indexOf(cur)
         if (cur == Step.FLOATING) { FloatingEdit.preview = false; FloatingEdit.highlight = false }
@@ -160,7 +164,16 @@ fun Onboarding() {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val phone = maxWidth < 640.dp
         when (step) {
-            Step.LANGUAGE -> Scrim { LanguageCard(onDone = ::next, onSkip = ::next) }
+            Step.LANGUAGE -> Scrim {
+                LanguageCard(
+                    onDone = { code ->
+                        // move on first, then switch the language once: switching re-renders the whole app
+                        next()
+                        if (code != settings.uiLanguage) graph.scope.launch { delay(250); graph.settings.update { it.copy(uiLanguage = code) } }
+                    },
+                    onSkip = ::next,
+                )
+            }
             Step.STYLE -> StyleStep(phone, onDone = ::next, onSkip = ::next)
             Step.FONT -> SidePanel(
                 phone, "Font", "Pick how text looks. You see it live.",
@@ -202,9 +215,10 @@ private fun Scrim(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun LanguageCard(onDone: () -> Unit, onSkip: () -> Unit) {
+private fun LanguageCard(onDone: (String) -> Unit, onSkip: () -> Unit) {
     val graph = AppGraph.instance
-    val settings by graph.settings.state.collectAsState()
+    var picked by remember { mutableStateOf(graph.settings.value.uiLanguage) }
+    var sent by remember { mutableStateOf(false) }
     val cs = MaterialTheme.colorScheme
     Column(
         Modifier.padding(20.dp).widthIn(max = 460.dp).clip(RoundedCornerShape(26.dp)).background(cs.surfaceContainer).padding(24.dp),
@@ -217,10 +231,10 @@ private fun LanguageCard(onDone: () -> Unit, onSkip: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         LazyColumn(Modifier.heightIn(max = 340.dp).fillMaxWidth()) {
             items(I18n.languages) { (code, name) ->
-                val on = settings.uiLanguage == code
+                val on = picked == code
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (on) cs.primary.copy(alpha = 0.16f) else Color.Transparent)
-                        .clickable { graph.settings.update { it.copy(uiLanguage = code) } }.padding(horizontal = 14.dp, vertical = 11.dp),
+                        .clickable { picked = code }.padding(horizontal = 14.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(if (code == "system") t(name) else name, modifier = Modifier.weight(1f), color = if (on) cs.primary else cs.onSurface, fontWeight = if (on) FontWeight.SemiBold else null)
@@ -229,7 +243,8 @@ private fun LanguageCard(onDone: () -> Unit, onSkip: () -> Unit) {
             }
         }
         Spacer(Modifier.height(16.dp))
-        ConfirmBar(onDone, onSkip)
+        // one tap only: a double tap must not skip the next step
+        ConfirmBar({ if (!sent) { sent = true; onDone(picked) } }, { if (!sent) { sent = true; onSkip() } })
     }
 }
 
