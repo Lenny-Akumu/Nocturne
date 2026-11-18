@@ -100,8 +100,9 @@ class Library(private val settings: SettingsStore) {
     fun mergeLiked(remote: List<Track>) = mutate { d ->
         val have = d.liked.map { it.key }.toSet()
         val blocked = d.notInterested.map { it.key }.toSet()
-        val fresh = remote.filter { it.key !in have && it.key !in blocked }
-        if (fresh.isEmpty()) d else d.copy(liked = d.liked + fresh)
+        val fresh = remote.filter { it.key !in have && it.key !in blocked }.distinctBy { it.key }
+        // likes found on a service are newer than our last sync: they go on top, like ones made here
+        if (fresh.isEmpty()) d else d.copy(liked = fresh + d.liked)
     }
 
     fun merge(other: LibraryData) = mutate { d ->

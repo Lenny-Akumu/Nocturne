@@ -106,7 +106,7 @@ fun LibraryScreen(contentPadding: PaddingValues) {
             LibraryTab.PLAYLISTS -> {
                 val refs = listOf(LikedRef.copy(title = t("Liked songs"), subtitle = t("%s songs", library.liked.size), artworkUrl = library.liked.firstOrNull()?.artworkUrl)) +
                     library.playlists.map { it.ref } + library.saved.filter { it.type == CollectionType.PLAYLIST }
-                CollectionGrid(refs, bottom)
+                CollectionGrid(refs.distinctBy { it.key }, bottom)
             }
             LibraryTab.ALBUMS -> {
                 val refs = library.saved.filter { it.type == CollectionType.ALBUM }
@@ -195,7 +195,7 @@ private fun TrackList(
 private fun CollectionGrid(refs: List<CollectionRef>, padding: PaddingValues) {
     val nav = AppGraph.instance.navigator
     LazyVerticalGrid(columns = GridCells.Adaptive(150.dp), contentPadding = PaddingValues(start = 10.dp, end = 10.dp, bottom = padding.calculateBottomPadding())) {
-        items(refs, key = { it.key }) { ref -> CollectionCard(ref, onClick = { nav.push(Screen.Collection(ref)) }, width = null) }
+        items(refs.distinctBy { it.key }, key = { it.key }) { ref -> CollectionCard(ref, onClick = { nav.push(Screen.Collection(ref)) }, width = null) }
         item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(8.dp)) }
     }
 }
@@ -217,23 +217,50 @@ private fun OnlineLibrary(padding: PaddingValues) {
         )
         return
     }
-    val libs by produceState(providers.mapNotNull { onlineCache[it.source] }, accounts) {
-        value = providers.mapNotNull { p ->
-            runCatching { p.library() }.getOrNull()?.also { onlineCache[p.source] = it }
+    // each account loads on its own: a failing one shows its error instead of hiding or stalling the rest
+    var retry by remember { mutableStateOf(0) }
+    val errors = remember { androidx.compose.runtime.mutableStateMapOf<Source, String>() }
+    val libs = remember { androidx.compose.runtime.mutableStateMapOf<Source, AccountLibrary>().apply { providers.forEach { p -> onlineCache[p.source]?.let { put(p.source, it) } } } }
+    val sources = providers.map { it.source }
+    androidx.compose.runtime.LaunchedEffect(accounts, retry) {
+        providers.forEach { p ->
+            launch {
+                errors.remove(p.source)
+                runCatching { p.library() }
+                    .onSuccess { lib -> if (lib != null) { onlineCache[p.source] = lib; libs[p.source] = lib } else errors[p.source] = t("Sign in again to see this library") }
+                    .onFailure { e -> if (p.source !in libs) errors[p.source] = e.message ?: t("Failed to load") }
+            }
         }
     }
     LazyColumn(contentPadding = padding) {
-        if (libs.isEmpty()) item { app.nocturne.ui.components.LoadingBox() }
-        libs.forEach { lib ->
-            val top = listOfNotNull(lib.liked) + lib.playlists
-            if (top.isNotEmpty()) item {
-                SectionView(Section("${lib.source.label} • ${t("Playlists")}", top.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
-            }
-            if (lib.albums.isNotEmpty()) item {
-                SectionView(Section("${lib.source.label} • ${t("Albums")}", lib.albums.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
-            }
-            if (lib.artists.isNotEmpty()) item {
-                SectionView(Section("${lib.source.label} • ${t("Artists")}", lib.artists.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+        sources.forEach { src ->
+            val lib = libs[src]
+            val err = errors[src]
+            when {
+                lib == null && err != null -> item(key = "err:${src.name}") {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            app.nocturne.ui.components.SourceBadge(src, size = 18.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(src.label, style = MaterialTheme.typography.titleMedium)
+                        }
+                        Text(err, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
+                        TextButton(onClick = { retry++ }) { Text(t("Retry")) }
+                    }
+                }
+                lib == null -> item(key = "load:${src.name}") { app.nocturne.ui.components.LoadingBox() }
+                else -> {
+                    val top = listOfNotNull(lib.liked) + lib.playlists
+                    if (top.isNotEmpty()) item(key = "pl:${src.name}") {
+                        SectionView(Section("${lib.source.label} • ${t("Playlists")}", top.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+                    }
+                    if (lib.albums.isNotEmpty()) item(key = "al:${src.name}") {
+                        SectionView(Section("${lib.source.label} • ${t("Albums")}", lib.albums.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+                    }
+                    if (lib.artists.isNotEmpty()) item(key = "ar:${src.name}") {
+                        SectionView(Section("${lib.source.label} • ${t("Artists")}", lib.artists.map { MediaEntry.Collection(it) }, source = lib.source)) { _, _ -> }
+                    }
+                }
             }
         }
     }

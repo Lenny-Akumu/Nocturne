@@ -141,8 +141,10 @@ class InnerTube(
             root.findAll("musicResponsiveListItemRenderer").map { it to parseListCollection(it) })
             .mapNotNull { (r, e) -> (e as? MediaEntry.Collection)?.ref?.takeIf { it.type == CollectionType.PLAYLIST }?.let { r to it } }
             .filter { (_, ref) -> ref.id.removePrefix("VL").let { it != "LM" && it != "SE" && !it.startsWith("RD") } }
+        // YouTube moves the edit menu around now and then: if neither sign is found, offer every library playlist
         val own = items.filter { (r, _) -> r.path("menu")?.findAll("iconType")?.any { it.str == "EDIT" || it.str == "DELETE" } == true }
             .ifEmpty { items.filter { (_, ref) -> !owner.isNullOrBlank() && ref.subtitle?.contains(owner) == true } }
+            .ifEmpty { items }
         return own.map { it.second }.distinctBy { it.id }
     }
 

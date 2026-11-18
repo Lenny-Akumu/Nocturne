@@ -443,6 +443,7 @@ internal object Uk {
         "Restore the last queue on launch" to "Відновлювати останню чергу під час запуску",
         "Resume playback on launch" to "Продовжувати відтворення після запуску",
         "Retry" to "Повторити",
+        "Sign in again to see this library" to "Увійди знову, щоб побачити цю бібліотеку",
         "Rich Presence — show what you're listening to" to "Rich Presence — показуй, що слухаєш",
         "Right" to "Праворуч",
         "Rock" to "Рок",

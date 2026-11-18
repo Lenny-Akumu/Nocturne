@@ -238,8 +238,8 @@ fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        // phones: nearly full width; desktop: a roomy fixed width instead of the narrow default
-        modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 640.dp),
+        // the cap has to come first: after fillMaxWidth the width is already fixed
+        modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth(0.94f),
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
         title = { Text(t(if (creating) "New playlist" else "Add to playlist")) },
         text = {
@@ -274,7 +274,7 @@ fun AddToPlaylistDialog(tracks: List<Track>, onDismiss: () -> Unit) {
                         ListItem(
                             headlineContent = { Text(p.name) },
                             supportingContent = { Text(t("%s songs", p.tracks.size)) },
-                            leadingContent = { Artwork(p.tracks.firstOrNull()?.artworkUrl, Modifier.size(44.dp)) },
+                            leadingContent = { Artwork(p.ref.artworkUrl, Modifier.size(44.dp)) },
                             modifier = Modifier.clickable { graph.library.addToPlaylist(p.id, tracks); graph.toast(t("Added to %s", p.name)); onDismiss() },
                         )
                     }
