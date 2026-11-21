@@ -312,7 +312,7 @@ class AppGraph(val engine: AudioEngine) {
         commentsCache[videoId]?.let { return it }
         val attempts = listOfNotNull<suspend () -> app.nocturne.source.CommentsPage>(
             { innerTube.comments(videoId) },
-            query?.takeIf { it.isNotBlank() }?.let { q -> suspend { kotlinx.coroutines.delay(1500); innerTube.commentsBySearch(q, setOf(videoId)) } },
+            query?.takeIf { it.isNotBlank() }?.let { q -> suspend { kotlinx.coroutines.delay(800); innerTube.commentsBySearch(q, setOf(videoId)) } },
             { newPipe.comments(videoId, null) ?: app.nocturne.source.CommentsPage(emptyList(), null) },
             {
                 val mv = musicVideoOf(videoId) ?: throw app.nocturne.source.CommentsDisabledException()

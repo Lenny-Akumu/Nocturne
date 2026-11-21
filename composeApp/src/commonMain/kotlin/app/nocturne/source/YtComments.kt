@@ -2,6 +2,7 @@ package app.nocturne.source
 
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.coroutines.launch
 
 // YouTube comments via the WEB `next` endpoint (old commentThreadRenderer and new commentViewModel/entity layouts).
 
@@ -35,13 +36,22 @@ suspend fun InnerTube.comments(videoId: String): CommentsPage {
 suspend fun InnerTube.commentsPage(token: String): CommentsPage = parseComments(webNext(mapOf("continuation" to JsonPrimitive(token))))
 
 /** Comments from the most watched upload of the song when the track itself has them off. */
-suspend fun InnerTube.commentsBySearch(query: String, skip: Set<String>): CommentsPage {
-    for (id in webVideoSearch(query).filter { it !in skip }.take(4)) {
-        val token = runCatching { commentsToken(id) }.getOrNull() ?: continue
-        val page = runCatching { commentsPage(token) }.getOrNull() ?: continue
-        if (page.comments.isNotEmpty()) return page
+// all candidates at once: one at a time didn't fit the time limit on a slow connection
+suspend fun InnerTube.commentsBySearch(query: String, skip: Set<String>): CommentsPage = kotlinx.coroutines.coroutineScope {
+    val ids = webVideoSearch(query).filter { it !in skip }.take(6)
+    val found = kotlinx.coroutines.channels.Channel<CommentsPage?>(ids.size)
+    val jobs = ids.map { id ->
+        launch {
+            val page = runCatching { commentsToken(id)?.let { commentsPage(it) } }.getOrNull()
+            found.send(page?.takeIf { it.comments.isNotEmpty() })
+        }
     }
-    throw CommentsDisabledException()
+    try {
+        repeat(ids.size) { found.receive()?.let { return@coroutineScope it } }
+        throw CommentsDisabledException()
+    } finally {
+        jobs.forEach { it.cancel() }
+    }
 }
 
 private suspend fun InnerTube.commentsToken(videoId: String): String? {

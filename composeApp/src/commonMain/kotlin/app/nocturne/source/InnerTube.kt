@@ -62,10 +62,10 @@ class InnerTube(
         }.bodyAsText()
     }
 
-    private fun authorization(cookie: String): String? {
+    private fun authorization(cookie: String, origin: String = ORIGIN): String? {
         val sapisid = Regex("(?:^|;\\s*)(?:__Secure-3PAPISID|SAPISID)=([^;]+)").find(cookie)?.groupValues?.get(1) ?: return null
         val ts = app.nocturne.nowMillis() / 1000
-        return "SAPISIDHASH ${ts}_${app.nocturne.sha1Hex("$ts $sapisid $ORIGIN")}"
+        return "SAPISIDHASH ${ts}_${app.nocturne.sha1Hex("$ts $sapisid $origin")}"
     }
 
     private suspend fun browse(browseId: String): JsonElement {
@@ -103,6 +103,14 @@ class InnerTube(
             header("User-Agent", USER_AGENT)
             header("X-YouTube-Client-Name", "1")
             header("X-YouTube-Client-Version", WEB_VERSION)
+            // signed in: ask as the account, as a browser would; label videos hide comments from anonymous requests
+            val c = cookie()
+            if (c.isNotBlank()) {
+                header("Cookie", c)
+                authorization(c, "https://www.youtube.com")?.let { header("Authorization", it) }
+                header("X-Goog-AuthUser", "0")
+                header("X-Origin", "https://www.youtube.com")
+            }
             setBody(JsonObject(ctx + body).toString())
         }.bodyAsText()
         return json.parseToJsonElement(raw)
