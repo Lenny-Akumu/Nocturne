@@ -69,6 +69,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 
 // Comments for [track] (pinned to the track it was opened for): YouTube with Top / Newest sort, or SoundCloud's timed ones.
 // Shown 10 at a time; the next 10 appear as you reach the bottom, more pages load behind them.
@@ -104,10 +105,18 @@ fun CommentsSheet(track: Track, onDismiss: () -> Unit) {
         loading = true
         error = null
         job = scope.launch {
-            val r = runCatching { withContext(Dispatchers.Default) { withTimeout(25_000) { block() } } }
+            // the request runs on its own, so the time limit holds even if a network call blocks
+            val work = scope.async(Dispatchers.Default) { block() }
+            val r = runCatching { withTimeout(25_000) { work.await() } }
+            if (r.isFailure) work.cancel()
             ensureActive()
             r.onSuccess { p ->
-                if (reset) { comments.clear(); buffer.clear(); list.scrollToItem(0) }
+                if (reset) {
+                    // scrolling waits for the list to be drawn; while the spinner shows there is no list,
+                    // so it must never hold up the result
+                    if (comments.isNotEmpty()) scope.launch { runCatching { list.scrollToItem(0) } }
+                    comments.clear(); buffer.clear()
+                }
                 val seen = (comments + buffer).mapTo(HashSet<String>()) { it.id }
                 val fresh = p.comments.filter { it.id !in seen }
                 buffer += fresh
