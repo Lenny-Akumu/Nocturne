@@ -282,7 +282,8 @@ jobs:
       - name: Build Kotlin framework
         run: |
           set -o pipefail
-          ./gradlew :composeApp:linkReleaseFrameworkIosArm64 --continue 2>&1 | tee build.log
+          # the native link outgrew 4 GB; the macOS runner has 7
+          ./gradlew -Dorg.gradle.jvmargs="-Xmx6g -Dfile.encoding=UTF-8" :composeApp:linkReleaseFrameworkIosArm64 --continue 2>&1 | tee build.log
       - name: Show compile errors
         if: failure()
         run: |
