@@ -96,3 +96,8 @@ actual fun notifyRelease(title: String, text: String) {
 }
 
 actual fun isUpdateAsset(name: String): Boolean = name.endsWith(".apk")
+
+actual val patchListName: String? = null
+
+// a phone installs whole packages only
+actual suspend fun applyPatch(listUrl: String, onProgress: (Float) -> Unit): Boolean = false

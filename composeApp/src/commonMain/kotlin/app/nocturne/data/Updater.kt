@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 
-data class UpdateInfo(val version: String, val notes: String, val url: String, val fileName: String, val size: Long)
+data class UpdateInfo(val version: String, val notes: String, val url: String, val fileName: String, val size: Long, val patchUrl: String? = null)
 
 sealed interface UpdateState {
     data object Idle : UpdateState
@@ -27,6 +27,12 @@ sealed interface UpdateState {
 }
 
 expect suspend fun downloadAndInstall(url: String, fileName: String, onProgress: (Float) -> Unit)
+
+/** Release asset listing every file with its hash, for patch updates; null where only full installs exist. */
+expect val patchListName: String?
+
+/** Downloads only the files that changed and restarts into them; false means "do the full install instead". */
+expect suspend fun applyPatch(listUrl: String, onProgress: (Float) -> Unit): Boolean
 
 expect fun notifyUpdateAvailable(version: String, notes: String)
 
@@ -54,12 +60,16 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
             val name = a.path("name").str.orEmpty()
             isUpdateAsset(name)
         } ?: return null
+        val patchList = patchListName?.let { name ->
+            release.path("assets").arr.orEmpty().firstOrNull { it.path("name").str == name }?.path("browser_download_url").str
+        }
         val info = UpdateInfo(
             version = version,
             notes = release.path("body").str.orEmpty(),
             url = asset.path("browser_download_url").str ?: return null,
             fileName = asset.path("name").str ?: "Nocturne-update",
             size = asset.path("size").num ?: 0,
+            patchUrl = patchList,
         )
         val wasIdle = _state.value is UpdateState.Idle
         _state.value = UpdateState.Available(info)
@@ -71,6 +81,11 @@ class Updater(private val http: HttpClient, private val settings: SettingsStore)
         _state.value = UpdateState.Downloading(info, 0f)
         var lastStep = -1
         runCatching {
+            // a few MB of changed files when possible, the whole installer otherwise
+            val patched = info.patchUrl?.let { list ->
+                runCatching { applyPatch(list) { p -> _state.value = UpdateState.Downloading(info, p) } }.getOrDefault(false)
+            } ?: false
+            if (patched) return@runCatching
             downloadAndInstall(info.url, info.fileName) { p ->
                 _state.value = UpdateState.Downloading(info, p)
                 val step = (p * 50).toInt()

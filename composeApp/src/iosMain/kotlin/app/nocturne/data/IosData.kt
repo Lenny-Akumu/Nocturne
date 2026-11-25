@@ -122,3 +122,8 @@ actual suspend fun downloadAndInstall(url: String, fileName: String, onProgress:
 }
 
 actual fun isUpdateAsset(name: String): Boolean = name.endsWith(".ipa")
+
+actual val patchListName: String? = null
+
+// a phone installs whole packages only
+actual suspend fun applyPatch(listUrl: String, onProgress: (Float) -> Unit): Boolean = false

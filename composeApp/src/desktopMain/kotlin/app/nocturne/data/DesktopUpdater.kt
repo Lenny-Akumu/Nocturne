@@ -75,3 +75,83 @@ private fun installLinux(archive: File) {
     ProcessBuilder("sh", "-c", script).start()
     exitProcess(0)
 }
+
+actual val patchListName: String? = if (isWindows) "Nocturne-files-windows.json" else "Nocturne-files-linux.json"
+
+@kotlinx.serialization.Serializable
+private class PatchFile(val p: String, val h: String, val s: Long, val u: String? = null, val x: Boolean = false)
+
+@kotlinx.serialization.Serializable
+private class PatchList(val version: String, val full: Long, val files: List<PatchFile>)
+
+private fun sha256(f: File): String {
+    val md = java.security.MessageDigest.getInstance("SHA-256")
+    f.inputStream().use { input ->
+        val buf = ByteArray(1 shl 16)
+        while (true) { val n = input.read(buf); if (n < 0) break; md.update(buf, 0, n) }
+    }
+    return md.digest().joinToString("") { "%02x".format(it) }
+}
+
+/**
+ * Compares the release's file list with the installed files, downloads only what differs (checked against
+ * its hash), then swaps those files in once the app has exited and starts it again.
+ * Returns false whenever the full installer is the safer way: unknown layout, files without a link, or most of the app changed.
+ */
+actual suspend fun applyPatch(listUrl: String, onProgress: (Float) -> Unit): Boolean = withContext(Dispatchers.IO) {
+    val root = appInstallDir()?.let(::File)?.takeIf { it.isDirectory } ?: return@withContext false
+    val listFile = File(File(System.getProperty("java.io.tmpdir"), "nocturne-update"), "files.json")
+    downloadFile(listUrl, listFile) {}
+    val list = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.decodeFromString(PatchList.serializer(), listFile.readText())
+    val need = list.files.filter { e ->
+        val f = File(root, e.p)
+        !(f.isFile && f.length() == e.s && sha256(f) == e.h)
+    }
+    if (need.isEmpty() || need.any { it.u == null }) return@withContext false
+    val bytes = need.sumOf { it.s }
+    if (bytes > list.full * 6 / 10) return@withContext false
+
+    val stage = if (isWindows) File(System.getProperty("java.io.tmpdir"), "nocturne-patch") else File(root.parentFile, ".nocturne-patch")
+    stage.deleteRecursively()
+    var done = 0L
+    for (e in need) {
+        val target = File(stage, e.p)
+        downloadFile(e.u!!, target) { p -> onProgress(((done + e.s * p) / bytes).toFloat().coerceIn(0f, 1f)) }
+        if (target.length() != e.s || sha256(target) != e.h) { stage.deleteRecursively(); error("Damaged download: ${e.p}") }
+        if (e.x) target.setExecutable(true, false)
+        done += e.s
+    }
+    onProgress(1f)
+    swapAndRestart(root, stage)
+    true
+}
+
+// The running app holds its files open, so a small script waits for it to exit, copies the new files over and starts it again.
+private fun swapAndRestart(root: File, stage: File): Nothing {
+    val pid = ProcessHandle.current().pid()
+    if (isWindows) {
+        val script = File(System.getProperty("java.io.tmpdir"), "nocturne-patch.cmd")
+        script.writeText(
+            """
+            @echo off
+            :wait
+            tasklist /FI "PID eq $pid" 2>nul | find "$pid" >nul && (timeout /t 1 /nobreak >nul & goto wait)
+            robocopy "${stage.absolutePath}" "${root.absolutePath}" /E /R:10 /W:1 /NFL /NDL /NJH /NJS /NP >nul
+            rmdir /S /Q "${stage.absolutePath}"
+            start "" "${File(root, "Nocturne.exe").absolutePath}"
+            del "%~f0"
+            """.trimIndent().replace("\n", "\r\n"),
+        )
+        ProcessBuilder("cmd", "/c", "start", "\"\"", "/min", script.absolutePath).start()
+    } else {
+        val bin = File(root, "bin/Nocturne")
+        val script = """
+            while kill -0 $pid 2>/dev/null; do sleep 0.3; done
+            cp -a '${stage.absolutePath}/.' '${root.absolutePath}/' && rm -rf '${stage.absolutePath}'
+            chmod +x '${bin.absolutePath}'
+            nohup '${bin.absolutePath}' >/dev/null 2>&1 &
+        """.trimIndent()
+        ProcessBuilder("sh", "-c", script).start()
+    }
+    exitProcess(0)
+}

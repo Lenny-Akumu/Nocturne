@@ -157,7 +157,9 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            // R8 drops the unused Material icons (most of the APK); see proguard-icons.pro
+            isMinifyEnabled = true
+            proguardFiles("proguard-icons.pro")
             signingConfig = signingConfigs.getByName("release")
         }
         getByName("debug") {
@@ -186,6 +188,14 @@ compose.desktop {
             "-XX:+UseG1GC", "-XX:G1PeriodicGCInterval=20000", "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=25",
             "-XX:+UseStringDeduplication", "-XX:ReservedCodeCacheSize=96m",
         )
+
+        // release image: ProGuard drops the unused Material icons (~35 MB); see proguard-icons.pro
+        buildTypes.release.proguard {
+            configurationFiles.from(project.file("proguard-icons.pro"))
+            obfuscate.set(false)
+            optimize.set(false)
+            joinOutputJars.set(false)
+        }
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
