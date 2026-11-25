@@ -339,9 +339,22 @@ class VlcAudioEngine : AudioEngine {
         dsp.vocalRemover = vocalRemover
     }
 
+    @Volatile private var level = 1f
+
+    /** Sound goes out through our own Java Sound line, so the system mixer's slider is ours alone (VLC's own output sets it itself). */
+    val mixerReady: Boolean get() = dspActive && player != null
+
     override fun setVolume(volume: Float) {
-        this.volume = (volume * 100).toInt().coerceIn(0, 200)
-        dsp.volume = volume.coerceIn(0f, 2f)
+        level = volume
+        refreshGain()
+    }
+
+    /** When the system mixer holds the user's volume, only the fades (level ÷ user volume) are applied here. */
+    fun refreshGain() {
+        val user = MixerSync.userVolume
+        val gain = if (user == null) level else if (user < 0.001f) 1f else (level / user)
+        this.volume = (gain * 100).toInt().coerceIn(0, 200)
+        dsp.volume = gain.coerceIn(0f, 2f)
         if (!dspActive) async { audio().setVolume(this@VlcAudioEngine.volume) }
     }
 

@@ -118,6 +118,8 @@ private fun launchApp() {
     application {
         val graph = remember { AppGraph.init(if (System.getenv("NOCTURNE_SHOT")?.startsWith("demo") == true) app.nocturne.player.DemoAudioEngine() else VlcAudioEngine()) }
         androidx.compose.runtime.LaunchedEffect(Unit) { app.nocturne.ui.runPromoShot(graph, System.getenv("NOCTURNE_SHOT"), System.getenv("NOCTURNE_STYLE")) }
+        // the "Nocturne" slider in the Windows / Linux volume mixer and the app's volume follow each other
+        remember { app.nocturne.player.MixerSync.start(graph, graph.engine as? VlcAudioEngine); Unit }
         // before any window exists: transparent Skia layers for Mica / Acrylic
         remember { WindowEffects.arm(graph.settings.value.windowBackdrop) }
         val settings by graph.settings.state.collectAsState()
