@@ -289,7 +289,6 @@ private fun LinuxPlayer(onCollapse: () -> Unit) {
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.06f)).padding(4.dp)) {
                             LinuxTabChip(t("Queue"), tab == LTab.QUEUE && !(!wide && artOnly)) { tab = LTab.QUEUE; artOnly = false }
                             LinuxTabChip(t("Lyrics"), tab == LTab.LYRICS && !(!wide && artOnly)) { tab = LTab.LYRICS; artOnly = false }
-                            if (canComment(track)) LinuxTabChip(t("Comments"), false) { overlays.comments = true }
                         }
                         Spacer(Modifier.height(10.dp))
                         Box(Modifier.weight(1f).fillMaxWidth()) { if (tab == LTab.QUEUE) QueueView() else LyricsView() }

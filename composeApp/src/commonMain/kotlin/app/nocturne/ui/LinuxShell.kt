@@ -26,6 +26,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.automirrored.rounded.VolumeDown
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.ui.draw.clipToBounds
+import kotlin.math.roundToInt
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Pause
@@ -165,13 +171,15 @@ private fun NowColumn(onExpand: () -> Unit) {
     val player by p.state.collectAsState()
     val library by graph.library.state.collectAsState()
     val track = player.current
-    Column {
+    Column(Modifier.fillMaxHeight()) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).clickable(enabled = track != null, onClick = onExpand)) {
             Artwork(track?.artworkUrl, Modifier.fillMaxSize(), RoundedCornerShape(12.dp))
         }
         Spacer(Modifier.height(16.dp))
         if (track == null) {
             Text(t("Nothing playing"), color = cs.onSurfaceVariant)
+            Spacer(Modifier.weight(1f))
+            VolumeRow()
             return@Column
         }
         Text(
@@ -204,7 +212,45 @@ private fun NowColumn(onExpand: () -> Unit) {
             Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, t("Like"), Modifier.size(22.dp).clickable { graph.toggleLike(track) }, tint = if (liked) Pink else cs.onSurfaceVariant)
         }
         Spacer(Modifier.height(18.dp))
-        LyricsLines(track.key, player.positionMs)
+        // lyrics take what's left, so the volume stays at the bottom
+        Box(Modifier.weight(1f).fillMaxWidth().clipToBounds()) { LyricsLines(track.key, player.positionMs) }
+        Spacer(Modifier.height(10.dp))
+        VolumeRow()
+    }
+}
+
+/** Always-open volume: tap the speaker to mute, tap again for the level it had. */
+@Composable
+private fun VolumeRow() {
+    val graph = AppGraph.instance
+    val settings by graph.settings.state.collectAsState()
+    val cs = MaterialTheme.colorScheme
+    var before by remember { mutableStateOf(0.6f) }
+    val v = settings.volume
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.05f)).padding(horizontal = 10.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            when { v <= 0.001f -> Icons.AutoMirrored.Rounded.VolumeOff; v < 0.5f -> Icons.AutoMirrored.Rounded.VolumeDown; else -> Icons.AutoMirrored.Rounded.VolumeUp },
+            t("Volume"),
+            Modifier.size(30.dp).clip(CircleShape).clickable {
+                if (v > 0.001f) { before = v; graph.player.setVolume(0f) } else graph.player.setVolume(before.takeIf { it > 0.01f } ?: 0.6f)
+            }.padding(4.dp),
+            tint = cs.onSurfaceVariant,
+        )
+        // a slim line like the wave seek bar, not the chunky Material track
+        androidx.compose.material3.Slider(
+            value = v, onValueChange = { graph.player.setVolume(it) },
+            modifier = Modifier.weight(1f).padding(horizontal = 6.dp).height(28.dp),
+            thumb = { Box(Modifier.size(14.dp).clip(CircleShape).background(Color.White)) },
+            track = { _ ->
+                Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = 0.15f))) {
+                    Box(Modifier.fillMaxWidth(v.coerceIn(0f, 1f)).fillMaxHeight().background(Brush.horizontalGradient(listOf(Cyan, Pink))))
+                }
+            },
+        )
+        Text("${(v * 100).roundToInt()}%", style = Mono.copy(fontSize = 12.sp), color = cs.onSurfaceVariant, textAlign = TextAlign.End, modifier = Modifier.width(40.dp))
     }
 }
 
