@@ -5,6 +5,11 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.12.2",
+        en = listOf("Liked songs and playlists sync on every launch", "Liked songs in the right order", "Staying signed in to YouTube Music", "Clear messages when an account's library can't load", "PC: volume follows the system volume mixer", "Linux design: volume slider and player fixes", "Songs start faster", "Bug fixes"),
+        uk = listOf("Вподобане й плейлисти синхронізуються при кожному запуску", "Вподобані пісні в правильному порядку", "Вхід у YouTube Music більше не злітає", "Зрозумілі повідомлення, коли бібліотека акаунта не завантажилась", "ПК: гучність синхронізується із системним мікшером", "Дизайн Linux: повзунок гучності та виправлення плеєра", "Пісні запускаються швидше", "Виправлення помилок"),
+    ),
+    ChangelogEntry(
         "1.12.1",
         en = listOf("Comments fixes", "Your playlists and liked songs from services show up properly", "Smaller add to playlist window", "First launch setup fixes", "Performance updates and optimisations", "Bug fixes"),
         uk = listOf("Виправлення коментарів", "Плейлисти й вподобані пісні із сервісів показуються як слід", "Компактніше вікно додавання в плейлист", "Виправлення налаштування при першому запуску", "Оновлення та оптимізація швидкодії", "Виправлення помилок"),

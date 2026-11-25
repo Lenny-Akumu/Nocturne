@@ -34,8 +34,23 @@ class InnerTube(
 
     // Google rotates session cookies (SIDCC, __Secure-*PSIDTS…) through Set-Cookie; a jar that never takes
     // the new values goes stale and the account quietly reads as signed out. Only cookies we already hold are updated.
+    // Rotated cookies are used at once from memory and saved at most every 10 minutes: SIDCC changes on
+    // nearly every response, and saving each time rewrote the account file and woke everything watching it.
+    private var rotated: String? = null
+    private var rotatedFrom: String? = null
+    private var savedAt = 0L
+
+    private fun jar(): String {
+        val stored = cookie()
+        val r = rotated
+        if (r != null && stored == rotatedFrom) return r
+        rotated = null
+        return stored
+    }
+
     private fun keepCookies(r: io.ktor.client.statement.HttpResponse) {
-        val jar = cookie()
+        val stored = cookie()
+        val jar = jar()
         if (jar.isBlank()) return
         val sets = r.headers.getAll("Set-Cookie").orEmpty()
         if (sets.isEmpty()) return
@@ -50,7 +65,16 @@ class InnerTube(
             if (h.contains("Max-Age=0", ignoreCase = true) || h.contains("1970", ignoreCase = true)) continue
             if (map[name] != value) { map[name] = value; changed = true }
         }
-        if (changed) onCookie(map.entries.joinToString("; ") { "${it.key}=${it.value}" })
+        if (!changed) return
+        val fresh = map.entries.joinToString("; ") { "${it.key}=${it.value}" }
+        rotated = fresh
+        rotatedFrom = stored
+        val now = app.nocturne.nowMillis()
+        if (now - savedAt > 10 * 60_000L) {
+            savedAt = now
+            rotatedFrom = fresh
+            onCookie(fresh)
+        }
     }
 
     private suspend fun call(endpoint: String, extra: JsonObject.() -> Map<String, JsonElement> = { emptyMap() }): String {
@@ -73,7 +97,7 @@ class InnerTube(
             header("User-Agent", USER_AGENT)
             header("X-YouTube-Client-Name", "67")
             header("X-YouTube-Client-Version", CLIENT_VERSION)
-            val c = cookie()
+            val c = jar()
             if (c.isNotBlank()) {
                 header("Cookie", c)
                 authorization(c)?.let { header("Authorization", it) }
@@ -126,7 +150,7 @@ class InnerTube(
             header("X-YouTube-Client-Name", "1")
             header("X-YouTube-Client-Version", WEB_VERSION)
             // signed in: ask as the account, as a browser would; label videos hide comments from anonymous requests
-            val c = cookie()
+            val c = jar()
             if (c.isNotBlank()) {
                 header("Cookie", c)
                 authorization(c, "https://www.youtube.com")?.let { header("Authorization", it) }

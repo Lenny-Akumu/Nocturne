@@ -82,7 +82,8 @@ object MixerSync {
                     graph.settings.update { it.copy(volume = os) }
                     engine?.refreshGain()
                 }
-                delay(700)
+                // pactl is a process per look: once a second while there is a stream, rarely while there isn't
+                delay(if (os == null) 5000 else 1000)
             }
         }
     }

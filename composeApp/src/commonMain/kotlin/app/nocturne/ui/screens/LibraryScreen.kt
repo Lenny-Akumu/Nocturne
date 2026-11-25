@@ -222,7 +222,9 @@ private fun OnlineLibrary(padding: PaddingValues) {
     val errors = remember { androidx.compose.runtime.mutableStateMapOf<Source, String>() }
     val libs = remember { androidx.compose.runtime.mutableStateMapOf<Source, AccountLibrary>().apply { providers.forEach { p -> onlineCache[p.source]?.let { put(p.source, it) } } } }
     val sources = providers.map { it.source }
-    androidx.compose.runtime.LaunchedEffect(accounts, retry) {
+    // reload on sign-in changes only: the account record also changes when session cookies are refreshed
+    val who = listOf(accounts.youtubeSignedIn, accounts.spotifySignedIn, accounts.soundcloudUserId)
+    androidx.compose.runtime.LaunchedEffect(who, retry) {
         providers.forEach { p ->
             launch {
                 errors.remove(p.source)
