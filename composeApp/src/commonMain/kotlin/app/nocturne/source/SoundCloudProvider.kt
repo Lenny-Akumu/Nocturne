@@ -74,7 +74,7 @@ class SoundCloudProvider(
     override suspend fun library(): AccountLibrary? {
         val id = accounts.value.soundcloudUserId ?: return null
         if (!isSignedIn) return null
-        val own = runCatching { api("users/$id/playlists_without_albums?limit=50").path("collection").arr.orEmpty().mapNotNull { playlistRef(it) } }.getOrDefault(emptyList())
+        val own = api("users/$id/playlists_without_albums?limit=50").path("collection").arr.orEmpty().mapNotNull { playlistRef(it) }
         val liked = runCatching { api("users/$id/playlist_likes?limit=50").path("collection").arr.orEmpty().mapNotNull { playlistRef(it.path("playlist")) } }.getOrDefault(emptyList())
         val albums = runCatching { api("users/$id/albums?limit=50").path("collection").arr.orEmpty().mapNotNull { playlistRef(it)?.copy(type = CollectionType.ALBUM) } }.getOrDefault(emptyList())
         val artists = runCatching {

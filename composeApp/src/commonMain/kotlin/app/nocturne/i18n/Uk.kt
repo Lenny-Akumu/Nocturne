@@ -444,6 +444,7 @@ internal object Uk {
         "Resume playback on launch" to "Продовжувати відтворення після запуску",
         "Retry" to "Повторити",
         "Sign in again to see this library" to "Увійди знову, щоб побачити цю бібліотеку",
+        "YouTube Music signed you out. Sign in again in Settings → Accounts." to "YouTube Music вийшов з акаунта. Увійди знову в Налаштування → Акаунти.",
         "Rich Presence — show what you're listening to" to "Rich Presence — показуй, що слухаєш",
         "Right" to "Праворуч",
         "Rock" to "Рок",

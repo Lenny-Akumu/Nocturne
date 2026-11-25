@@ -62,6 +62,7 @@ class AppGraph(val engine: AudioEngine) {
         http,
         locale = { settings.value.contentLanguage to settings.value.contentCountry },
         cookie = { accounts.value.youtubeCookie },
+        onCookie = { fresh -> accounts.update { it.copy(youtubeCookie = fresh) } },
     )
 
     val youtube = YouTubeMusicProvider(innerTube, newPipe, { accounts.value.youtubeSignedIn }, { accounts.value.youtubeName })
@@ -120,6 +121,12 @@ class AppGraph(val engine: AudioEngine) {
             settings.state.distinctUntilChangedBy { it.uiLanguage }.drop(1).collect { app.nocturne.i18n.I18n.apply(it.uiLanguage) }
         }
         scope.launch { kotlinx.coroutines.delay(3000); refreshYouTubeAvatar() }
+        // every launch: likes and playlists of connected accounts, a moment after the window is up
+        scope.launch {
+            kotlinx.coroutines.delay(2500)
+            runCatching { syncLikes(force = true) }
+            runCatching { remotePlaylists.refresh(force = true) }
+        }
         app.nocturne.data.Achievements.start(this)
         app.nocturne.data.Podcasts.start(this)
         app.nocturne.data.LastFm.start(this)
@@ -246,7 +253,7 @@ class AppGraph(val engine: AudioEngine) {
         val remote = kotlinx.coroutines.coroutineScope {
             enabledProviders().filter { it.isSignedIn }.map { p -> async { runCatching { p.likedTracks() }.getOrDefault(emptyList()) } }.awaitAll()
         }
-        remote.forEach { library.mergeLiked(it) }
+        remote.forEach { library.syncLiked(it) }
     }
 
     fun toggleLike(track: Track) {

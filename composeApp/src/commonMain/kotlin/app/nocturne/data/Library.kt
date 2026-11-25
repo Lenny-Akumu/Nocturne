@@ -97,6 +97,36 @@ class Library(private val settings: SettingsStore) {
         return (fromLikes + fromPlays).groupingBy { it }.eachCount().filterValues { it >= 2 }.keys
     }
 
+    /**
+     * Puts a service's likes in that service's order (newest first). Older versions appended new remote likes
+     * at the very end, which left a gap: recent songs sat below the oldest ones. Songs liked only here keep
+     * their place next to the song that followed them.
+     */
+    fun syncLiked(remote: List<Track>) = mutate { d ->
+        val blocked = d.notInterested.map { it.key }.toSet()
+        val r = remote.distinctBy { it.key }.filter { it.key !in blocked }
+        if (r.isEmpty()) return@mutate d
+        val inRemote = r.mapTo(HashSet()) { it.key }
+        val before = HashMap<String, MutableList<Track>>()
+        val pending = ArrayList<Track>()
+        val top = ArrayList<Track>()
+        var seenRemote = false
+        for (t in d.liked) {
+            if (t.key in inRemote) {
+                // the ones above every synced song are the newest of all: they stay on top
+                if (!seenRemote) { top += pending; pending.clear(); seenRemote = true }
+                else if (pending.isNotEmpty()) { before.getOrPut(t.key) { ArrayList() } += pending; pending.clear() }
+            } else pending += t
+        }
+        val have = d.liked.associateBy { it.key }
+        val out = ArrayList<Track>(d.liked.size + r.size)
+        out += top
+        for (t in r) { before[t.key]?.let(out::addAll); out += have[t.key] ?: t }
+        out += pending
+        val merged = out.distinctBy { it.key }
+        if (merged == d.liked) d else d.copy(liked = merged)
+    }
+
     fun mergeLiked(remote: List<Track>) = mutate { d ->
         val have = d.liked.map { it.key }.toSet()
         val blocked = d.notInterested.map { it.key }.toSet()

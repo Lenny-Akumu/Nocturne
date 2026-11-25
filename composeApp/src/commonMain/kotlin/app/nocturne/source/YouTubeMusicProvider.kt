@@ -46,7 +46,8 @@ class YouTubeMusicProvider(
 
     override suspend fun library(): AccountLibrary? {
         if (!isSignedIn) return null
-        val playlists = runCatching { innerTube.libraryCollections("FEmusic_liked_playlists") }.getOrDefault(emptyList())
+        // playlists are the core of the page: their failure (signed out, refused) is shown, not hidden
+        val playlists = innerTube.libraryCollections("FEmusic_liked_playlists")
             .filter { it.type == CollectionType.PLAYLIST && it.id.removePrefix("VL") != "LM" }
         val albums = runCatching { innerTube.libraryCollections("FEmusic_liked_albums") }.getOrDefault(emptyList())
             .filter { it.type == CollectionType.ALBUM }

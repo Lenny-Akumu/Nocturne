@@ -863,10 +863,17 @@ class PlayerController(
             delay(400)
             if (loadingKey != null || loadedKey != null) return@launch
             val lib = library.state.value
-            val pick = (listOfNotNull(_state.value.current) + lib.history.map { it.track } + lib.liked)
-                .firstOrNull { it.source == Source.YOUTUBE_MUSIC }
-                ?: Track(id = "jfKfPfyJRdk", source = Source.YOUTUBE_MUSIC, title = "")
-            runCatching { resolve(pick) }
+            // the songs you're most likely to start with: what's queued, the last few played, the newest likes.
+            // Their stream links are cached (3 h, kept across launches), so tapping one starts at once.
+            val picks = (listOfNotNull(_state.value.current) + lib.history.take(3).map { it.track } + lib.liked.take(3))
+                .filter { it.source == Source.YOUTUBE_MUSIC || it.source == Source.SOUNDCLOUD }
+                .distinctBy { it.key }.take(5)
+                .ifEmpty { listOf(Track(id = "jfKfPfyJRdk", source = Source.YOUTUBE_MUSIC, title = "")) }
+            for (t in picks) {
+                // the user started something: the network is theirs now
+                if (loadingKey != null && loadingKey != t.key) return@launch
+                runCatching { resolve(t) }
+            }
         }
     }
 

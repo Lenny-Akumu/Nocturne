@@ -28,8 +28,30 @@ class InnerTube(
     private val http: HttpClient,
     private val locale: () -> Pair<String, String>,
     private val cookie: () -> String = { "" },
+    private val onCookie: (String) -> Unit = {},
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    // Google rotates session cookies (SIDCC, __Secure-*PSIDTS…) through Set-Cookie; a jar that never takes
+    // the new values goes stale and the account quietly reads as signed out. Only cookies we already hold are updated.
+    private fun keepCookies(r: io.ktor.client.statement.HttpResponse) {
+        val jar = cookie()
+        if (jar.isBlank()) return
+        val sets = r.headers.getAll("Set-Cookie").orEmpty()
+        if (sets.isEmpty()) return
+        val map = LinkedHashMap<String, String>()
+        jar.split(';').map { it.trim() }.filter { '=' in it }.forEach { map[it.substringBefore('=')] = it.substringAfter('=') }
+        var changed = false
+        for (h in sets) {
+            val first = h.substringBefore(';').trim()
+            val name = first.substringBefore('=', "")
+            val value = first.substringAfter('=', "")
+            if (name.isEmpty() || name !in map || value.isEmpty() || value == "deleted") continue
+            if (h.contains("Max-Age=0", ignoreCase = true) || h.contains("1970", ignoreCase = true)) continue
+            if (map[name] != value) { map[name] = value; changed = true }
+        }
+        if (changed) onCookie(map.entries.joinToString("; ") { "${it.key}=${it.value}" })
+    }
 
     private suspend fun call(endpoint: String, extra: JsonObject.() -> Map<String, JsonElement> = { emptyMap() }): String {
         val (hl, gl) = locale()
@@ -59,7 +81,7 @@ class InnerTube(
                 header("X-Origin", ORIGIN)
             }
             setBody(merged.toString())
-        }.bodyAsText()
+        }.also { keepCookies(it) }.bodyAsText()
     }
 
     private fun authorization(cookie: String, origin: String = ORIGIN): String? {
@@ -112,7 +134,7 @@ class InnerTube(
                 header("X-Origin", "https://www.youtube.com")
             }
             setBody(JsonObject(ctx + body).toString())
-        }.bodyAsText()
+        }.also { keepCookies(it) }.bodyAsText()
         return json.parseToJsonElement(raw)
     }
 
@@ -139,8 +161,15 @@ class InnerTube(
         return name to photo
     }
 
-    suspend fun libraryCollections(browseId: String): List<CollectionRef> =
-        entries(browse(browseId)).filterIsInstance<MediaEntry.Collection>().map { it.ref }.distinctBy { it.id }
+    suspend fun libraryCollections(browseId: String): List<CollectionRef> {
+        val root = browse(browseId)
+        if (signedOut(root)) throw SourceUnavailableException(app.nocturne.i18n.t("YouTube Music signed you out. Sign in again in Settings → Accounts."))
+        return entries(root).filterIsInstance<MediaEntry.Collection>().map { it.ref }.distinctBy { it.id }
+    }
+
+    // the response says whether YouTube saw a signed-in user at all
+    private fun signedOut(root: JsonElement): Boolean = cookie().isNotBlank() &&
+        root.findAll("params").any { ps -> ps.arr?.any { it.path("key").str == "logged_in" && it.path("value").str == "0" } == true }
 
     // Owned playlists: library items whose menu offers edit/delete; falls back to the owner's name.
     suspend fun editablePlaylists(owner: String?): List<CollectionRef> {

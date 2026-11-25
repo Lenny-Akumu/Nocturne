@@ -173,7 +173,7 @@ class SpotifyProvider(
 
     override suspend fun library(): AccountLibrary? {
         if (!isSignedIn) return null
-        val playlists = runCatching { api("me/playlists?limit=50").path("items").arr.orEmpty().mapNotNull { parsePlaylistRef(it) } }.getOrDefault(emptyList())
+        val playlists = api("me/playlists?limit=50").path("items").arr.orEmpty().mapNotNull { parsePlaylistRef(it) }
         val albums = runCatching { api("me/albums?limit=50&market=${market()}").path("items").arr.orEmpty().mapNotNull { parseAlbumRef(it.path("album")) } }.getOrDefault(emptyList())
         val artists = runCatching { api("me/following?type=artist&limit=50").path("artists", "items").arr.orEmpty().mapNotNull { parseArtistRef(it) } }.getOrDefault(emptyList())
         return AccountLibrary(source, LikedRef, playlists, albums, artists)
