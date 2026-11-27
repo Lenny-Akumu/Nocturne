@@ -511,7 +511,9 @@ class SpotifyProvider(
 
     suspend fun match(track: Track): Track {
         matches[track.key]?.let { return it }
-        val m = youtube.bestMatch(track.title, track.artists.firstOrNull()?.name.orEmpty(), track.durationMs)
+        // the recording's ISRC points at the very same master on YouTube Music when it has it
+        val isrc = runCatching { withTimeout(4_000) { api("tracks/${track.id}").path("external_ids", "isrc").str } }.getOrNull()
+        val m = youtube.bestMatch(track.title, track.artists.firstOrNull()?.name.orEmpty(), track.durationMs, track.artists.map { it.name }, isrc)
             ?: throw SourceUnavailableException("No playable match for “${track.title}”")
         matches[track.key] = m
         return m
@@ -521,6 +523,20 @@ class SpotifyProvider(
         youtube.stream(match(track), quality)
 
     override suspend fun related(track: Track): List<Track> = youtube.related(match(track))
+
+    override suspend fun details(track: Track): app.nocturne.model.TrackDetails {
+        val t = robust("tracks/${track.id}?market=${market()}")
+        val album = t.path("album")
+        val full = album.path("id").str?.let { id -> runCatching { robust("albums/$id?market=${market()}") }.getOrNull() }
+        val copyright = full.path("copyrights").arr.orEmpty().firstOrNull { it.path("type").str == "P" } ?: full.path("copyrights").arr?.firstOrNull()
+        return app.nocturne.model.TrackDetails(
+            released = album.path("release_date").str,
+            album = album.path("name").str,
+            trackNumber = t.path("track_number").num?.toInt(),
+            label = full.path("label").str?.takeIf { it.isNotBlank() } ?: copyright.path("text").str?.replace(Regex("^[℗©Ⓟ(PC)\\s\\d]+"), "")?.trim()?.takeIf { it.isNotBlank() },
+            genre = full.path("genres").arr?.mapNotNull { it.str }?.takeIf { it.isNotEmpty() }?.joinToString(", "),
+        )
+    }
 
     override suspend fun videoStream(track: Track): String? = youtube.videoStream(match(track))
 

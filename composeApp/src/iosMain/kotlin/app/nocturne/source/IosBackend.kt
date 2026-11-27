@@ -537,7 +537,10 @@ class IosBackend : NewPipeBackend {
             ?: CollectionRef(ref?.id ?: url, Source.SOUNDCLOUD, CollectionType.ARTIST, ref?.title ?: "Artist", "Artist", ref?.artworkUrl)
         suspend fun list(path: String) =
             runCatching { sc("users/$uid/$path?limit=50").path("collection").arr.orEmpty() }.getOrDefault(emptyList())
-        val tracks = list("tracks").mapNotNull { scTrack(it) }
+        val plays = HashMap<String, String>()
+        val tracks = list("tracks").mapNotNull { e ->
+            scTrack(e)?.also { t -> e.path("playback_count").num?.takeIf { it > 0 }?.let { plays[t.key] = app.nocturne.i18n.t("%s plays", app.nocturne.model.compactCount(it)) } }
+        }
         val sections = listOf("albums" to "Albums", "playlists_without_albums" to "Playlists").mapNotNull { (path, title) ->
             val entries = list(path).mapNotNull { e -> scPlaylistRef(e)?.let { MediaEntry.Collection(it) } }
             if (entries.isEmpty()) null else Section(title, entries, source = Source.SOUNDCLOUD)
@@ -547,7 +550,7 @@ class IosBackend : NewPipeBackend {
             u.path("track_count").num?.takeIf { it > 0 }?.let { app.nocturne.i18n.t("%s tracks", it) },
             listOfNotNull(u.path("city").str?.takeIf { it.isNotBlank() }, u.path("country_code").str?.takeIf { it.isNotBlank() }).joinToString(", ").takeIf { it.isNotBlank() },
         )
-        return CollectionPage(resolved, tracks, description = u.path("description").str?.takeIf { it.isNotBlank() }, sections = sections, stats = stats)
+        return CollectionPage(resolved, tracks, description = u.path("description").str?.takeIf { it.isNotBlank() }, sections = sections, stats = stats, plays = plays)
     }
 
     private fun scTrack(e: JsonElement?): Track? {

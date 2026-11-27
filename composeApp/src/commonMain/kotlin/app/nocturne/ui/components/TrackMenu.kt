@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -108,6 +109,7 @@ fun Track.shareUrl(): String = url ?: when (source) {
 fun TrackMenuHost(content: @Composable () -> Unit) {
     var target by remember { mutableStateOf<Pair<Track, TrackMenuContext>?>(null) }
     var playlistPicker by remember { mutableStateOf<List<Track>?>(null) }
+    var info by remember { mutableStateOf<Track?>(null) }
     val graph = AppGraph.instance
     val library by graph.library.state.collectAsState()
     val clipboard = LocalClipboardManager.current
@@ -184,6 +186,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                 if (track.source != app.nocturne.model.Source.LOCAL || track.isPodcast) {
                     MenuItem(Icons.Rounded.SaveAlt, app.nocturne.data.exportLabel) { close(); graph.downloads.export(track) { msg -> graph.toast(msg) } }
                 }
+                MenuItem(Icons.Rounded.Info, "Song info") { info = track; close() }
                 MenuItem(Icons.Rounded.ContentCopy, "Copy link") { clipboard.setText(AnnotatedString(track.shareUrl())); close(); graph.toast(t("Link copied")) }
                 ctx.playlistId?.let { pid ->
                     MenuItem(Icons.Rounded.Delete, "Remove from playlist", destructive = true) { graph.library.removeFromPlaylist(pid, track); close() }
@@ -204,6 +207,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
     playlistPicker?.let { tracks ->
         AddToPlaylistDialog(tracks, onDismiss = { playlistPicker = null })
     }
+    info?.let { TrackInfoDialog(it) { info = null } }
 }
 
 @Composable

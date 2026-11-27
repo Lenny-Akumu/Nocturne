@@ -230,8 +230,16 @@ class NewPipeBackendImpl : NewPipeBackend {
         )
         fun tab(filter: String) = info.tabs.firstOrNull { filter in it.contentFilters }
         val songsTab = tab(ChannelTabs.TRACKS) ?: tab(ChannelTabs.VIDEOS) ?: info.tabs.firstOrNull()
+        val plays = HashMap<String, String>()
         val tracks = songsTab?.let { t ->
-            runCatching { ChannelTabInfo.getInfo(svc, t).relatedItems.mapNotNull { toTrack(source, it) } }.getOrNull()
+            runCatching {
+                ChannelTabInfo.getInfo(svc, t).relatedItems.mapNotNull { item ->
+                    toTrack(source, item)?.also { tr ->
+                        val n = (item as? StreamInfoItem)?.viewCount ?: -1
+                        if (n > 0) plays[tr.key] = app.nocturne.i18n.t(if (source == Source.SOUNDCLOUD) "%s plays" else "%s views", compact(n))
+                    }
+                }
+            }.getOrNull()
         }.orEmpty()
         val sections = listOf(ChannelTabs.ALBUMS to "Albums", ChannelTabs.PLAYLISTS to "Playlists").mapNotNull { (f, title) ->
             val t = tab(f) ?: return@mapNotNull null
@@ -243,7 +251,7 @@ class NewPipeBackendImpl : NewPipeBackend {
             if (entries.isEmpty()) null else Section(title, entries, source = source)
         }
         val stats = listOfNotNull(info.subscriberCount.takeIf { it > 0 }?.let { app.nocturne.i18n.t(if (source == Source.SOUNDCLOUD) "%s followers" else "%s subscribers", compact(it)) })
-        CollectionPage(resolved, tracks, description = info.description?.takeIf { it.isNotBlank() }, sections = sections, stats = stats)
+        CollectionPage(resolved, tracks, description = info.description?.takeIf { it.isNotBlank() }, sections = sections, stats = stats, plays = plays)
     }
 
     override suspend fun related(source: Source, url: String): List<Track> = io {

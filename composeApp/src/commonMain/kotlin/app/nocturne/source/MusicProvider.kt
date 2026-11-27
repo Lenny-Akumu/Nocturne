@@ -25,6 +25,7 @@ interface MusicProvider {
     suspend fun rate(track: Track, rating: Rating) {}
     suspend fun likedTracks(): List<Track> = emptyList()
     suspend fun videoStream(track: Track): String? = null
+    suspend fun details(track: Track): app.nocturne.model.TrackDetails? = null
     suspend fun library(): AccountLibrary? = null
 
     // Account playlists the user can edit; tracks passed in are already from this source.

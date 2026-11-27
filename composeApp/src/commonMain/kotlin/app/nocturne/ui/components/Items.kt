@@ -85,6 +85,8 @@ fun TrackRow(
     modifier: Modifier = Modifier,
     index: Int? = null,
     menuContext: TrackMenuContext = TrackMenuContext(),
+    /** Play count as the service shows it (artist pages); takes the album's place. */
+    plays: String? = null,
 ) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
@@ -156,7 +158,7 @@ fun TrackRow(
                     Spacer(Modifier.width(3.dp))
                 }
                 Text(
-                    listOfNotNull(track.artistNames.takeIf { it.isNotBlank() }, track.album, track.durationMs.takeIf { it > 0 }?.formatDuration())
+                    listOfNotNull(track.artistNames.takeIf { it.isNotBlank() }, plays ?: track.album, track.durationMs.takeIf { it > 0 }?.formatDuration())
                         .joinToString(" • "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

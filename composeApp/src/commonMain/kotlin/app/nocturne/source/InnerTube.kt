@@ -301,8 +301,11 @@ class InnerTube(
             ?: fallback.artworkUrl
         val description = header.path("description").runsText()
         val shelf = root.findAll("musicShelfRenderer").firstOrNull()
-        var songs = shelf?.path("contents").arr.orEmpty().mapNotNull { it.path("musicResponsiveListItemRenderer")?.let { r -> parseListItem(r) } }
-            .filterIsInstance<MediaEntry.Song>().map { it.track }
+        val rows = shelf?.path("contents").arr.orEmpty().mapNotNull { it.path("musicResponsiveListItemRenderer") }
+        val plays = HashMap<String, String>()
+        var songs = rows.mapNotNull { r ->
+            (parseListItem(r) as? MediaEntry.Song)?.track?.also { t -> playsOf(r)?.let { plays[t.key] = it } }
+        }
         val allSongs = shelf.path("title", "runs", 0, "navigationEndpoint", "browseEndpoint", "browseId").str
             ?: shelf.path("bottomEndpoint", "browseEndpoint", "browseId").str
         if (allSongs != null && allSongs.startsWith("VL")) {
@@ -313,7 +316,7 @@ class InnerTube(
             header.path("monthlyListenerCount").runsText(),
             header.path("subscriptionButton", "subscribeButtonRenderer", "subscriberCountText").runsText()?.let { app.nocturne.i18n.t("%s subscribers", it) },
         )
-        return CollectionPage(ref, songs.distinctBy { it.id }, description = description, sections = carousels(root), stats = stats)
+        return CollectionPage(ref, songs.distinctBy { it.id }, description = description, sections = carousels(root), stats = stats, plays = plays)
     }
 
     suspend fun radio(videoId: String): List<Track> {
@@ -365,6 +368,32 @@ class InnerTube(
     }
 
     private fun primitive(v: String) = kotlinx.serialization.json.JsonPrimitive(v)
+
+    /** Song facts from the player response; "Provided to YouTube" descriptions carry release date, label and credits. */
+    suspend fun details(videoId: String, albumId: String?): app.nocturne.model.TrackDetails {
+        val root = json.parseToJsonElement(call("player") { mapOf("videoId" to primitive(videoId)) })
+        val v = root.path("videoDetails")
+        val m = root.path("microformat", "microformatDataRenderer")
+        val (released, label, credits) = describe(v.path("shortDescription").str.orEmpty())
+        // an album's year when the description has no date
+        val year = if (released == null && albumId != null) runCatching {
+            val a = json.parseToJsonElement(call("browse") { mapOf("browseId" to primitive(albumId)) })
+            a.findAll("subtitle").firstNotNullOfOrNull { st -> st.path("runs").arr?.mapNotNull { it.path("text").str }?.firstOrNull { it.matches(Regex("\\d{4}")) } }
+        }.getOrNull() else null
+        return app.nocturne.model.TrackDetails(
+            released = released ?: year ?: m.path("publishDate").str?.take(10),
+            plays = v.path("viewCount").str?.toLongOrNull(),
+            label = label,
+            credits = credits,
+        )
+    }
+
+    // "3.1B plays" on an artist's top songs: the one flex text with digits that isn't a link
+    private fun playsOf(r: JsonElement): String? =
+        r.path("flexColumns").arr.orEmpty().drop(1).flatMap {
+            it.path("musicResponsiveListItemFlexColumnRenderer", "text", "runs").arr.orEmpty()
+        }.filter { it.path("navigationEndpoint") == null }.mapNotNull { it.path("text").str?.trim() }
+            .lastOrNull { t -> t.any(Char::isDigit) && t.any(Char::isLetter) }
 
     private fun pageType(nav: JsonElement?): String? =
         nav.path("browseEndpoint", "browseEndpointContextSupportedConfigs", "browseEndpointContextMusicConfig", "pageType").str
@@ -486,3 +515,14 @@ class InnerTube(
 }
 
 private const val ATV = "MUSIC_VIDEO_TYPE_ATV"
+
+/** Release date, label (℗ line) and credits ("Composer: …") from a "Provided to YouTube by …" description. */
+internal fun describe(desc: String): Triple<String?, String?, List<Pair<String, String>>> {
+    val lines = desc.lines().map { it.trim() }
+    val released = Regex("Released on: (\\d{4}-\\d{2}-\\d{2})").find(desc)?.groupValues?.get(1)
+    val label = lines.firstNotNullOfOrNull { Regex("^℗ (?:\\d{4} )?(.+)$").find(it)?.groupValues?.get(1) }
+    val credits = lines.mapNotNull { l ->
+        Regex("^([A-Z][A-Za-z -]{2,30}): (.{1,120})$").find(l)?.destructured?.let { (k, n) -> k.trim().replace(Regex("\\s+"), " ") to n.trim() }
+    }.filter { (k, _) -> k != "Released on" && !k.startsWith("Auto") }.distinct().take(12)
+    return Triple(released, label, credits)
+}

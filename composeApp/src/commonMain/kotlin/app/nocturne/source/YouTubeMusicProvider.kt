@@ -30,6 +30,8 @@ class YouTubeMusicProvider(
 
     fun clearVideoCache() = videoCache.clear()
 
+    override suspend fun details(track: Track) = innerTube.details(track.id, track.albumId)
+
     override suspend fun videoStream(track: Track): String? {
         videoCache[track.id]?.let { return it.await() }
         val pending = kotlinx.coroutines.CompletableDeferred<String?>()
@@ -155,36 +157,76 @@ class YouTubeMusicProvider(
         return MediaEntry.Song(newPipe.track(source, watchUrl(videoId)))
     }
 
-    suspend fun bestMatch(title: String, artist: String, durationMs: Long): Track? {
-        val candidates = search("$title $artist", SearchFilter.SONGS)
-            .filterIsInstance<MediaEntry.Song>().map { it.track }
-        if (candidates.isEmpty()) return null
-        val nt = normalize(title)
-        val na = normalize(artist)
-        return candidates.take(10).maxByOrNull { c ->
+    /**
+     * The YouTube Music upload of a song from another service. [isrc] (the recording's code) finds the exact
+     * recording when YouTube knows it; otherwise title, version tags, artists and length decide.
+     */
+    suspend fun bestMatch(title: String, artist: String, durationMs: Long, artists: List<String> = listOf(artist), isrc: String? = null): Track? {
+        if (!isrc.isNullOrBlank()) {
+            val byCode = runCatching { search(isrc, SearchFilter.SONGS) }.getOrDefault(emptyList())
+                .filterIsInstance<MediaEntry.Song>().map { it.track }
+                .firstOrNull { matchScore(title, artists, durationMs, it) >= 6.0 }
+            if (byCode != null) return byCode
+        }
+        val names = artists.filter { it.isNotBlank() }.ifEmpty { listOf(artist) }
+        fun best(list: List<Track>) = list.take(12).withIndex().maxByOrNull { (i, c) -> matchScore(title, names, durationMs, c) - i * 0.05 }?.value
+        val q1 = "$title ${names.take(2).joinToString(" ")}"
+        val top = best(search(q1, SearchFilter.SONGS).filterIsInstance<MediaEntry.Song>().map { it.track })
+        if (top != null && matchScore(title, names, durationMs, top) >= 7.0) return top
+        // nothing convincing: ask again in other words (the title alone with the main artist, then the bare title)
+        val more = listOf("$title $artist", title).distinct().filter { it != q1 }.flatMap { q ->
+            runCatching { search(q, SearchFilter.SONGS) }.getOrDefault(emptyList()).filterIsInstance<MediaEntry.Song>().map { it.track }.take(8)
+        }
+        return best((listOfNotNull(top) + more).distinctBy { it.id }) ?: top
+    }
+
+    companion object {
+        private val versionWords = listOf(
+            "remix", "sped up", "speed up", "slowed", "reverb", "nightcore", "live", "acoustic", "instrumental", "karaoke",
+            "cover", "remaster", "extended", "radio edit", "edit", "version", "mix", "hardtekk", "hardstyle", "phonk", "8d",
+            "bass boosted", "demo", "unplugged", "orchestral", "piano", "techno", "house", "vip", "bootleg", "mashup",
+        )
+
+        private fun normalize(s: String) = s.lowercase()
+            .replace(Regex("\\(.*?\\)|\\[.*?]|feat\\..*|ft\\..*| - .*"), "")
+            .replace(Regex("[^\\p{L}\\p{N} ]"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+        // "(hardtekk)", "- Sped Up", "[Live]" — what makes this version this version
+        private fun versionTags(s: String): Set<String> {
+            val l = s.lowercase()
+            return versionWords.filter { w -> Regex("(^|[^\\p{L}])" + Regex.escape(w) + "($|[^\\p{L}])").containsMatchIn(l) }.toSet()
+                .let { tags -> if ("radio edit" in tags) tags - "edit" else tags }
+        }
+
+        /** How sure we are that [c] is the song [title] by [artists], about [durationMs] long. */
+        fun matchScore(title: String, artists: List<String>, durationMs: Long, c: Track): Double {
             var score = 0.0
+            val nt = normalize(title)
             val ct = normalize(c.title)
-            if (ct == nt) score += 4 else if (ct.contains(nt) || nt.contains(ct)) score += 2
-            if (c.artists.any { normalize(it.name).let { a -> a.isNotEmpty() && (na.contains(a) || a.contains(na)) } }) score += 3
+            if (ct == nt) score += 4 else if (nt.isNotEmpty() && (ct.contains(nt) || nt.contains(ct))) score += 2 else score -= 2
+            // the same version: a remix isn't the original, sped up isn't normal speed
+            val want = versionTags(title)
+            val got = versionTags(c.title + " " + c.album.orEmpty().takeIf { want.isNotEmpty() }.orEmpty())
+            score += 2.5 * (want intersect got).size - 3.0 * (want - got).size - 3.0 * (versionTags(c.title) - want).size
+            val theirs = c.artists.map { normalize(it.name) }.filter { it.isNotEmpty() }
+            val ours = artists.map { normalize(it) }.filter { it.isNotEmpty() }
+            val same = ours.count { a -> theirs.any { b -> a == b || a.contains(b) || b.contains(a) } || normalize(c.title).contains(a) }
+            score += if (same > 0) 3.0 + (same - 1) * 0.5 else -2.0
             if (durationMs > 0 && c.durationMs > 0) {
                 val diff = kotlin.math.abs(durationMs - c.durationMs) / 1000.0
                 score += when {
-                    diff < 3 -> 3.0
-                    diff < 10 -> 1.5
-                    diff > 60 -> -3.0
-                    else -> 0.0
+                    diff < 2 -> 3.5
+                    diff < 5 -> 2.0
+                    diff < 12 -> 0.5
+                    diff > 40 -> -4.0
+                    else -> -1.5
                 }
             }
-            score
+            return score
         }
-    }
 
-    private fun normalize(s: String) = s.lowercase()
-        .replace(Regex("\\(.*?\\)|\\[.*?]|feat\\..*|ft\\..*"), "")
-        .replace(Regex("[^\\p{L}\\p{N} ]"), "")
-        .trim()
-
-    companion object {
         fun watchUrl(id: String) = "https://www.youtube.com/watch?v=$id"
         fun playlistUrl(id: String) = "https://www.youtube.com/playlist?list=$id"
     }

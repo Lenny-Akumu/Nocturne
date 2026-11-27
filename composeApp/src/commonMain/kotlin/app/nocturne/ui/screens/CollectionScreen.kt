@@ -219,6 +219,7 @@ fun CollectionScreen(ref: CollectionRef, contentPadding: PaddingValues) {
                             p.tracks[i],
                             onClick = { graph.player.play(p.tracks, i, header.displayTitle()) },
                             index = if (header.type == CollectionType.ALBUM) i + 1 else null,
+                            plays = p.plays[p.tracks[i].key],
                             menuContext = TrackMenuContext(playlistId = if (local && ref.id != LikedRef.id) ref.id else null, remotePlaylist = if (editable) ref.copy(title = header.title) else null),
                         )
                     }
@@ -308,6 +309,7 @@ private fun SplitCollection(
                                 all[i],
                                 onClick = { graph.player.play(all, i, header.displayTitle()) },
                                 index = if (header.type == CollectionType.ALBUM) i + 1 else null,
+                                plays = p.plays[all[i].key],
                                 menuContext = TrackMenuContext(playlistId = if (local && ref.id != LikedRef.id) ref.id else null, remotePlaylist = if (editable) ref.copy(title = header.title) else null),
                             )
                         }

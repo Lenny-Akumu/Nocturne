@@ -68,6 +68,23 @@ data class CollectionPage(
     val sections: List<Section> = emptyList(),
     /** Artist facts: monthly listeners, followers, genres… */
     val stats: List<String> = emptyList(),
+    /** Plays as the service shows them, by track key ("3.1B plays"). */
+    val plays: Map<String, String> = emptyMap(),
+)
+
+/** What a service tells about one song, for the "Song info" sheet; null fields = unknown. */
+data class TrackDetails(
+    /** yyyy-mm-dd, yyyy-mm or yyyy */
+    val released: String? = null,
+    val plays: Long? = null,
+    val likes: Long? = null,
+    val reposts: Long? = null,
+    val comments: Long? = null,
+    val genre: String? = null,
+    val label: String? = null,
+    val album: String? = null,
+    val trackNumber: Int? = null,
+    val credits: List<Pair<String, String>> = emptyList(),
 )
 
 enum class SearchFilter(val label: String) {

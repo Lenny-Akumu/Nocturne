@@ -254,6 +254,24 @@ class SoundCloudProvider(
     override suspend fun stream(track: Track, quality: AudioQuality): ResolvedStream =
         newPipe.stream(source, track.url ?: track.id, quality)
 
+    override suspend fun details(track: Track): app.nocturne.model.TrackDetails {
+        val j = api("tracks/${trackIdOf(track)}")
+        return app.nocturne.model.TrackDetails(
+            released = (j.path("release_date").str ?: j.path("display_date").str ?: j.path("created_at").str)?.take(10),
+            plays = j.path("playback_count").num,
+            likes = j.path("likes_count").num,
+            reposts = j.path("reposts_count").num,
+            comments = j.path("comment_count").num,
+            genre = j.path("genre").str?.takeIf { it.isNotBlank() },
+            label = j.path("label_name").str?.takeIf { it.isNotBlank() } ?: j.path("publisher_metadata", "p_line").str?.takeIf { it.isNotBlank() },
+            album = j.path("publisher_metadata", "album_title").str?.takeIf { it.isNotBlank() },
+            credits = listOfNotNull(
+                j.path("publisher_metadata", "writer_composer").str?.takeIf { it.isNotBlank() }?.let { "Composer" to it },
+                j.path("publisher_metadata", "artist").str?.takeIf { it.isNotBlank() }?.let { "Artist" to it },
+            ),
+        )
+    }
+
     override suspend fun related(track: Track): List<Track> =
         runCatching { newPipe.related(source, track.url ?: track.id) }.getOrDefault(emptyList())
 
