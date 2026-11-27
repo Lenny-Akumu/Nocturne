@@ -97,6 +97,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import app.nocturne.AppGraph
 import app.nocturne.data.PlayerBackground
 import app.nocturne.nowMillis
@@ -220,7 +221,8 @@ private fun PlayerContent(onCollapse: () -> Unit) {
     // frameless desktop window: keep the top bar clear of the window buttons
     val caption = if (app.nocturne.ui.WindowChrome.bar != null) app.nocturne.ui.WindowChrome.height else 0.dp
     BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().padding(top = caption)) {
-        val wide = maxWidth > 760.dp && maxWidth > maxHeight
+        // phones on their side count too: a landscape phone is ~640-900dp wide and under 430dp tall
+        val wide = maxWidth > maxHeight && maxWidth > 560.dp
         val short = maxHeight < 560.dp
         val tall = maxHeight > 680.dp
         // Liquid Glass phone layout lives in style/glass/GlassPlayer.kt.
@@ -258,14 +260,14 @@ private fun PlayerContent(onCollapse: () -> Unit) {
                     Modifier.weight(1f).fillMaxWidth().padding(horizontal = if (short) 20.dp else 32.dp, vertical = if (short) 6.dp else 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(if (short) 24.dp else 40.dp),
                 ) {
-                    Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { ArtworkView(track, state.isPlaying) }
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { ArtworkView(track, state.isPlaying, side = maxHeight) }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         if (shown != Pane.ARTWORK) {
                             Box(Modifier.weight(1f)) { PaneContent(shown) }
                             Controls(compact = short)
                         } else {
                             Spacer(Modifier.weight(1f))
-                            Controls()
+                            Controls(compact = short)
                             Spacer(Modifier.weight(1f))
                         }
                         BottomActions(shown, { p -> pane = if (short && pane == p) Pane.ARTWORK else p }, hideArtworkToggle = !short)
@@ -318,7 +320,7 @@ internal fun PaneContent(pane: Pane) {
 }
 
 @Composable
-internal fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTap: () -> Unit = {}) {
+internal fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, side: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Unspecified, onTap: () -> Unit = {}) {
     val graph = AppGraph.instance
     val settings by graph.settings.state.collectAsState()
     val state by graph.player.state.collectAsState()
@@ -338,7 +340,7 @@ internal fun ArtworkView(track: app.nocturne.model.Track, playing: Boolean, onTa
     val artShape = RoundedCornerShape(if (LocalDesignStyle.current == DesignStyle.MATERIAL) 30.dp else 24.dp)
     Box(
         Modifier
-            .widthIn(max = if (full) 760.dp else 520.dp)
+            .widthIn(max = (if (full) 760.dp else 520.dp).let { cap -> if (side.isSpecified) minOf(cap, side * ratio) else cap })
             .fillMaxWidth()
             .aspectRatio(ratio)
             .pointerInput(video != null) {

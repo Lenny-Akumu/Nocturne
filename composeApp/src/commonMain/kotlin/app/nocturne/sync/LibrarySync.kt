@@ -26,6 +26,8 @@ data class LibSync(
     val stamps: Map<String, Long> = emptyMap(),
     /** History was cleared at this time. */
     val cleared: Long = 0,
+    /** Keys among [liked] that came from a service, not a heart tapped in Nocturne. */
+    val pulled: List<String> = emptyList(),
 )
 
 @Serializable
@@ -82,7 +84,9 @@ internal class LibrarySync(private val library: Library, private val settings: S
             (sb - sa).forEach { stamp(prefix + it, now) }
             (sa - sb).forEach { stamp(prefix + it, -now) }
         }
-        diff(old.liked.map { it.key }, new.liked.map { it.key }, "L:")
+        // switching likes to Nocturne-only drops the services' likes here; other devices keep theirs
+        val localOnly = old.pulledLikes.isNotEmpty() && new.pulledLikes.isEmpty() && new.remoteLikes.isEmpty()
+        diff(old.liked.filterNot { localOnly && it.key in old.pulledLikes }.map { it.key }, new.liked.map { it.key }, "L:")
         diff(old.saved.map { it.key }, new.saved.map { it.key }, "S:")
         if (old.playlists != new.playlists) {
             val before = old.playlists.associateBy { it.id }
@@ -122,6 +126,7 @@ internal class LibrarySync(private val library: Library, private val settings: S
             plays = if (s.syncHistory) d.plays.take(3000) else emptyList(),
             stamps = stamps.filterKeys { allowed(it) },
             cleared = if (s.syncHistory) cleared else 0,
+            pulled = if (s.syncLikes) d.liked.map { it.key }.filter { it in d.pulledLikes } else emptyList(),
         )
     }
 
@@ -143,6 +148,7 @@ internal class LibrarySync(private val library: Library, private val settings: S
             plays = if (s.syncHistory) pendPlays.take(500) else emptyList(),
             stamps = keys.associateWith { stamps[it] ?: 1L },
             cleared = if (s.syncHistory) cleared else 0,
+            pulled = likedKeys.filter { it in d.pulledLikes },
         )
         pendKeys.clear(); pendHistory.clear(); pendPlays.clear()
         pendClear = false
@@ -165,9 +171,13 @@ internal class LibrarySync(private val library: Library, private val settings: S
             var out = d
             if (s.syncLikes) {
                 val have = d.liked.map { it.key }.toSet()
-                val add = r.liked.filter { it.key !in have && it.key !in blocked && alive("L:" + it.key) }.distinctBy { it.key }
+                val fromService = r.pulled.toSet()
+                // a Nocturne-only device takes hearts tapped on other devices, not their services' likes
+                val add = r.liked.filter { it.key !in have && it.key !in blocked && alive("L:" + it.key) && (s.platformLikes || it.key !in fromService) }.distinctBy { it.key }
                 val liked = (add + d.liked).filter { alive("L:" + it.key) }
                 if (liked != d.liked) out = out.copy(liked = liked)
+                val pulled = d.pulledLikes + add.map { it.key }.filter { it in fromService }
+                if (pulled != d.pulledLikes) out = out.copy(pulledLikes = pulled)
             }
             if (s.syncPlaylists) {
                 val haveSaved = d.saved.map { it.key }.toSet()

@@ -2,6 +2,8 @@ package app.nocturne.ui.screens
 
 import app.nocturne.ui.demo
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -395,6 +397,22 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             }
                         }
                         Choice("Default search source", Icons.Rounded.Search, s.defaultSearchSource, s.enabledSources.toList(), { it.label }) { v -> set { it.copy(defaultSearchSource = v) } }
+                        Header("Order on Home")
+                        OrderList(app.nocturne.data.orderedSources(s.sourceOrder), { it.label }, { SourceBadge(it, size = 24.dp) }) { v ->
+                            set { it.copy(sourceOrder = v) }
+                            app.nocturne.ui.screens.invalidateHomeCache()
+                        }
+                        Header("Liked songs")
+                        Choice("Liked songs", Icons.Rounded.FavoriteBorder, s.platformLikes, listOf(true, false), {
+                            if (it) "Sync with services" else "Only in Nocturne"
+                        }) { v ->
+                            set { it.copy(platformLikes = v) }
+                            if (v) graph.scope.launch { runCatching { graph.syncLikes(force = true) } } else graph.library.dropPulledLikes()
+                        }
+                        Note(t(if (s.platformLikes) "Hearts go to YouTube Music, Spotify and SoundCloud, and their likes show up in Liked." else "Hearts stay in Nocturne's Liked tab. Your likes on the services stay there, under Library → Accounts."))
+                        Header("Library tabs")
+                        OrderList(app.nocturne.ui.screens.libraryTabs(s.libraryTabs), { it.label }) { v -> set { it.copy(libraryTabs = v.map { tab -> tab.name }) } }
+                        Note(t("The first tab opens when you go to Library."))
                         Header("Region")
                         TextPref("Content language", "e.g. en, uk, de", Icons.Rounded.Language, s.contentLanguage) { v -> set { it.copy(contentLanguage = v.trim().lowercase().take(5)) } }
                         TextPref("Content country", "Two-letter code, e.g. US, UA", Icons.Rounded.Public, s.contentCountry) { v -> set { it.copy(contentCountry = v.trim().uppercase().take(2)) } }
@@ -620,6 +638,34 @@ private fun Credits() {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun Note(text: String) =
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
+
+@Composable
+private fun <T> OrderList(items: List<T>, label: (T) -> String, leading: (@Composable (T) -> Unit)? = null, onChange: (List<T>) -> Unit) {
+    fun move(i: Int, by: Int) = onChange(items.toMutableList().apply { add(i + by, removeAt(i)) })
+    items.forEachIndexed { i, item ->
+        ListItem(
+            headlineContent = { Text(t(label(item))) },
+            leadingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(20.dp))
+                    leading?.invoke(item)
+                }
+            },
+            trailingContent = {
+                Row {
+                    IconButton(onClick = { move(i, -1) }, enabled = i > 0) { Icon(Icons.Rounded.KeyboardArrowUp, t("Move up")) }
+                    IconButton(onClick = { move(i, 1) }, enabled = i < items.lastIndex) { Icon(Icons.Rounded.KeyboardArrowDown, t("Move down")) }
+                }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = rowModifier(true),
+        )
     }
 }
 

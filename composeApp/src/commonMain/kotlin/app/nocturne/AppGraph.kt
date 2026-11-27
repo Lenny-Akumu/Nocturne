@@ -248,6 +248,7 @@ class AppGraph(val engine: AudioEngine) {
     private var lastSync = 0L
 
     suspend fun syncLikes(force: Boolean = false) {
+        if (!settings.value.platformLikes) return
         if (!force && nowMillis() - lastSync < 10 * 60_000) return
         lastSync = nowMillis()
         val remote = kotlinx.coroutines.coroutineScope {
@@ -259,7 +260,7 @@ class AppGraph(val engine: AudioEngine) {
     fun toggleLike(track: Track) {
         val nowLiked = !library.isLiked(track)
         library.toggleLike(track)
-        scope.launch { runCatching { provider(track.source).rate(track, if (nowLiked) Rating.LIKE else Rating.NONE) } }
+        if (settings.value.platformLikes) scope.launch { runCatching { provider(track.source).rate(track, if (nowLiked) Rating.LIKE else Rating.NONE) } }
     }
 
     fun notInterested(track: Track) {
@@ -279,7 +280,7 @@ class AppGraph(val engine: AudioEngine) {
     }
 
     fun enabledProviders(): List<MusicProvider> =
-        Source.entries.filter { it in settings.value.enabledSources }.map { allProviders.getValue(it) }
+        app.nocturne.data.orderedSources(settings.value.sourceOrder).filter { it in settings.value.enabledSources }.map { allProviders.getValue(it) }
 
     private val commentsCache = mutableMapOf<String, app.nocturne.source.CommentsPage>()
     private val altComments = app.nocturne.source.AltComments(http)

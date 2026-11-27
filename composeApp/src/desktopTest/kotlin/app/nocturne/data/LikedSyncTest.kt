@@ -30,4 +30,30 @@ class LikedSyncTest {
         lib.syncLiked(listOf(yt("r1"), yt("r2")))
         assertEquals(listOf("r1", "s1", "r2"), lib.state.value.liked.map { it.id })
     }
+
+    @Test
+    fun unlikedOnTheServiceLeavesButLocalLikesStay() {
+        val lib = libraryWith(emptyList())
+        lib.syncLiked(listOf(sp("a"), sp("b"), sp("c")))
+        lib.toggleLike(yt("mine"))
+        lib.syncLiked(listOf(sp("a"), sp("c")))
+        assertEquals(listOf("mine", "a", "c"), lib.state.value.liked.map { it.id })
+        // a failed fetch (empty list) never wipes anything
+        lib.syncLiked(emptyList())
+        assertEquals(listOf("mine", "a", "c"), lib.state.value.liked.map { it.id })
+    }
+
+    @Test
+    fun localOnlyModeKeepsJustTheHeartsTappedHere() {
+        val lib = libraryWith(emptyList())
+        lib.syncLiked(listOf(sp("a"), sp("b")))
+        lib.toggleLike(sp("mine"))
+        lib.syncLiked(listOf(sp("mine"), sp("a"), sp("b"), sp("new")))
+        lib.toggleLike(sp("b")); lib.toggleLike(sp("b")) // re-liked here: now it's ours
+        lib.dropPulledLikes()
+        assertEquals(setOf("mine", "b"), lib.state.value.liked.map { it.id }.toSet())
+        // back on: the service's likes return
+        lib.syncLiked(listOf(sp("mine"), sp("a"), sp("b"), sp("new")))
+        assertEquals(listOf("mine", "a", "b", "new"), lib.state.value.liked.map { it.id })
+    }
 }

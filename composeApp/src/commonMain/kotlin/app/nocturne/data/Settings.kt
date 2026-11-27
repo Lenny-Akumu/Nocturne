@@ -3,6 +3,7 @@ package app.nocturne.data
 import app.nocturne.FileStore
 import app.nocturne.model.AudioQuality
 import app.nocturne.model.Source
+import app.nocturne.model.isOnline
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +70,12 @@ data class Settings(
 
     val enabledSources: Set<Source> = setOf(Source.YOUTUBE_MUSIC, Source.SOUNDCLOUD, Source.SPOTIFY),
     val defaultSearchSource: Source = Source.YOUTUBE_MUSIC,
+    /** Order of services on Home (and wherever they're listed together). */
+    val sourceOrder: List<Source> = emptyList(),
+    /** false: likes stay in Nocturne, nothing goes to or comes from the services. */
+    val platformLikes: Boolean = true,
+    /** LibraryTab names in the user's order; the first opens by default. */
+    val libraryTabs: List<String> = emptyList(),
     val contentLanguage: String = "en",
     val contentCountry: String = "US",
     val localeConfigured: Boolean = false,
@@ -231,3 +238,7 @@ class SettingsStore {
         private const val FILE = "settings.json"
     }
 }
+
+/** Online services in the user's order; ones missing from [order] keep their usual place after it. */
+fun orderedSources(order: List<Source>): List<Source> =
+    (order.filter { it.isOnline } + Source.entries.filter { it.isOnline }).distinct()

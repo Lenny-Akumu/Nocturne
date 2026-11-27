@@ -68,13 +68,19 @@ import app.nocturne.ui.components.TrackRow
 
 enum class LibraryTab(val label: String) { ONLINE("Accounts"), SONGS("Liked"), PLAYLISTS("Playlists"), SMART("Smart playlists"), PODCASTS("Podcasts"), RADIO("Radio"), ALBUMS("Albums"), ARTISTS("Artists"), HISTORY("History"), LOCAL("On device"), DOWNLOADS("Downloaded") }
 
+/** Tabs in the user's order (settings keep their names); new tabs keep their usual place at the end. */
+fun libraryTabs(order: List<String>): List<LibraryTab> =
+    (order.mapNotNull { n -> LibraryTab.entries.firstOrNull { it.name == n } } + LibraryTab.entries).distinct()
+
 val LikedRef = CollectionRef("liked", Source.YOUTUBE_MUSIC, CollectionType.LOCAL, "Liked songs")
 
 @Composable
 fun LibraryScreen(contentPadding: PaddingValues) {
     val graph = AppGraph.instance
     val library by graph.library.state.collectAsState()
-    var tab by rememberSaveable { mutableStateOf(LibraryTab.ONLINE) }
+    val settings by graph.settings.state.collectAsState()
+    val tabs = libraryTabs(settings.libraryTabs)
+    var tab by rememberSaveable { mutableStateOf(tabs.first()) }
     var creating by remember { mutableStateOf(false) }
     var joining by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { graph.syncLikes() } }
@@ -86,7 +92,7 @@ fun LibraryScreen(contentPadding: PaddingValues) {
             IconButton(onClick = { creating = true }) { Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, "New playlist") }
         }
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(LibraryTab.entries) { lt -> FilterChip(selected = tab == lt, onClick = { tab = lt }, label = { Text(t(lt.label)) }) }
+            items(tabs) { lt -> FilterChip(selected = tab == lt, onClick = { tab = lt }, label = { Text(t(lt.label)) }) }
         }
         val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp)
         when (tab) {

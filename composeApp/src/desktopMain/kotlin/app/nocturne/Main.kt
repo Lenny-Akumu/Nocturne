@@ -128,7 +128,10 @@ private fun launchApp() {
             val onScreen = s0.windowX != Int.MIN_VALUE && java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().screenDevices.any {
                 it.defaultConfiguration.bounds.contains(s0.windowX + 60, s0.windowY + 20)
             }
-            WindowState(
+            // screenshot runs: NOCTURNE_WINDOW=800x370 (e.g. a phone on its side)
+            val forced = System.getenv("NOCTURNE_WINDOW")?.split('x')?.mapNotNull { it.toIntOrNull() }?.takeIf { it.size == 2 }
+            if (forced != null) WindowState(position = WindowPosition(0.dp, 0.dp), size = DpSize(forced[0].dp, forced[1].dp))
+            else WindowState(
                 placement = if (s0.windowMaximized) WindowPlacement.Maximized else WindowPlacement.Floating,
                 position = if (onScreen) WindowPosition(s0.windowX.dp, s0.windowY.dp) else WindowPosition.PlatformDefault,
                 size = DpSize(s0.windowW.coerceAtLeast(420).dp, s0.windowH.coerceAtLeast(600).dp),
@@ -222,7 +225,7 @@ private fun launchApp() {
         ) {
             // runs during the first composition, before the window is shown
             remember { WindowEffects.prepare(window, settings.windowBackdrop) }
-            window.minimumSize = java.awt.Dimension(420, 600)
+            window.minimumSize = if (System.getenv("NOCTURNE_WINDOW") != null) java.awt.Dimension(200, 200) else java.awt.Dimension(420, 600)
             // mouse side buttons (X1 = back, X2 = forward), like a browser
             androidx.compose.runtime.DisposableEffect(Unit) {
                 val listener = java.awt.event.AWTEventListener { ev ->

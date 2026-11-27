@@ -21,12 +21,14 @@ fun runPromoShot(g: AppGraph, shot: String?, style: String?) {
     when (shot) {
         "appearance" -> g.navigator.push(Screen.SettingsPage(SettingsCategory.APPEARANCE))
         "devices" -> g.navigator.push(Screen.SettingsPage(SettingsCategory.DEVICES))
+        "content" -> g.navigator.push(Screen.SettingsPage(SettingsCategory.CONTENT))
         "search" -> g.navigator.selectTab(Screen.Search)
         "library" -> g.navigator.selectTab(Screen.Library)
         "settings" -> g.navigator.push(Screen.Settings)
-        "player", "eq", "connect", "lyrics", "queue", "comments" -> g.scope.launch {
+        "player", "demo-player", "eq", "connect", "lyrics", "queue", "comments" -> g.scope.launch {
             val tracks = runCatching { g.youtube.search("lofi hip hop", SearchFilter.SONGS) }.getOrDefault(emptyList())
                 .filterIsInstance<MediaEntry.Song>().map { it.track }
+                .ifEmpty { if (shot == "demo-player") listOf(app.nocturne.model.Track("demo", app.nocturne.model.Source.SOUNDCLOUD, "never sorry (hardtekk)", durationMs = 136_000)) else emptyList() }
             if (tracks.isNotEmpty()) {
                 g.player.play(tracks, 0, "lofi hip hop")
                 delay(1500)

@@ -267,10 +267,10 @@ class SpotifyProvider(
     override suspend fun rate(track: Track, rating: Rating) {
         if (!isSignedIn) return
         val method = if (rating == Rating.LIKE) HttpMethod.Put else HttpMethod.Delete
-        http.request("https://api.spotify.com/v1/me/tracks?ids=${track.id}") {
-            this.method = method
-            header("Authorization", "Bearer ${accessToken()}")
-        }
+        // since Feb 2026 saving goes through /me/library with URIs; older app registrations still have /me/tracks
+        val r = raw(method, "me/library?uris=" + "spotify:track:${track.id}".encodeURLParameter(), null)
+        if (r.status.isSuccess()) return
+        if (r.status.value == 403 || r.status.value == 404 || r.status.value == 410) ok(raw(method, "me/tracks?ids=${track.id}", null)) else ok(r)
     }
 
     override suspend fun likedTracks(): List<Track> =

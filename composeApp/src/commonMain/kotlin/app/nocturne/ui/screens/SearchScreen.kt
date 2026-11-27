@@ -118,7 +118,7 @@ fun SearchScreen(contentPadding: PaddingValues) {
         s.source = null
         s.initialized = true
     }
-    val sources = Source.entries.filter { it in settings.enabledSources }
+    val sources = app.nocturne.data.orderedSources(settings.sourceOrder).filter { it in settings.enabledSources }
 
     fun submit(q: String = s.query) {
         val text = q.trim()

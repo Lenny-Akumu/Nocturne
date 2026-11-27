@@ -47,6 +47,10 @@ data class LibraryData(
     val notInterested: List<Track> = emptyList(),
     val dislikedArtists: Map<String, Int> = emptyMap(),
     val plays: List<PlayEvent> = emptyList(),
+    /** Likes that came from a service, not from a heart tap here. */
+    val pulledLikes: Set<String> = emptySet(),
+    /** Each service's likes as of the last sync (source name -> keys), to notice unlikes made there. */
+    val remoteLikes: Map<String, List<String>> = emptyMap(),
 )
 
 class Library(private val settings: SettingsStore) {
@@ -68,8 +72,15 @@ class Library(private val settings: SettingsStore) {
     fun isLiked(track: Track) = _state.value.liked.any { it.key == track.key }
 
     fun toggleLike(track: Track) = mutate { d ->
-        if (d.liked.any { it.key == track.key }) d.copy(liked = d.liked.filterNot { it.key == track.key })
-        else d.copy(liked = listOf(track) + d.liked)
+        val pulled = d.pulledLikes - track.key
+        if (d.liked.any { it.key == track.key }) d.copy(liked = d.liked.filterNot { it.key == track.key }, pulledLikes = pulled)
+        else d.copy(liked = listOf(track) + d.liked, pulledLikes = pulled)
+    }
+
+    /** Likes go local-only: the ones services brought in leave, the next sync brings them back. */
+    fun dropPulledLikes() = mutate { d ->
+        if (d.pulledLikes.isEmpty() && d.remoteLikes.isEmpty()) d
+        else d.copy(liked = d.liked.filterNot { it.key in d.pulledLikes }, pulledLikes = emptySet(), remoteLikes = emptyMap())
     }
 
     fun markNotInterested(track: Track) = mutate { d ->
@@ -106,25 +117,34 @@ class Library(private val settings: SettingsStore) {
         val blocked = d.notInterested.map { it.key }.toSet()
         val r = remote.distinctBy { it.key }.filter { it.key !in blocked }
         if (r.isEmpty()) return@mutate d
+        val src = r.first().source.name
         val inRemote = r.mapTo(HashSet()) { it.key }
+        // unliked on the service since the last sync
+        val gone = d.remoteLikes[src].orEmpty().filterTo(HashSet()) { it !in inRemote }
+        val liked = if (gone.isEmpty()) d.liked else d.liked.filterNot { it.key in gone }
         val before = HashMap<String, MutableList<Track>>()
         val pending = ArrayList<Track>()
         val top = ArrayList<Track>()
         var seenRemote = false
-        for (t in d.liked) {
+        for (t in liked) {
             if (t.key in inRemote) {
                 // the ones above every synced song are the newest of all: they stay on top
                 if (!seenRemote) { top += pending; pending.clear(); seenRemote = true }
                 else if (pending.isNotEmpty()) { before.getOrPut(t.key) { ArrayList() } += pending; pending.clear() }
             } else pending += t
         }
-        val have = d.liked.associateBy { it.key }
-        val out = ArrayList<Track>(d.liked.size + r.size)
+        val have = liked.associateBy { it.key }
+        val out = ArrayList<Track>(liked.size + r.size)
         out += top
         for (t in r) { before[t.key]?.let(out::addAll); out += have[t.key] ?: t }
         out += pending
         val merged = out.distinctBy { it.key }
-        if (merged == d.liked) d else d.copy(liked = merged)
+        // first sync of this service: everything it has counts as brought in
+        val fresh = if (src !in d.remoteLikes) inRemote else inRemote.filterTo(HashSet()) { it !in have }
+        val pulled = d.pulledLikes - gone + fresh
+        val snapshot = d.remoteLikes + (src to r.map { it.key })
+        if (merged == d.liked && pulled == d.pulledLikes && snapshot == d.remoteLikes) d
+        else d.copy(liked = merged, pulledLikes = pulled, remoteLikes = snapshot)
     }
 
     fun mergeLiked(remote: List<Track>) = mutate { d ->
