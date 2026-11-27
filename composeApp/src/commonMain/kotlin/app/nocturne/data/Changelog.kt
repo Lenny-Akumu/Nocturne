@@ -5,6 +5,11 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.13.0",
+        en = listOf("Song info: release date, plays, label and credits", "Play counts on artist pages", "Spotify songs play the exact version", "Choose whether liked songs sync with services", "Reorder Library tabs and pick the one that opens first", "Choose the order of services on Home", "Spotify likes fixes", "Phone player in landscape fixes", "PC: smaller updates, only changed files are downloaded", "Smaller app size", "Performance updates and optimisations", "Bug fixes"),
+        uk = listOf("Інформація про трек: дата виходу, прослуховування, лейбл і автори", "Кількість прослуховувань на сторінках виконавців", "Пісні Spotify грають саме ту версію", "Вибір, чи синхронізувати вподобане із сервісами", "Порядок вкладок Бібліотеки та вкладка, що відкривається першою", "Порядок сервісів на головній", "Виправлення лайків Spotify", "Виправлення плеєра на телефоні в горизонтальному режимі", "ПК: менші оновлення, качаються лише змінені файли", "Менший розмір застосунку", "Оновлення та оптимізація швидкодії", "Виправлення помилок"),
+    ),
+    ChangelogEntry(
         "1.12.2",
         en = listOf("Liked songs and playlists sync on every launch", "Liked songs in the right order", "Staying signed in to YouTube Music", "Clear messages when an account's library can't load", "PC: volume follows the system volume mixer", "Linux design: volume slider and player fixes", "Songs start faster", "Bug fixes"),
         uk = listOf("Вподобане й плейлисти синхронізуються при кожному запуску", "Вподобані пісні в правильному порядку", "Вхід у YouTube Music більше не злітає", "Зрозумілі повідомлення, коли бібліотека акаунта не завантажилась", "ПК: гучність синхронізується із системним мікшером", "Дизайн Linux: повзунок гучності та виправлення плеєра", "Пісні запускаються швидше", "Виправлення помилок"),
