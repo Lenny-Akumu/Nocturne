@@ -76,7 +76,8 @@ private fun installLinux(archive: File) {
     exitProcess(0)
 }
 
-actual val patchListName: String? = if (isWindows) "Nocturne-files-windows.json" else "Nocturne-files-linux.json"
+// Windows list renamed after 1.13.1: those builds broke on non-Latin folder names and must take the installer
+actual val patchListName: String? = if (isWindows) "Nocturne-patch-windows.json" else "Nocturne-files-linux.json"
 
 @kotlinx.serialization.Serializable
 private class PatchFile(val p: String, val h: String, val s: Long, val u: String? = null, val x: Boolean = false)
@@ -130,19 +131,25 @@ actual suspend fun applyPatch(listUrl: String, onProgress: (Float) -> Unit): Boo
 private fun swapAndRestart(root: File, stage: File): Nothing {
     val pid = ProcessHandle.current().pid()
     if (isWindows) {
+        // cmd reads .cmd files in the OEM code page, so paths (Cyrillic user names) go in through the environment
         val script = File(System.getProperty("java.io.tmpdir"), "nocturne-patch.cmd")
         script.writeText(
             """
             @echo off
             :wait
-            tasklist /FI "PID eq $pid" 2>nul | find "$pid" >nul && (timeout /t 1 /nobreak >nul & goto wait)
-            robocopy "${stage.absolutePath}" "${root.absolutePath}" /E /R:10 /W:1 /NFL /NDL /NJH /NJS /NP >nul
-            rmdir /S /Q "${stage.absolutePath}"
-            start "" "${File(root, "Nocturne.exe").absolutePath}"
+            tasklist /FI "PID eq %NOC_PID%" 2>nul | find "%NOC_PID%" >nul && (timeout /t 1 /nobreak >nul & goto wait)
+            robocopy "%NOC_STAGE%" "%NOC_ROOT%" /E /R:10 /W:1 /NFL /NDL /NJH /NJS /NP >nul
+            rmdir /S /Q "%NOC_STAGE%"
+            start "" "%NOC_ROOT%\Nocturne.exe"
             del "%~f0"
             """.trimIndent().replace("\n", "\r\n"),
+            Charsets.US_ASCII,
         )
-        ProcessBuilder("cmd", "/c", "start", "\"\"", "/min", script.absolutePath).start()
+        ProcessBuilder("cmd", "/c", "start", "\"\"", "/min", script.absolutePath).apply {
+            environment()["NOC_PID"] = pid.toString()
+            environment()["NOC_STAGE"] = stage.absolutePath
+            environment()["NOC_ROOT"] = root.absolutePath
+        }.start()
     } else {
         val bin = File(root, "bin/Nocturne")
         val script = """

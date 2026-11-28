@@ -214,9 +214,15 @@ jobs:
         run: |
           # the previous release's file list: unchanged files keep its links, changed ones become this release's patch
           prev=$(gh release list -R "$GITHUB_REPOSITORY" -L 10 --json tagName -q '.[].tagName' | grep -vx "v${{ needs.meta.outputs.version }}" | head -1 || true)
-          [ -n "$prev" ] && gh release download "$prev" -R "$GITHUB_REPOSITORY" -p "Nocturne-files-windows.json" -D prev-files || true
+          # the list is Nocturne-patch-windows.json since 1.13.2 (older builds must not see it); earlier ones had the old name
+          if [ -n "$prev" ]; then
+            gh release download "$prev" -R "$GITHUB_REPOSITORY" -p "Nocturne-patch-windows.json" -D prev-files \
+              || gh release download "$prev" -R "$GITHUB_REPOSITORY" -p "Nocturne-files-windows.json" -D prev-files || true
+            [ -f prev-files/Nocturne-patch-windows.json ] && mv prev-files/Nocturne-patch-windows.json prev-files/Nocturne-files-windows.json
+          fi
           python packaging/manifest.py --dir composeApp/build/compose/binaries/main-release/app/Nocturne --os windows \
             --version "${{ needs.meta.outputs.version }}" --repo "$GITHUB_REPOSITORY" --prev prev-files/Nocturne-files-windows.json --out dist
+          mv dist/Nocturne-files-windows.json dist/Nocturne-patch-windows.json
       - uses: actions/upload-artifact@v4
         with:
           name: Nocturne-windows

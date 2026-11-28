@@ -5,6 +5,11 @@ data class ChangelogEntry(val version: String, val en: List<String>, val uk: Lis
 
 val Changelog = listOf(
     ChangelogEntry(
+        "1.13.2",
+        en = listOf("PC: updating works when your Windows user name isn't in Latin letters", "Bug fixes"),
+        uk = listOf("ПК: оновлення працює, коли ім'я користувача Windows не латиницею", "Виправлення помилок"),
+    ),
+    ChangelogEntry(
         "1.13.1",
         en = listOf("Spotify songs play the original Spotify audio in the Spotify app (Premium)", "Spotify songs never swap to a different song", "Performance updates and optimisations", "Bug fixes"),
         uk = listOf("Пісні Spotify грають оригінальний звук Spotify через додаток Spotify (Premium)", "Пісні Spotify більше не замінюються іншими піснями", "Оновлення та оптимізація швидкодії", "Виправлення помилок"),
