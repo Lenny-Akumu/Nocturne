@@ -427,6 +427,8 @@ fun SettingsPage(category: SettingsCategory, contentPadding: PaddingValues) {
                             Toggle("Skip silence", "Trim silent parts of tracks", Icons.Rounded.FastForward, s.skipSilence) { v -> set { it.copy(skipSilence = v) }; graph.player.applyAudioSettings() }
                         }
                         SliderPref("Seek step", "${s.seekStepSeconds}s", s.seekStepSeconds.toFloat(), 5f..30f, 4) { v -> set { it.copy(seekStepSeconds = v.toInt()) } }
+                        Toggle("Spotify songs in the Spotify app", "The original Spotify audio, with Premium", Icons.Rounded.PlayCircle, s.spotifyConnect) { v -> set { it.copy(spotifyConnect = v) } }
+                        Note(t(if (s.spotifyConnect) "Nocturne steers the Spotify app open on this device: the real Spotify recording plays there. Equalizer and effects don't apply to it. Without Premium or the app, the same recording plays from YouTube Music." else "Spotify songs play as the same recording from YouTube Music."))
                         Header("Queue")
                         Toggle("New release alerts", "Notify when artists you follow release something", Icons.Rounded.NotificationsActive, s.releaseAlerts) { v -> set { it.copy(releaseAlerts = v) } }
                         Toggle("Autoplay", "Keep playing similar songs when the queue ends", Icons.Rounded.Radio, s.autoplayRadio) { v -> set { it.copy(autoplayRadio = v) } }

@@ -86,7 +86,9 @@ class AppGraph(val engine: AudioEngine) {
         Source.LOCAL to local,
     )
 
-    val player = PlayerController(engine, allProviders, settings, library, scope)
+    val player = PlayerController(engine, allProviders, settings, library, scope).also { p ->
+        p.external = app.nocturne.source.SpotifyConnect(spotify) { settings.value.spotifyConnect }
+    }
     val remotePlaylists = app.nocturne.data.RemotePlaylists(
         scope,
         accounts = { enabledProviders().filter { it.source != Source.LOCAL && it.isSignedIn } },
@@ -104,6 +106,7 @@ class AppGraph(val engine: AudioEngine) {
             if (player.state.value.error == msg) player.dismissError()
         }
     }
+    init { player.notify = { toast(it) } }
     val cast = app.nocturne.cast.CastSession(this, scope)
     val party = app.nocturne.party.Party(this, scope)
     val coPlaylists = app.nocturne.party.CoPlaylists(this, scope)

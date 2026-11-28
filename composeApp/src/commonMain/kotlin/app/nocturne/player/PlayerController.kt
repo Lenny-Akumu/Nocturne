@@ -48,6 +48,8 @@ data class PlayerState(
     val instrumental: Boolean = false,
     /** Connected to another device: this one is only a remote, audio plays there. */
     val remoteName: String? = null,
+    /** The current song plays in another app (Spotify). */
+    val externalName: String? = null,
 ) {
     val current: Track? get() = queue.getOrNull(index)
     val hasNext: Boolean get() = index < queue.lastIndex || repeat == RepeatMode.ALL
@@ -91,6 +93,14 @@ class PlayerController(
     private var swapJob: Job? = null
     private var audioTrack: Track? = null // what the engine really plays (the instrumental or the track itself)
 
+    var external: ExternalPlayer? = null
+    var notify: (String) -> Unit = { showMessage(it) }
+    private var extKey: String? = null
+    private var extJob: Job? = null
+    private var extNoticed: String? = null
+    private val ext: ExternalPlayer? get() = external?.takeIf { extKey != null && extKey == _state.value.current?.key }
+    private val outside: Boolean get() = remote != null || ext != null
+
     init {
         engine.setListener(this)
         engine.setVolume(settings.value.volume)
@@ -107,8 +117,8 @@ class PlayerController(
                 val s = settings.value
                 val st = _state.value
                 val cf = s.crossfadeSec * 1000L
-                if (cf <= 0 || !st.isPlaying || remote != null) DspControl.sweep = 0f
-                val target = if (muted) 0f else if (cf <= 0 || !st.isPlaying || remote != null) s.volume else {
+                if (cf <= 0 || !st.isPlaying || outside) DspControl.sweep = 0f
+                val target = if (muted) 0f else if (cf <= 0 || !st.isPlaying || outside) s.volume else {
                     // some streams report no length until late: fall back to the track's own
                     val d = engine.durationMs.takeIf { it > 0 } ?: st.current?.durationMs ?: 0L
                     val p = engine.positionMs
@@ -153,7 +163,7 @@ class PlayerController(
             while (isActive) {
                 delay(500)
                 val s = _state.value
-                if (s.current != null && loadingKey == null && remote == null) {
+                if (s.current != null && loadingKey == null && !outside) {
                     _state.update { it.copy(positionMs = engine.positionMs, durationMs = engine.durationMs.takeIf { d -> d > 0 } ?: it.current?.durationMs ?: 0) }
                 }
                 s.sleepAtMs?.let { if (nowMillis() >= it) { pause(); _state.update { st -> st.copy(sleepAtMs = null) } } }
@@ -293,7 +303,7 @@ class PlayerController(
     var remote: RemoteOutput? = null
         set(v) {
             field = v
-            if (v != null) { engine.stop(); loadedKey = null }
+            if (v != null) { stopExternal(); engine.stop(); loadedKey = null }
             _state.update { it.copy(remoteName = v?.name, isBuffering = false) }
         }
 
@@ -318,6 +328,7 @@ class PlayerController(
             _state.update { it.copy(isPlaying = true) }
             return
         }
+        ext?.let { e -> extSend(e, "play"); _state.update { it.copy(isPlaying = true) }; return }
         // While loading, the engine still holds the previous media: play() would restart the old track.
         if (loadingKey != null) { pendingPlay = true; return }
         if (loadedKey != cur.key || engine.durationMs <= 0 && !s.isBuffering) loadCurrent(s.positionMs, true) else engine.play()
@@ -325,6 +336,7 @@ class PlayerController(
 
     fun pause() {
         remote?.let { it.send("pause"); _state.update { s -> s.copy(isPlaying = false) }; return }
+        ext?.let { e -> extSend(e, "pause"); _state.update { s -> s.copy(isPlaying = false) }; return }
         if (loadingKey != null) pendingPlay = false
         engine.pause()
     }
@@ -340,20 +352,21 @@ class PlayerController(
 
     fun previous() {
         val s = _state.value
-        if ((if (remote != null) s.positionMs else engine.positionMs) > 3000 || s.index <= 0) seekTo(0)
+        if ((if (outside) s.positionMs else engine.positionMs) > 3000 || s.index <= 0) seekTo(0)
         else { _state.update { it.copy(index = it.index - 1) }; loadCurrent(0, true) }
     }
 
     fun seekTo(ms: Long) {
         remote?.let { it.send("seek", ms); _state.update { s -> s.copy(positionMs = ms) }; return }
+        ext?.let { e -> extSend(e, "seek", ms); _state.update { s -> s.copy(positionMs = ms) }; return }
         if (loadingKey != null) pendingStartMs = ms else engine.seekTo(ms)
         _state.update { it.copy(positionMs = ms) }
     }
 
     fun seekBy(deltaMs: Long) {
         val st = _state.value
-        val pos = if (remote != null) st.positionMs else engine.positionMs
-        val dur = if (remote != null) st.durationMs else engine.durationMs
+        val pos = if (outside) st.positionMs else engine.positionMs
+        val dur = if (outside) st.durationMs else engine.durationMs
         seekTo((pos + deltaMs).coerceIn(0, dur.coerceAtLeast(0)))
     }
 
@@ -440,6 +453,7 @@ class PlayerController(
 
     fun setVolume(v: Float) {
         remote?.let { it.send("vol", vol = v); return }
+        ext?.let { e -> extSend(e, "vol", vol = v) }
         engine.setVolume(v)
         settings.update { it.copy(volume = v) }
     }
@@ -587,10 +601,66 @@ class PlayerController(
 
     fun dismissError() = _state.update { it.copy(error = null) }
 
+    private fun extSend(e: ExternalPlayer, op: String, ms: Long = 0, vol: Float = -1f) {
+        scope.launch { runCatching { e.command(op, ms, vol) }.onFailure { x -> if (op != "vol") x.message?.let(notify) } }
+    }
+
+    private fun stopExternal() {
+        val e = external
+        extJob?.cancel()
+        if (extKey != null && e != null) scope.launch { runCatching { e.command("pause") } }
+        extKey = null
+        _state.update { it.copy(externalName = null) }
+    }
+
+    // mirrors the other app's playback: its next song moves Nocturne's queue, the end of the run plays on here
+    private fun watchExternal(ex: ExternalPlayer, first: Track, run: List<String>) {
+        extJob?.cancel()
+        extJob = scope.launch {
+            var track = first
+            var since = nowMillis()
+            var last: ExternalState? = null
+            while (isActive && extKey == track.key) {
+                val st = runCatching { ex.poll() }.getOrNull()
+                if (st != null) {
+                    val nearEnd = last?.let { it.trackId == track.id && it.durationMs - it.positionMs < 5000 } == true
+                    val lastOfRun = run.lastOrNull() == track.id
+                    if (st.trackId == track.id) {
+                        _state.update { it.copy(positionMs = st.positionMs, durationMs = st.durationMs.takeIf { d -> d > 0 } ?: it.durationMs, isPlaying = st.playing, isBuffering = false) }
+                        val left = st.durationMs - st.positionMs
+                        if (lastOfRun && st.playing && left in 1..1200) { delay(left); if (extKey == track.key) onEnded(); return@launch }
+                        if (!st.playing && last?.playing == true && st.positionMs < 1000 && nearEnd) { onEnded(); return@launch }
+                    } else if (st.trackId != null && st.trackId in run) {
+                        val q = _state.value
+                        val nextOne = q.queue.getOrNull(q.index + 1)
+                        if (nextOne != null && nextOne.id == st.trackId && nextOne.source == track.source) {
+                            track = nextOne
+                            extKey = track.key
+                            loadedKey = track.key
+                            since = nowMillis()
+                            _state.update { it.copy(index = q.index + 1, positionMs = st.positionMs, durationMs = track.durationMs, isPlaying = st.playing) }
+                            library.recordPlay(track)
+                            queueChanged()
+                        } else { next(); return@launch } // the queue changed meanwhile: start what Nocturne has next
+                    } else if (nowMillis() - since > 5000) {
+                        if (nearEnd) { onEnded(); return@launch }
+                        // something else plays there now: let it be
+                        extKey = null
+                        _state.update { it.copy(isPlaying = false, externalName = null) }
+                        return@launch
+                    }
+                    last = st
+                }
+                delay(1000)
+            }
+        }
+    }
+
     // Reuses the error snackbar for short notices.
     fun showMessage(msg: String) = _state.update { it.copy(error = msg) }
 
     fun stop() {
+        stopExternal()
         loadJob?.cancel()
         loadingKey = null
         loadedKey = null
@@ -763,6 +833,7 @@ class PlayerController(
             return
         }
         loadJob?.cancel()
+        if (extKey != null) { if (external?.handles(track) == true && !synced) { extJob?.cancel(); extKey = null } else stopExternal() }
         retried = false
         val gen = ++loadGen
         loadingKey = track.key
@@ -776,6 +847,28 @@ class PlayerController(
         queueChanged()
         loadJob = scope.launch {
             try {
+                external?.takeIf { !synced && it.handles(track) }?.let { ex ->
+                    // the songs after it go along, so the other app moves on by itself even when this one sleeps in the background
+                    val q0 = _state.value
+                    val run = if (q0.repeat == RepeatMode.ONE) listOf(track)
+                    else listOf(track) + q0.queue.drop(q0.index + 1).take(49).takeWhile { ex.handles(it) }
+                    val started = runCatching { ex.start(run, startMs, playWhenReady) }
+                    if (started.isSuccess) {
+                        if (_state.value.current?.key != track.key) { if (gen == loadGen) loadingKey = null; return@launch }
+                        extKey = track.key
+                        loadedKey = track.key
+                        loadingKey = null
+                        pendingPlay = null
+                        pendingStartMs = null
+                        _state.update { it.copy(positionMs = startMs, isPlaying = playWhenReady, isBuffering = false, externalName = ex.name) }
+                        if (playWhenReady) library.recordPlay(track)
+                        watchExternal(ex, track, run.map { it.id })
+                        val s = _state.value
+                        if (settings.value.autoplayRadio && s.repeat == RepeatMode.OFF && s.index >= s.queue.lastIndex - 1) fetchRadio(track, replace = false)
+                        return@launch
+                    }
+                    started.exceptionOrNull()?.message?.let { m -> if (m != extNoticed) { extNoticed = m; notify(m) } }
+                }
                 // vocal remover: prefer an official instrumental (bounded wait; the lookup finishes and caches anyway)
                 val inst = if (vocalWanted()) withTimeoutOrNull(4000) { instrumentals.find(track) } else null
                 val instStream = inst?.let { runCatching { resolve(it) }.getOrNull() }
@@ -852,7 +945,7 @@ class PlayerController(
         val s = _state.value
         if (s.queue.isEmpty()) return
         runCatching {
-            FileStore.write(QUEUE_FILE, json.encodeToString(SavedQueue.serializer(), SavedQueue(s.queue.take(300), s.index, engine.positionMs, s.queueTitle)))
+            FileStore.write(QUEUE_FILE, json.encodeToString(SavedQueue.serializer(), SavedQueue(s.queue.take(300), s.index, if (outside) s.positionMs else engine.positionMs, s.queueTitle)))
         }
     }
 

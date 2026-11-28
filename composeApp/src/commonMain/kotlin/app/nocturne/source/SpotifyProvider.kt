@@ -211,6 +211,12 @@ class SpotifyProvider(
             if (body != null) { contentType(ContentType.Application.Json); setBody(body) }
         }
 
+    /** Spotify Connect calls (me/player…); the caller reads the status. */
+    /** Changes with every sign-in, so a fresh sign-in gets a fresh try. */
+    internal val session: Int get() = accounts.value.spotifyRefreshToken.hashCode()
+
+    internal suspend fun player(method: HttpMethod, path: String, body: String? = null): HttpResponse = raw(method, path, body)
+
     private suspend fun ok(r: HttpResponse): JsonElement? {
         if (r.status.value == 403) throw SourceUnavailableException("Spotify denied the change. Sign in to Spotify again to allow playlist editing.")
         if (!r.status.isSuccess()) throw SourceUnavailableException("Spotify: ${r.status}")
@@ -723,6 +729,7 @@ class SpotifyProvider(
         val LikedRef = CollectionRef("me:liked", Source.SPOTIFY, CollectionType.PLAYLIST, "Liked Songs", "Spotify")
         private const val PKCE_FILE = "spotify_pkce.txt"
         private const val SCOPES = "user-read-private user-read-email user-library-read user-library-modify playlist-read-private " +
-            "playlist-read-collaborative playlist-modify-public playlist-modify-private user-top-read user-read-recently-played user-follow-read"
+            "playlist-read-collaborative playlist-modify-public playlist-modify-private user-top-read user-read-recently-played user-follow-read " +
+            "user-read-playback-state user-modify-playback-state"
     }
 }

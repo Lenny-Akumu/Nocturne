@@ -74,6 +74,8 @@ data class Settings(
     val sourceOrder: List<Source> = emptyList(),
     /** false: likes stay in Nocturne, nothing goes to or comes from the services. */
     val platformLikes: Boolean = true,
+    /** Spotify songs play in the Spotify app (Connect, Premium) instead of their YouTube Music copy. */
+    val spotifyConnect: Boolean = true,
     /** LibraryTab names in the user's order; the first opens by default. */
     val libraryTabs: List<String> = emptyList(),
     val contentLanguage: String = "en",
