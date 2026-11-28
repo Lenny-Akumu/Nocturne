@@ -692,6 +692,7 @@ class PlayerController(
                 .filterIsInstance<app.nocturne.model.MediaEntry.Song>().map { it.track }
                 .filter { it.key != track.key && norm(it.title).let { t -> t.contains(want) || want.contains(t) } }
                 .filter { track.durationMs <= 0 || it.durationMs <= 0 || kotlin.math.abs(it.durationMs - track.durationMs) < 20_000 }
+                .filter { app.nocturne.source.YouTubeMusicProvider.sure(track.title, track.artists.map { a -> a.name }.ifEmpty { listOf(artist) }, track.durationMs, it) }
                 .sortedByDescending { c -> c.artists.count { norm(it.name).let { a -> a.isNotEmpty() && norm(artist).contains(a) } } }
             for (c in found.take(4)) runCatching { p.stream(c, q) }.getOrNull()?.let { return it }
         }

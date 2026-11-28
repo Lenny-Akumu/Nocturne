@@ -514,7 +514,7 @@ class SpotifyProvider(
         // the recording's ISRC points at the very same master on YouTube Music when it has it
         val isrc = runCatching { withTimeout(4_000) { api("tracks/${track.id}").path("external_ids", "isrc").str } }.getOrNull()
         val m = youtube.bestMatch(track.title, track.artists.firstOrNull()?.name.orEmpty(), track.durationMs, track.artists.map { it.name }, isrc)
-            ?: throw SourceUnavailableException("No playable match for “${track.title}”")
+            ?: throw SourceUnavailableException(app.nocturne.i18n.t("No exact copy of “%s” to play", track.title))
         matches[track.key] = m
         return m
     }

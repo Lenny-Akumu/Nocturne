@@ -4,6 +4,9 @@ import app.nocturne.model.ArtistRef
 import app.nocturne.model.Source
 import app.nocturne.model.Track
 import app.nocturne.source.YouTubeMusicProvider.Companion.matchScore
+import app.nocturne.source.YouTubeMusicProvider.Companion.sure
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,5 +40,14 @@ class MatchTest {
         val real = yt("Creep", "Radiohead", 238)
         assertEquals("Creep", pick("Creep", listOf("Radiohead"), 238, cover, real))
         assertEquals(real, listOf(cover, real).maxBy { matchScore("Creep", listOf("Radiohead"), 238_000, it) })
+    }
+
+    @Test
+    fun aDifferentSongIsNeverGoodEnough() {
+        assertFalse(sure("Обійми", listOf("Океан Ельзи"), 254_000, yt("Не П'яна - Закохана", "Alena Omargalieva", 228)))
+        assertFalse(sure("Creep", listOf("Radiohead"), 238_000, yt("Creep", "Postmodern Jukebox", 238)))
+        assertFalse(sure("Believer", listOf("Imagine Dragons"), 204_000, yt("Believer", "Imagine Dragons", 300)))
+        assertTrue(sure("Обійми", listOf("Океан Ельзи"), 254_000, yt("Обійми", "Океан Ельзи", 253)))
+        assertTrue(sure("Bohemian Rhapsody - Remastered 2011", listOf("Queen"), 354_000, yt("Bohemian Rhapsody", "Queen", 355)))
     }
 }

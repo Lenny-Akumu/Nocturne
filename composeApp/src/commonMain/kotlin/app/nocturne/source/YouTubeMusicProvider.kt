@@ -165,19 +165,20 @@ class YouTubeMusicProvider(
         if (!isrc.isNullOrBlank()) {
             val byCode = runCatching { search(isrc, SearchFilter.SONGS) }.getOrDefault(emptyList())
                 .filterIsInstance<MediaEntry.Song>().map { it.track }
-                .firstOrNull { matchScore(title, artists, durationMs, it) >= 6.0 }
+                .firstOrNull { sure(title, artists, durationMs, it) && matchScore(title, artists, durationMs, it) >= 6.0 }
             if (byCode != null) return byCode
         }
         val names = artists.filter { it.isNotBlank() }.ifEmpty { listOf(artist) }
         fun best(list: List<Track>) = list.take(12).withIndex().maxByOrNull { (i, c) -> matchScore(title, names, durationMs, c) - i * 0.05 }?.value
         val q1 = "$title ${names.take(2).joinToString(" ")}"
         val top = best(search(q1, SearchFilter.SONGS).filterIsInstance<MediaEntry.Song>().map { it.track })
-        if (top != null && matchScore(title, names, durationMs, top) >= 7.0) return top
+        if (top != null && matchScore(title, names, durationMs, top) >= 7.0 && sure(title, names, durationMs, top)) return top
         // nothing convincing: ask again in other words (the title alone with the main artist, then the bare title)
         val more = listOf("$title $artist", title).distinct().filter { it != q1 }.flatMap { q ->
             runCatching { search(q, SearchFilter.SONGS) }.getOrDefault(emptyList()).filterIsInstance<MediaEntry.Song>().map { it.track }.take(8)
         }
-        return best((listOfNotNull(top) + more).distinctBy { it.id }) ?: top
+        // a wrong song is worse than none: only the same title by the same artist goes through
+        return best((listOfNotNull(top) + more).distinctBy { it.id })?.takeIf { sure(title, names, durationMs, it) }
     }
 
     companion object {
@@ -199,6 +200,24 @@ class YouTubeMusicProvider(
             return versionWords.filter { w -> Regex("(^|[^\\p{L}])" + Regex.escape(w) + "($|[^\\p{L}])").containsMatchIn(l) }.toSet()
                 .let { tags -> if ("radio edit" in tags) tags - "edit" else tags }
         }
+
+        private fun sameArtist(artists: List<String>, c: Track): Boolean {
+            val theirs = c.artists.map { normalize(it.name) }.filter { it.isNotEmpty() }
+            return artists.map { normalize(it) }.filter { it.isNotEmpty() }
+                .any { a -> theirs.any { b -> a == b || a.contains(b) || b.contains(a) } || normalize(c.title).contains(a) }
+        }
+
+        private fun sameTitle(title: String, c: Track): Boolean {
+            val nt = normalize(title)
+            val ct = normalize(c.title)
+            return ct == nt || (nt.isNotEmpty() && ct.isNotEmpty() && (ct.contains(nt) || nt.contains(ct)))
+        }
+
+        /** Good enough to play in place of the original: same title, same artist, about the same length. */
+        fun sure(title: String, artists: List<String>, durationMs: Long, c: Track): Boolean =
+            sameTitle(title, c) && sameArtist(artists, c) &&
+                (durationMs <= 0 || c.durationMs <= 0 || kotlin.math.abs(durationMs - c.durationMs) <= 40_000) &&
+                matchScore(title, artists, durationMs, c) >= 5.0
 
         /** How sure we are that [c] is the song [title] by [artists], about [durationMs] long. */
         fun matchScore(title: String, artists: List<String>, durationMs: Long, c: Track): Double {

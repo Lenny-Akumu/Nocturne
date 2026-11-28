@@ -932,6 +932,7 @@ internal object Uk {
         "Mirror time" to "Дзеркальний час",
         "By lyrics" to "За текстом",
         "Type a line you remember, as exact as you can." to "Напиши рядок, який пам'ятаєш, якомога точніше.",
+        "No exact copy of “%s” to play" to "Немає точної копії «%s» для відтворення",
         "Couldn't find “%s” to play" to "Не вдалося знайти «%s» для відтворення",
         "Auto-download liked songs" to "Автозавантаження вподобаних",
         "Keeps everything you like playable offline" to "Усе, що лайкаєш, буде доступне офлайн",
